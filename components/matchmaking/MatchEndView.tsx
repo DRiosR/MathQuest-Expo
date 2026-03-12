@@ -150,7 +150,8 @@ export default function MatchEndView({ didWin, player1Username, player2Username,
     // Show coin lottie after a delay (after ELO animation completes)
     const coinsDelay = setTimeout(() => {
       setCoinsLottieVisible(true);
-      // Fire-and-forget: update server coins
+      // Solo persistir monedas si hay usuario autenticado (evita "No authenticated user")
+      if (!user?.id) return;
       (async () => {
         try {
           await incrementCurrentUserCoins(coinsToAdd);
@@ -161,7 +162,7 @@ export default function MatchEndView({ didWin, player1Username, player2Username,
     }, 3200); // Show after ELO animation
 
     return () => clearTimeout(coinsDelay);
-  }, [didWin, player1TotalScore, player2TotalScore]);
+  }, [didWin, player1TotalScore, player2TotalScore, user?.id]);
 
   return (
     <View style={styles.container}>

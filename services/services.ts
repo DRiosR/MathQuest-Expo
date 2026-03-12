@@ -345,6 +345,9 @@ class WebSocketService {
     });
 
     this.socket.on('error', (error: { message: string }) => {
+      if (error?.message === 'Ya estás en la cola de espera') {
+        return; // No es error real, solo duplicado de findPlayer
+      }
       console.error('❌ Error del servidor:', error);
       this.errorListeners.forEach(listener => listener(error));
     });
@@ -520,7 +523,8 @@ class WebSocketService {
       // Actualizar actividad para mantener conexión activa
       this.lastActivity = Date.now();
     } else {
-      console.error('❌ No se puede cancelar búsqueda: WebSocket no conectado');
+      // Si no está conectado, no había búsqueda activa en el servidor - cancelar solo localmente
+      console.log('ℹ️ Cancelación local (WebSocket aún conectando o no conectado)');
     }
   }
 

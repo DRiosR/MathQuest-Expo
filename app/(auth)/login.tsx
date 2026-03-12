@@ -134,10 +134,12 @@ export default function LoginScreen() {
                 icon="user"
                 placeholder="Email"
                 value={formData.email}
-                onChangeText={(text) => setFormData({ ...formData, email: text })}
+                onChangeText={(text) => setFormData((prev) => ({ ...prev, email: text }))}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                textContentType="emailAddress"
+                autoComplete="email"
                 error={errors.email}
               />
 
@@ -145,8 +147,10 @@ export default function LoginScreen() {
                 icon="lock"
                 placeholder="Contraseña"
                 value={formData.password}
-                onChangeText={(text) => setFormData({ ...formData, password: text })}
+                onChangeText={(text) => setFormData((prev) => ({ ...prev, password: text }))}
                 secureTextEntry
+                textContentType="password"
+                autoComplete="password"
                 error={errors.password}
               />
 

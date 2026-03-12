@@ -1,3 +1,14 @@
+import { router } from 'expo-router';
+import { useEffect } from 'react';
+import { View } from 'react-native';
+
+export default function RouletteScreen() {
+  useEffect(() => {
+    router.replace('/(games)/matchmaking-screen');
+  }, []);
+  return <View />;
+}
+
 {/*
 
     import { FontAwesome5 } from '@expo/vector-icons';

@@ -167,6 +167,8 @@ export const useWebSocket = (): UseWebSocketReturn => {
 
     // Listener para errores
     errorListenerRef.current = (error: { message: string }) => {
+      // Ignorar "Ya estás en la cola" - no es un error real, solo duplicado
+      if (error?.message === 'Ya estás en la cola de espera') return;
       setError(error.message);
       setIsLoading(false);
     };

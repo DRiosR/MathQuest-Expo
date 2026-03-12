@@ -1,4 +1,13 @@
+import { router } from 'expo-router';
+import { useEffect } from 'react';
+import { View } from 'react-native';
 
+export default function QuizScreen() {
+  useEffect(() => {
+    router.replace('/(games)/matchmaking-screen');
+  }, []);
+  return <View />;
+}
 
 {/* 
 import { LayeredAvatar } from '@/components/LayeredAvatar';

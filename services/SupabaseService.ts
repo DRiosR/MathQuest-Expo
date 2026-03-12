@@ -585,7 +585,10 @@ export async function incrementCurrentUserCoins(delta: number): Promise<number> 
   try {
     const { data: authData } = await supabase.auth.getUser();
     const userId = authData?.user?.id ?? null;
-    if (!userId) throw new Error('No authenticated user');
+    if (!userId) {
+      // Usuario no autenticado o error de red - no lanzar, retornar 0
+      return 0;
+    }
 
     // Fetch current coins (if any)
     const { data: existing, error: fetchError } = await supabase
@@ -624,6 +627,10 @@ export async function incrementCurrentUserCoins(delta: number): Promise<number> 
 
     return newCoins;
   } catch (error) {
+    // Reducir ruido: errores de red o auth no críticos
+    if (error instanceof Error && (error.message?.includes('authenticated') || error.message?.includes('Network'))) {
+      return 0;
+    }
     console.error('Error incrementing user coins:', error);
     throw error;
   }

@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Dimensions, Easing, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -455,9 +455,11 @@ export default function MatchmakingScreen() {
     contentTranslateY.setValue(0);
   };
 
-  // Auto-join matchmaking when connected
+  // Evitar llamar findPlayer múltiples veces (evita "Ya estás en la cola de espera")
+  const hasInitiatedSearch = useRef(false);
   useEffect(() => {
-    if (isConnected) {
+    if (isConnected && !hasInitiatedSearch.current) {
+      hasInitiatedSearch.current = true;
       findPlayer(myUserId, myUsername);
     }
   }, [isConnected, findPlayer, myUserId, myUsername]);
