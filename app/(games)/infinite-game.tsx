@@ -677,7 +677,9 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
                   setQuestionsAnswered(0);
                   setUserAnswer('');
                   setShowGameOverModal(false);
-                  try { router.back(); } catch {}
+                  // Usar replace en vez de back: el modo infinito está en la pestaña Extras,
+                  // no hay pantalla previa en la pila, así que back falla con GO_BACK
+                  router.replace('/(tabs)/play');
                 }}
               >
                 <LinearGradient
