@@ -19,8 +19,9 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { getUserAvatar, getUserElo } from '@/services/SupabaseService';
 import { Avatar } from '@/types/avatar';
 import LottieView from 'lottie-react-native';
+import { Alert } from 'react-native';
 
-type GameState = 'MATCHMAKING' | 'MATCH_FOUND' | 'ROULETTE' | 'QUIZ' | 'ROUND_RESULT' | 'MATCH_END';
+type GameState = 'MATCHMAKING' | 'MATCH_FOUND' | 'COUNTDOWN' | 'ROULETTE' | 'QUIZ' | 'ROUND_RESULT' | 'MATCH_END';
 
 function clamp(n: number, min = 0, max = 255) { return Math.min(max, Math.max(min, n)); }
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
@@ -80,6 +81,7 @@ export default function MatchmakingScreen() {
     currentRoom,
     socketId,
     websocketService,
+    forfeitGame,
   } = useWebSocket();
 
   const [gameState, setGameState] = useState<GameState>('MATCHMAKING');
@@ -102,6 +104,12 @@ export default function MatchmakingScreen() {
   const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
   const [myRoundScore, setMyRoundScore] = useState<number>(0);
   const [hasCompletedRound, setHasCompletedRound] = useState<boolean>(false);
+
+  // Initial countdown state
+  const [countdown, setCountdown] = useState(3);
+  const [isInitialCountdown, setIsInitialCountdown] = useState(false);
+  const countdownScale = useRef(new Animated.Value(1)).current;
+  const countdownOpacity = useRef(new Animated.Value(1)).current;
 
   // Transition overlay state
   const [isTransitioningToQuiz, setIsTransitioningToQuiz] = useState<boolean>(false);
@@ -174,7 +182,14 @@ export default function MatchmakingScreen() {
       setMyRoundScore(0);
       setHasCompletedRound(false);
       setQuestionStartTime(Date.now());
-      setGameState('ROULETTE');
+      
+      if ((data?.roundNumber || 1) === 1) {
+        setCountdown(3);
+        setIsInitialCountdown(true);
+        setGameState('COUNTDOWN');
+      } else {
+        setGameState('ROULETTE');
+      }
     });
   }, [onRoundStarted]);
 
@@ -296,6 +311,48 @@ export default function MatchmakingScreen() {
       setEloInfo(null);
     }
   }, [gameState, gameData?.winner, socketId, user?.id]);
+
+  // Initial Countdown Effect
+  useEffect(() => {
+    if (!isInitialCountdown) return;
+
+    // Reset animations for each number
+    countdownScale.setValue(1);
+    countdownOpacity.setValue(1);
+
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(countdownScale, { toValue: 3, duration: 900, useNativeDriver: true }),
+        Animated.timing(countdownOpacity, { toValue: 0, duration: 900, useNativeDriver: true }),
+      ])
+    ]).start();
+
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIsInitialCountdown(false);
+          // ¡YA! Ahora sí empezamos con la ruleta
+          setGameState('ROULETTE');
+          return 0;
+        }
+        
+        countdownScale.setValue(1);
+        countdownOpacity.setValue(1);
+        
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(countdownScale, { toValue: 3, duration: 900, useNativeDriver: true }),
+            Animated.timing(countdownOpacity, { toValue: 0, duration: 900, useNativeDriver: true }),
+          ])
+        ]).start();
+
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isInitialCountdown]);
 
   useEffect(() => {
     onAnswerResult((result: { exerciseId: string; isCorrect: boolean; correctAnswer: number; currentScore?: number; totalExercises?: number }) => {
@@ -469,6 +526,25 @@ export default function MatchmakingScreen() {
     router.back();
   };
 
+  const handleForfeit = () => {
+    Alert.alert(
+      '¿ABANDONAR PARTIDA?',
+      'Si abandonas ahora, perderás la partida automáticamente y se te restarán puntos de ELO. ¿Estás seguro?',
+      [
+        { text: 'NO, SEGUIR JUGANDO', style: 'cancel' },
+        { 
+          text: 'SÍ, ABANDONAR', 
+          style: 'destructive',
+          onPress: () => {
+            if (currentRoom) {
+              forfeitGame(currentRoom);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleExitMatchEnd = () => {
     websocketService.disconnect();
     router.back();
@@ -498,6 +574,7 @@ export default function MatchmakingScreen() {
             position={queuePosition}
             isExiting={isExitingMatchmaking}
             onExitComplete={() => {
+              // Ya no activamos el countdown aquí, se activa en onRoundStarted
               setGameState('MATCH_FOUND');
               setIsExitingMatchmaking(false);
             }}
@@ -513,9 +590,16 @@ export default function MatchmakingScreen() {
             }}
             isExiting={isExitingMatchFound}
             onExitComplete={() => {
-              setGameState('ROULETTE');
+              // Simplemente dejamos que onRoundStarted maneje el siguiente estado
+              // o si el servidor tarda, nos quedamos aquí un momento
             }}
           />
+        );
+      case 'COUNTDOWN':
+        return (
+          <View style={styles.countdownStage}>
+            <Text style={[styles.preparingText, { fontFamily: 'Digitalt' }]}>¡PREPÁRATE!</Text>
+          </View>
         );
       case 'ROULETTE':
         return (
@@ -578,6 +662,7 @@ export default function MatchmakingScreen() {
             onDigit={handleDigit}
             onClear={handleClear}
             onOk={handleOk}
+            onForfeit={handleForfeit}
           />
         );
       case 'ROUND_RESULT':
@@ -637,6 +722,23 @@ export default function MatchmakingScreen() {
           </View>
         )}
         {renderContent()}
+
+        {isInitialCountdown && (
+          <View style={styles.initialCountdownOverlay}>
+            <Animated.Text 
+              style={[
+                styles.initialCountdownText, 
+                { 
+                  fontFamily: 'Digitalt',
+                  transform: [{ scale: countdownScale }],
+                  opacity: countdownOpacity
+                }
+              ]}
+            >
+              {countdown}
+            </Animated.Text>
+          </View>
+        )}
 
         {(isTransitioningToQuiz || isTransitioningFromQuiz) && (
           <Animated.View
@@ -779,6 +881,32 @@ const styles = StyleSheet.create({
   centerLottie: {
     width: 160,
     height: 160,
+  },
+  countdownStage: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  preparingText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    letterSpacing: 2,
+    opacity: 0.8,
+  },
+  initialCountdownOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    zIndex: 9999,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  initialCountdownText: {
+    color: '#FFD616',
+    fontSize: 180,
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 4, height: 4 },
+    textShadowRadius: 20,
   },
 });
 

@@ -108,8 +108,13 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
   
   // Alias input for game end
   const [aliasInput, setAliasInput] = useState('');
-  const [showGameOverModal, setShowGameOverModal] = useState(false);
   const [gameOverStats, setGameOverStats] = useState({ score: 0, questionsAnswered: 0, accuracy: 0 });
+
+  // Countdown state
+  const [countdown, setCountdown] = useState(3);
+  const [isCountingDown, setIsCountingDown] = useState(false);
+  const countdownScale = useRef(new Animated.Value(1)).current;
+  const countdownOpacity = useRef(new Animated.Value(1)).current;
 
   // Animations
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -169,13 +174,57 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
     questionsAnsweredRef.current = 0;
     
     generateNewQuestion();
-    startTimer();
+    
+    // Start countdown instead of immediate timer
+    setIsCountingDown(true);
+    setCountdown(3);
+    countdownScale.setValue(1);
+    countdownOpacity.setValue(1);
 
     // Record that the user played today and notify parent
     recordPlayDay().finally(() => {
       try { onPlayedToday && onPlayedToday(); } catch {}
     });
   };
+
+  // Countdown effect
+  useEffect(() => {
+    if (!isCountingDown) return;
+
+    // Pulse animation for the current number
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(countdownScale, { toValue: 2, duration: 800, useNativeDriver: true }),
+        Animated.timing(countdownOpacity, { toValue: 0, duration: 800, useNativeDriver: true }),
+      ])
+    ]).start();
+
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIsCountingDown(false);
+          startTimer(); // START GAME TIMER HERE
+          return 0;
+        }
+        
+        // Reset animations for next number
+        countdownScale.setValue(1);
+        countdownOpacity.setValue(1);
+        
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(countdownScale, { toValue: 2, duration: 800, useNativeDriver: true }),
+            Animated.timing(countdownOpacity, { toValue: 0, duration: 800, useNativeDriver: true }),
+          ])
+        ]).start();
+
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isCountingDown]);
 
   const startTimer = () => {
     timerRef.current = setInterval(() => {
@@ -455,6 +504,23 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
       <AnimatedMathBackground />
 
       <SafeAreaView style={styles.safeArea}>
+        {/* Countdown Overlay */}
+        {isCountingDown && (
+          <View style={styles.countdownOverlay}>
+            <Animated.Text 
+              style={[
+                styles.countdownText, 
+                { 
+                  fontFamily: 'Digitalt',
+                  transform: [{ scale: countdownScale }],
+                  opacity: countdownOpacity
+                }
+              ]}
+            >
+              {countdown}
+            </Animated.Text>
+          </View>
+        )}
         {/* Top bar with timer and score */}
         <View style={styles.gameTopBar}>
           {/* Back button */}
@@ -780,16 +846,30 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 4,
-    borderColor: '#fff',
-    elevation: 15,
+    backgroundColor: '#A855F7',
+    paddingHorizontal: 30,
+    paddingVertical: 15,
+    marginTop: 20,
+    elevation: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.3,
-    shadowRadius: 15,
+    shadowRadius: 10,
+  },
+  countdownOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    zIndex: 9999,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  countdownText: {
+    color: '#FFD616',
+    fontSize: 150,
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 4, height: 4 },
+    textShadowRadius: 15,
   },
   layeredAvatar: {
     borderRadius: 34,

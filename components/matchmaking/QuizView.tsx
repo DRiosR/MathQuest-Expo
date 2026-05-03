@@ -18,6 +18,7 @@ type Props = {
   onDigit: (d: string) => void;
   onClear: () => void;
   onOk: () => void;
+  onForfeit?: () => void;
 };
 
 // Map mascot names to their static Lottie requires (React Native requires static paths)
@@ -32,7 +33,7 @@ function getMascotIdleSource(mascotName?: string) {
   return (mascotName && MASCOT_IDLE_SOURCES[mascotName]) || require('@/assets/lotties/extras/Time-15.json');
 }
 
-export default function QuizView({ roundNumber, category, question, index, total, answerText, localScore, disabled, onDigit, onClear, onOk }: Props) {
+export default function QuizView({ roundNumber, category, question, index, total, answerText, localScore, disabled, onDigit, onClear, onOk, onForfeit }: Props) {
   const insets = useSafeAreaInsets();
   const [trackWidth, setTrackWidth] = useState(0);
   const fillWidth = useRef(new Animated.Value(0)).current;
@@ -46,8 +47,12 @@ export default function QuizView({ roundNumber, category, question, index, total
       useNativeDriver: false,
     }).start();
   }, [index, total, trackWidth]);
+
+
+
   return (
     <View style={styles.quizContainer}>
+
       <LinearGradient
         colors={["#5643B3", category?.color || '#8A56FE']}
         start={{ x: 0.5, y: 0 }}
@@ -65,7 +70,16 @@ export default function QuizView({ roundNumber, category, question, index, total
       />
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.roundTitle, { fontFamily: 'Digitalt' }]}>RONDA {roundNumber || 1}</Text>
+        <View style={styles.topHeaderRow}>
+          <Text style={[styles.roundTitle, { fontFamily: 'Digitalt' }]}>RONDA {roundNumber || 1}</Text>
+          <TouchableOpacity 
+            style={styles.forfeitBtn} 
+            onPress={onForfeit}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.forfeitBtnText, { fontFamily: 'Gilroy-Black' }]}>ABANDONAR</Text>
+          </TouchableOpacity>
+        </View>
         <Text style={[styles.roundSubtitle, { fontFamily: 'Digitalt' }]}>{category?.name?.toUpperCase() || 'CATEGORÍA'}</Text>
 
         {/* Progress + score row */}
@@ -158,6 +172,28 @@ const styles = StyleSheet.create({
   keypadOk: { backgroundColor: '#FF46A5' },
   keypadClear: { backgroundColor: 'rgba(255,255,255,0.25)' },
   localScore: { marginTop: 8, color: '#FFFFFF', opacity: 0.9, textAlign: 'center' },
+  topHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    position: 'relative',
+  },
+  forfeitBtn: {
+    position: 'absolute',
+    right: 0,
+    backgroundColor: 'rgba(255, 0, 0, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 0, 0, 0.4)',
+  },
+  forfeitBtnText: {
+    color: '#FFBABA',
+    fontSize: 10,
+    letterSpacing: 0.5,
+  },
 });
 
 

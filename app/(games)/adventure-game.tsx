@@ -342,8 +342,13 @@ export default function AdventureGameScreen() {
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [gameEnded, setGameEnded] = useState(false);
-  const [showLevelComplete, setShowLevelComplete] = useState(false);
   const [levelStats, setLevelStats] = useState({ correct: 0, total: 0, stars: 0 });
+
+  // Countdown state
+  const [countdown, setCountdown] = useState(3);
+  const [isCountingDown, setIsCountingDown] = useState(false);
+  const countdownScale = useRef(new Animated.Value(1)).current;
+  const countdownOpacity = useRef(new Animated.Value(1)).current;
 
   // Animations
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -383,7 +388,46 @@ export default function AdventureGameScreen() {
     setIsPlaying(true);
     setGameEnded(false);
     generateNewQuestion(level);
+
+    // Start countdown
+    setIsCountingDown(true);
+    setCountdown(3);
+    countdownScale.setValue(1);
+    countdownOpacity.setValue(1);
   };
+
+  // Countdown effect
+  useEffect(() => {
+    if (!isCountingDown) return;
+
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(countdownScale, { toValue: 2, duration: 800, useNativeDriver: true }),
+        Animated.timing(countdownOpacity, { toValue: 0, duration: 800, useNativeDriver: true }),
+      ])
+    ]).start();
+
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIsCountingDown(false);
+          return 0;
+        }
+        countdownScale.setValue(1);
+        countdownOpacity.setValue(1);
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(countdownScale, { toValue: 2, duration: 800, useNativeDriver: true }),
+            Animated.timing(countdownOpacity, { toValue: 0, duration: 800, useNativeDriver: true }),
+          ])
+        ]).start();
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isCountingDown]);
 
   const generateNewQuestion = (level: AdventureLevel) => {
     const category = categories[level.category];
@@ -701,6 +745,23 @@ export default function AdventureGameScreen() {
       <AnimatedMathBackground />
 
       <SafeAreaView style={styles.safeArea}>
+        {/* Countdown Overlay */}
+        {isCountingDown && (
+          <View style={styles.countdownOverlay}>
+            <Animated.Text 
+              style={[
+                styles.countdownText, 
+                { 
+                  fontFamily: 'Digitalt',
+                  transform: [{ scale: countdownScale }],
+                  opacity: countdownOpacity
+                }
+              ]}
+            >
+              {countdown}
+            </Animated.Text>
+          </View>
+        )}
         {/* Game header */}
         <View style={styles.gameHeader}>
           <TouchableOpacity 
@@ -935,16 +996,15 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 4,
-    borderColor: '#fff',
-    elevation: 15,
+    backgroundColor: '#FFD616',
+    paddingHorizontal: 30,
+    paddingVertical: 15,
+    marginTop: 20,
+    elevation: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.3,
-    shadowRadius: 15,
+    shadowRadius: 10,
   },
   layeredAvatar: {
     borderRadius: 34,
