@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import * as Linking from 'expo-linking';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthButton } from '@/components/ui/AuthButton';
@@ -21,69 +20,75 @@ import AuthService from '@/Core/Services/AuthService/AuthService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFontContext } from '@/contexts/FontsContext';
 
-export default function ForgotPasswordScreen() {
+export default function ResetPasswordScreen() {
   const { fontsLoaded } = useFontContext();
-
-  const { resetPassword, loading } = useAuth();
+  const { updatePassword, loading, isRecovering } = useAuth();
   
-  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
-  const [emailSent, setEmailSent] = useState(false);
+  const [success, setSuccess] = useState(false);
 
-  const normalizeEmail = (value: string) =>
-    value
-      .normalize('NFKC')
-      .trim()
-      .toLowerCase()
-      // remove any spaces and zero-width/invisible spaces pasted from clipboard
-      .replace(/\s+/g, '')
-      .replace(/[\u200B-\u200D\uFEFF]/g, '');
-
-  const validateEmail = (email: string) => {
-    return /\S+@\S+\.\S+/.test(email);
-  };
+  // Security check: if user is not in a recovery flow, send them back to login
+  React.useEffect(() => {
+    if (!loading && !isRecovering && !success) {
+      console.log('🛡️ Intento de acceso a Reset Password sin sesión de recuperación. Redirigiendo...');
+      router.replace('/(auth)/login');
+    }
+  }, [isRecovering, loading, success]);
 
   const handleResetPassword = async () => {
-    const normalized = normalizeEmail(email);
-    if (!normalized) {
-      setError('El email es requerido');
+    setError('');
+
+    if (!password) {
+      setError('La contraseña es requerida');
       return;
     }
 
-    if (!validateEmail(normalized)) {
-      setError('El email no es válido');
+    if (password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres');
       return;
     }
+
+    if (password !== confirmPassword) {
+      setError('Las contraseñas no coinciden');
+      return;
+    }
+
+    // Check if we have a session (user should be signed in via the link)
+    const { data: { session } } = await AuthService.getClient().auth.getSession();
+    if (!session) {
+      setError('Sesión de recuperación no encontrada. Por favor, usa el enlace del correo de nuevo.');
+      Alert.alert('Error', 'Sesión expirada o no encontrada.');
+      return;
+    }
+
+    const translateError = (msg: string) => {
+      if (msg.toLowerCase().includes('different from the old password')) return 'La nueva contraseña debe ser diferente a la anterior.';
+      if (msg.toLowerCase().includes('at least 6 characters')) return 'La contraseña debe tener al menos 6 caracteres.';
+      if (msg.toLowerCase().includes('session missing')) return 'Sesión expirada o no encontrada. Usa el enlace del correo de nuevo.';
+      if (msg.toLowerCase().includes('expired')) return 'El enlace ha expirado. Por favor solicita uno nuevo.';
+      return 'Ocurrió un error inesperado. Intenta de nuevo.';
+    };
 
     try {
-      // Security: Ensure no session is active before requesting recovery
-      try {
-        await AuthService.signOut();
-      } catch (e) {
-        // Ignore errors if already signed out
-      }
-      
-      const redirectTo = Linking.createURL('/(auth)/reset-password');
-      console.log('🛡️ Solicitando recuperación para:', normalized);
-      console.log('🔗 Redirect URL configurada:', redirectTo);
-      
-      const { error } = await resetPassword(normalized, redirectTo);
+      const { error } = await updatePassword(password);
 
       if (error) {
-        let msg = 'Error inesperado. Intenta de nuevo.';
-        if (error.message.includes('not found')) msg = 'No encontramos ninguna cuenta con ese correo.';
-        if (error.message.includes('rate limit')) msg = 'Has intentado demasiadas veces. Espera un momento.';
-        
-        setError(msg);
-        Alert.alert('Error', msg);
+        const spanishError = translateError(error.message);
+        setError(spanishError);
+        Alert.alert('Error', spanishError);
       } else {
-        setEmailSent(true);
+        setSuccess(true);
+        // Important: sign out after password change to force a clean login
+        await AuthService.signOut();
+        
         Alert.alert(
-          'Email enviado',
-          'Revisa tu bandeja de entrada para restablecer tu contraseña.',
+          '¡Éxito!',
+          'Tu contraseña ha sido actualizada correctamente. Ya puedes iniciar sesión.',
           [
             {
-              text: 'OK',
+              text: 'Aceptar',
               onPress: () => router.replace('/(auth)/login'),
             },
           ]
@@ -93,10 +98,6 @@ export default function ForgotPasswordScreen() {
       setError('Error inesperado. Intenta de nuevo.');
       Alert.alert('Error', 'Error inesperado. Intenta de nuevo.');
     }
-  };
-
-  const handleBackToLogin = () => {
-    router.replace('/(auth)/login');
   };
 
   if (!fontsLoaded) {
@@ -125,7 +126,10 @@ export default function ForgotPasswordScreen() {
             keyboardShouldPersistTaps="handled"
           >
             {/* Back Button */}
-            <TouchableOpacity style={styles.backButton} onPress={handleBackToLogin}>
+            <TouchableOpacity 
+              style={styles.backButton} 
+              onPress={() => router.replace('/(auth)/login')}
+            >
               <Text style={[styles.backButtonText, { fontFamily: 'Digitalt' }]}>
                 ← Volver
               </Text>
@@ -137,51 +141,66 @@ export default function ForgotPasswordScreen() {
             {/* Title */}
             <View style={styles.titleContainer}>
               <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>
-                OLVIDASTE TU{'\n'}CONTRASEÑA?
+                NUEVA CONTRASEÑA
               </Text>
               <Text style={[styles.subtitle, { fontFamily: 'Gilroy-Black' }]}>
-                No te preocupes, te ayudamos a recuperarla
+                Ingresa tu nueva contraseña para acceder a tu cuenta
               </Text>
             </View>
 
             {/* Form */}
             <View style={styles.formContainer}>
-              {emailSent ? (
+              {success ? (
                 <View style={styles.successContainer}>
                   <Text style={[styles.successText, { fontFamily: 'Gilroy-Black' }]}>
-                    ¡Email enviado! Revisa tu bandeja de entrada para continuar con el proceso de recuperación.
+                    ¡Contraseña actualizada! Ya puedes iniciar sesión con tus nuevas credenciales.
                   </Text>
+                  <AuthButton
+                    title="IR AL LOGIN"
+                    onPress={() => router.replace('/(auth)/login')}
+                    style={styles.loginButton}
+                  />
                 </View>
               ) : (
                 <>
                   <AuthInput
-                    icon="envelope"
-                    placeholder="Email"
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
+                    icon="lock"
+                    placeholder="Nueva Contraseña"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry
                     autoCapitalize="none"
                     autoCorrect={false}
                     error={error}
                   />
 
-                  {/* Reset Button */}
+                  <AuthInput
+                    icon="lock"
+                    placeholder="Confirmar Contraseña"
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+
+                  {/* Submit Button */}
                   <AuthButton
-                    title="ENVIAR EMAIL"
+                    title="ACTUALIZAR CONTRASEÑA"
                     onPress={handleResetPassword}
                     loading={loading}
                     style={styles.resetButton}
                   />
+
+                  {/* Cancel Button */}
+                  <AuthButton
+                    title="CANCELAR"
+                    onPress={() => router.replace('/(auth)/login')}
+                    variant="secondary"
+                    style={styles.cancelButton}
+                  />
                 </>
               )}
-
-              {/* Back to Login */}
-              <AuthButton
-                title="VOLVER AL LOGIN"
-                onPress={handleBackToLogin}
-                variant="secondary"
-                style={styles.backToLoginButton}
-              />
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -220,9 +239,9 @@ const styles = StyleSheet.create({
   },
   backButton: {
     alignSelf: 'flex-start',
-    marginBottom: 20,
+    marginBottom: 10,
     paddingVertical: 10,
-    paddingHorizontal: 15,
+    paddingHorizontal: 5,
   },
   backButtonText: {
     color: '#fff',
@@ -271,11 +290,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: 'bold',
     lineHeight: 22,
+    marginBottom: 20,
   },
   resetButton: {
+    marginTop: 10,
     marginBottom: 20,
   },
-  backToLoginButton: {
+  cancelButton: {
     marginBottom: 20,
+  },
+  loginButton: {
+    marginTop: 10,
   },
 });

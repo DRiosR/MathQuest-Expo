@@ -8,7 +8,8 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  View
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -73,8 +74,12 @@ export default function LoginScreen() {
       });
 
       if (error) {
-        setErrors({ general: error.message });
-        Alert.alert('Error', error.message);
+        let msg = 'Error inesperado. Intenta de nuevo.';
+        if (error.message.includes('Invalid login credentials')) msg = 'Email o contraseña incorrectos.';
+        if (error.message.includes('Email not confirmed')) msg = 'Debes verificar tu email primero.';
+        
+        setErrors({ general: msg });
+        Alert.alert('Error', msg);
       } else if (user) {
         // Navigation will be handled by the auth state change
         router.replace('/(tabs)' as any);
@@ -153,6 +158,15 @@ export default function LoginScreen() {
                 autoComplete="password"
                 error={errors.password}
               />
+
+              <TouchableOpacity 
+                style={styles.forgotPasswordContainer} 
+                onPress={handleForgotPassword}
+              >
+                <Text style={[styles.forgotPasswordText, { fontFamily: 'Gilroy-Black' }]}>
+                  ¿Olvidaste tu contraseña?
+                </Text>
+              </TouchableOpacity>
 
               {errors.general && (
                 <View style={styles.errorContainer}>

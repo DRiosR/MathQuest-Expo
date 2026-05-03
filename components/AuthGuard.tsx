@@ -9,7 +9,7 @@ interface AuthGuardProps {
 }
 
 export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, isRecovering } = useAuth();
   const { fontsLoaded } = useFontContext();
   const segments = useSegments();
 
@@ -17,16 +17,27 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
     if (loading || !fontsLoaded) return;
 
     const inAuthGroup = segments[0] === '(tabs)' || segments[0] === '(games)' || segments[0] === '(modals)';
-    const isAuthPage = segments[0] === 'login' || segments[0] === 'signup' || segments[0] === 'forgot-password' || segments[0] === '(auth)';
+    const isAuthPage = 
+      segments[0] === '(auth)' || 
+      segments.includes('login') || 
+      segments.includes('signup') || 
+      segments.includes('forgot-password') || 
+      segments.includes('reset-password');
+
+    const isResetPage = segments.includes('reset-password');
 
     if (!user && inAuthGroup) {
       // User is not authenticated but trying to access protected route
       router.replace('/login' as any);
-    } else if (user && !inAuthGroup && !isAuthPage) {
-      // User is authenticated but on auth screen (except for auth pages)
+    } else if (user && isRecovering && !isResetPage) {
+      // User is in recovery mode but NOT on the reset page. Force them there!
+      console.log('🛡️ Usuario en modo recuperación fuera de la pantalla de reset. Forzando regreso...');
+      router.replace('/(auth)/reset-password');
+    } else if (user && !isRecovering && !inAuthGroup && !isAuthPage) {
+      // User is authenticated normally but on auth screen. Send to tabs.
       router.replace('/(tabs)' as any);
     }
-  }, [user, loading, segments, fontsLoaded]);
+  }, [user, loading, segments, fontsLoaded, isRecovering]);
 
   if (loading || !fontsLoaded) {
     return (

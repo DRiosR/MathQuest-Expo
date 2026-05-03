@@ -35,7 +35,7 @@ class AuthService {
         storage: AsyncStorage,
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: false,
+        detectSessionInUrl: true,
       },
     });
   }
@@ -177,9 +177,23 @@ class AuthService {
   /**
    * Reset password
    */
-  async resetPassword(email: string): Promise<{ error: AuthError | null }> {
+  async resetPassword(email: string, redirectTo?: string): Promise<{ error: AuthError | null }> {
     try {
-      const { error } = await this.supabase.auth.resetPasswordForEmail(email);
+      const { error } = await this.supabase.auth.resetPasswordForEmail(email, {
+        redirectTo,
+      });
+      return { error };
+    } catch (error) {
+      return { error: error as AuthError };
+    }
+  }
+
+  /**
+   * Update current user's password
+   */
+  async updatePassword(password: string): Promise<{ error: AuthError | null }> {
+    try {
+      const { error } = await this.supabase.auth.updateUser({ password });
       return { error };
     } catch (error) {
       return { error: error as AuthError };
@@ -202,6 +216,16 @@ class AuthService {
       } else {
         callback(null);
       }
+    });
+  }
+
+  /**
+   * Manually set session from access and refresh tokens
+   */
+  async setSession(accessToken: string, refreshToken: string) {
+    return await this.supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
     });
   }
 
