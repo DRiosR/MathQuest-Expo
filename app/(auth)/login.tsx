@@ -23,7 +23,7 @@ export default function LoginScreen() {
   const { fontsLoaded } = useFontContext();
 
   const { signIn, loading } = useAuth();
-  
+
   const normalizeEmail = (value: string) =>
     value
       .normalize('NFKC')
@@ -32,12 +32,12 @@ export default function LoginScreen() {
       // remove any spaces and zero-width/invisible spaces pasted from clipboard
       .replace(/\s+/g, '')
       .replace(/[\u200B-\u200D\uFEFF]/g, '');
-  
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
-  
+
   const [errors, setErrors] = useState<{
     email?: string;
     password?: string;
@@ -77,7 +77,7 @@ export default function LoginScreen() {
         let msg = 'Error inesperado. Intenta de nuevo.';
         if (error.message.includes('Invalid login credentials')) msg = 'Email o contraseña incorrectos.';
         if (error.message.includes('Email not confirmed')) msg = 'Debes verificar tu email primero.';
-        
+
         setErrors({ general: msg });
         Alert.alert('Error', msg);
       } else if (user) {
@@ -159,8 +159,8 @@ export default function LoginScreen() {
                 error={errors.password}
               />
 
-              <TouchableOpacity 
-                style={styles.forgotPasswordContainer} 
+              <TouchableOpacity
+                style={styles.forgotPasswordContainer}
                 onPress={handleForgotPassword}
               >
                 <Text style={[styles.forgotPasswordText, { fontFamily: 'Gilroy-Black' }]}>
@@ -184,7 +184,7 @@ export default function LoginScreen() {
                 style={styles.loginButton}
               />
 
-              
+
 
               {/* Divider */}
               <View style={styles.divider}>

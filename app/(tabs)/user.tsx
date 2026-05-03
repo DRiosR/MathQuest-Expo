@@ -50,6 +50,7 @@ export default function UserScreen() {
   const [confirmPassword, setConfirmPassword] = React.useState('');
   const [passwordError, setPasswordError] = React.useState<string | null>(null);
   const [isChangingPassword, setIsChangingPassword] = React.useState(false);
+  const [isEditingUsername, setIsEditingUsername] = React.useState(false);
   const insets = useSafeAreaInsets();
 
   const formatDateShort = (iso: string | null): string => {
@@ -130,41 +131,68 @@ export default function UserScreen() {
       setUsernameError('Solo letras, números, guión bajo o punto.');
       return;
     }
-    setUsernameError(null);
-    setIsSavingUsername(true);
-    try {
-      const supabase = AuthService.getClient();
-      const { data: authData, error: authUserError } = await supabase.auth.getUser();
-      if (authUserError || !authData?.user?.id) {
-        throw new Error('No hay usuario autenticado.');
+    const translateError = (msg: string) => {
+      const lowMsg = (msg || '').toLowerCase();
+      if (lowMsg.includes('different') && (lowMsg.includes('old') || lowMsg.includes('previous'))) {
+        return 'La nueva contraseña debe ser diferente a la anterior.';
       }
-      const userId = authData.user.id;
-      const { error: profileErr } = await supabase
-        .from('profiles')
-        .update({ username: candidate, updated_at: new Date().toISOString() })
-        .eq('id', userId);
-      if (profileErr) {
-        if ((profileErr as any)?.code === '23505') {
-          setUsernameError('Nombre de usuario no disponible.');
-          return;
+      if (lowMsg.includes('6 characters') || lowMsg.includes('8 characters')) {
+        return 'La contraseña debe tener al menos 8 caracteres.';
+      }
+      if (lowMsg.includes('credentials') || lowMsg.includes('invalid password')) {
+        return 'La contraseña actual es incorrecta.';
+      }
+      return 'No se pudo actualizar el perfil. Intenta de nuevo.';
+    };
+
+    Alert.alert(
+      'Confirmar Cambio',
+      `¿Estás seguro de que quieres cambiar tu nombre de usuario a @${candidate}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Confirmar', 
+          onPress: async () => {
+            setIsSavingUsername(true);
+            try {
+              const supabase = AuthService.getClient();
+              const { data: authData, error: authUserError } = await supabase.auth.getUser();
+              if (authUserError || !authData?.user?.id) {
+                throw new Error('No hay usuario autenticado.');
+              }
+              const userId = authData.user.id;
+              const { error: profileErr } = await supabase
+                .from('profiles')
+                .update({ username: candidate, updated_at: new Date().toISOString() })
+                .eq('id', userId);
+              if (profileErr) {
+                if ((profileErr as any)?.code === '23505') {
+                  setUsernameError('Nombre de usuario no disponible.');
+                  return;
+                }
+                throw profileErr;
+              }
+              const { error: authUpdateErr } = await supabase.auth.updateUser({
+                data: { username: candidate },
+              });
+              if (authUpdateErr) {
+                throw authUpdateErr;
+              }
+              await refreshSession();
+              Alert.alert('¡Listo!', 'Tu nombre de usuario ha sido actualizado correctamente.');
+              setIsEditingUsername(false);
+              setIsSettingsOpen(false);
+            } catch (e: any) {
+              const spanishError = translateError(e?.message || '');
+              setUsernameError(spanishError);
+              Alert.alert('Error', spanishError);
+            } finally {
+              setIsSavingUsername(false);
+            }
+          }
         }
-        throw profileErr;
-      }
-      const { error: authUpdateErr } = await supabase.auth.updateUser({
-        data: { username: candidate },
-      });
-      if (authUpdateErr) {
-        throw authUpdateErr;
-      }
-      await refreshSession();
-      Alert.alert('Listo', 'Tu nombre de usuario fue actualizado.');
-      setIsSettingsOpen(false);
-    } catch (e: any) {
-      console.error('Error updating username', e);
-      setUsernameError(e?.message || 'No se pudo actualizar el usuario.');
-    } finally {
-      setIsSavingUsername(false);
-    }
+      ]
+    );
   };
 
   const handleChangePassword = async () => {
@@ -182,27 +210,54 @@ export default function UserScreen() {
       setPasswordError('Las contraseñas no coinciden.');
       return;
     }
-    setIsChangingPassword(true);
-    try {
-      if (!user?.email) throw new Error('No hay email de usuario.');
-      const reauth = await AuthService.signIn({ email: user.email, password: currentPassword });
-      if (reauth.error) {
-        setPasswordError('Contraseña actual incorrecta.');
-        return;
+    const translateError = (msg: string) => {
+      const lowMsg = (msg || '').toLowerCase();
+      if (lowMsg.includes('different') && (lowMsg.includes('old') || lowMsg.includes('previous'))) {
+        return 'La nueva contraseña debe ser diferente a la anterior.';
       }
-      const supabase = AuthService.getClient();
-      const { error: pwErr } = await supabase.auth.updateUser({ password: newPassword });
-      if (pwErr) {
-        throw pwErr;
+      if (lowMsg.includes('6 characters') || lowMsg.includes('8 characters')) {
+        return 'La contraseña debe tener al menos 8 caracteres.';
       }
-      Alert.alert('Listo', 'Tu contraseña fue actualizada.');
-      setIsSettingsOpen(false);
-    } catch (e: any) {
-      console.error('Error changing password', e);
-      setPasswordError(e?.message || 'No se pudo cambiar la contraseña.');
-    } finally {
-      setIsChangingPassword(false);
-    }
+      if (lowMsg.includes('credentials') || lowMsg.includes('invalid password')) {
+        return 'La contraseña actual es incorrecta.';
+      }
+      return 'No se pudo actualizar la contraseña. Intenta de nuevo.';
+    };
+
+    Alert.alert(
+      'Confirmar Cambio',
+      '¿Estás seguro de que quieres actualizar tu contraseña?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Actualizar',
+          onPress: async () => {
+            setIsChangingPassword(true);
+            try {
+              if (!user?.email) throw new Error('No hay email de usuario.');
+              const reauth = await AuthService.signIn({ email: user.email, password: currentPassword });
+              if (reauth.error) {
+                setPasswordError('La contraseña actual es incorrecta.');
+                return;
+              }
+              const supabase = AuthService.getClient();
+              const { error: pwErr } = await supabase.auth.updateUser({ password: newPassword });
+              if (pwErr) {
+                throw pwErr;
+              }
+              Alert.alert('¡Listo!', 'Tu contraseña ha sido actualizada correctamente.');
+              setIsSettingsOpen(false);
+            } catch (e: any) {
+              const spanishError = translateError(e?.message || '');
+              setPasswordError(spanishError);
+              Alert.alert('Error', spanishError);
+            } finally {
+              setIsChangingPassword(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleCustomizeAvatar = () => {
@@ -444,79 +499,104 @@ export default function UserScreen() {
               <Text style={[styles.fullModalCloseText, { fontFamily: 'Digitalt' }]}>CERRAR</Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.settingsTabs}>
-            <TouchableOpacity
-              onPress={() => setSettingsTab('username')}
-              style={[styles.settingsTab, settingsTab === 'username' && styles.settingsTabActive]}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.settingsTabText, { fontFamily: 'Gilroy-Black' }]}>USUARIO</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setSettingsTab('password')}
-              style={[styles.settingsTab, settingsTab === 'password' && styles.settingsTabActive]}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.settingsTabText, { fontFamily: 'Gilroy-Black' }]}>CONTRASEÑA</Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.settingsContent} keyboardShouldPersistTaps="handled">
-            {settingsTab === 'username' ? (
-              <FadeInView from="bottom" delay={0} style={{ gap: 16 }}>
-                <AuthInput
-                  icon="user"
-                  label="Nombre de usuario"
-                  placeholder="@usuario"
-                  value={newUsername}
-                  onChangeText={setNewUsername}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="done"
-                  error={usernameError || undefined}
-                />
-                <AuthButton
-                  title={isSavingUsername ? 'GUARDANDO...' : 'GUARDAR'}
-                  onPress={handleSaveUsername}
-                  loading={isSavingUsername}
-                />
-              </FadeInView>
-            ) : (
-              <FadeInView from="bottom" delay={0} style={{ gap: 16 }}>
-                <AuthInput
-                  icon="lock"
-                  label="Contraseña actual"
-                  placeholder="••••••••"
-                  secureTextEntry
-                  value={currentPassword}
-                  onChangeText={setCurrentPassword}
-                  returnKeyType="next"
-                />
-                <AuthInput
-                  icon="lock"
-                  label="Nueva contraseña"
-                  placeholder="••••••••"
-                  secureTextEntry
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  returnKeyType="next"
-                />
-                <AuthInput
-                  icon="lock"
-                  label="Confirmar contraseña"
-                  placeholder="••••••••"
-                  secureTextEntry
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  returnKeyType="done"
-                  error={passwordError || undefined}
-                />
-                <AuthButton
-                  title={isChangingPassword ? 'ACTUALIZANDO...' : 'ACTUALIZAR CONTRASEÑA'}
-                  onPress={handleChangePassword}
-                  loading={isChangingPassword}
-                />
-              </FadeInView>
-            )}
+          <ScrollView 
+            style={{ flex: 1 }} 
+            contentContainerStyle={styles.settingsContent} 
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Section: Username */}
+            <FadeInView from="bottom" delay={100} style={styles.settingsCard}>
+              <Text style={[styles.settingsSectionTitle, { fontFamily: 'Digitalt' }]}>
+                MI USUARIO
+              </Text>
+              
+              {!isEditingUsername ? (
+                <View style={styles.usernameDisplayRow}>
+                  <Text style={[styles.currentUsernameLabel, { fontFamily: 'Digitalt' }]}>
+                    @{user?.username}
+                  </Text>
+                  <TouchableOpacity 
+                    style={styles.changeUsernameToggle} 
+                    onPress={() => setIsEditingUsername(true)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.changeUsernameToggleText, { fontFamily: 'Gilroy-Black' }]}>CAMBIAR</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <FadeInView from="bottom" delay={0} style={{ gap: 12 }}>
+                  <AuthInput
+                    icon="user"
+                    placeholder="Nuevo nombre de usuario"
+                    value={newUsername}
+                    onChangeText={setNewUsername}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="done"
+                    error={usernameError || undefined}
+                  />
+                  <View style={styles.usernameEditActions}>
+                    <TouchableOpacity 
+                      style={styles.cancelUsernameButton} 
+                      onPress={() => setIsEditingUsername(false)}
+                    >
+                      <Text style={[styles.cancelUsernameText, { fontFamily: 'Gilroy-Black' }]}>CANCELAR</Text>
+                    </TouchableOpacity>
+                    <AuthButton
+                      title={isSavingUsername ? '...' : 'GUARDAR'}
+                      onPress={handleSaveUsername}
+                      loading={isSavingUsername}
+                      style={{ flex: 1 }}
+                    />
+                  </View>
+                </FadeInView>
+              )}
+            </FadeInView>
+
+            <View style={styles.settingsDivider} />
+
+            {/* Section: Password */}
+            <FadeInView from="bottom" delay={200} style={styles.settingsCard}>
+              <Text style={[styles.settingsSectionTitle, { fontFamily: 'Digitalt' }]}>
+                CAMBIAR CONTRASEÑA
+              </Text>
+              <AuthInput
+                icon="lock"
+                label="Contraseña actual"
+                placeholder="••••••••"
+                secureTextEntry
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                returnKeyType="next"
+              />
+              <AuthInput
+                icon="lock"
+                label="Nueva contraseña"
+                placeholder="••••••••"
+                secureTextEntry
+                value={newPassword}
+                onChangeText={setNewPassword}
+                returnKeyType="next"
+              />
+              <AuthInput
+                icon="lock"
+                label="Confirmar contraseña"
+                placeholder="••••••••"
+                secureTextEntry
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                returnKeyType="done"
+                error={passwordError || undefined}
+              />
+              <AuthButton
+                title={isChangingPassword ? 'ACTUALIZANDO...' : 'ACTUALIZAR CONTRASEÑA'}
+                onPress={handleChangePassword}
+                loading={isChangingPassword}
+                variant="secondary"
+                style={styles.settingsActionButton}
+              />
+            </FadeInView>
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -821,30 +901,68 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  settingsTabs: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 12,
-  },
-  settingsTab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  settingsTabActive: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
-  },
-  settingsTabText: {
-    color: '#fff',
-    fontSize: 12,
-    letterSpacing: 1,
-  },
   settingsContent: {
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 40,
+  },
+  settingsCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  settingsSectionTitle: {
+    color: '#fff',
+    fontSize: 18,
+    letterSpacing: 1,
+    marginBottom: 20,
+  },
+  usernameDisplayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    padding: 15,
+    borderRadius: 16,
+  },
+  currentUsernameLabel: {
+    color: '#fff',
+    fontSize: 20,
+  },
+  changeUsernameToggle: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  changeUsernameToggleText: {
+    color: '#A855F7',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  usernameEditActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 5,
+  },
+  cancelUsernameButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+  },
+  cancelUsernameText: {
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 14,
+  },
+  settingsActionButton: {
+    marginTop: 10,
+  },
+  settingsDivider: {
+    height: 30,
   },
   sheetListContent: {
     paddingBottom: 12,
