@@ -26,6 +26,7 @@ type TutorialStep = {
 };
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
+  // --- SECCIÓN 1: 1vs1 (Pestaña Play) ---
   {
     id: 'welcome',
     title: '¡BIENVENIDO!',
@@ -45,6 +46,16 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     area: 'middle',
     targetScreen: '/(tabs)/play',
     defaultSpotlight: { x: width * 0.25, y: height - 85, w: width * 0.25, h: 85, radius: 0 }
+  },
+  {
+    id: 'competitive',
+    title: 'MODO COMPETITIVO',
+    description: 'Entra aquí para buscar un oponente en tiempo real y demostrar tu agilidad mental.',
+    icon: 'fire',
+    color: '#FF3D3D',
+    area: 'top',
+    targetScreen: '/(tabs)/play',
+    defaultSpotlight: { x: 20, y: height * 0.45, w: width - 40, h: 100, radius: 30 }
   },
   {
     id: 'my_rank',
@@ -67,26 +78,6 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     defaultSpotlight: { x: width - 140, y: height - 100, w: 120, h: 50, radius: 25 }
   },
   {
-    id: 'infinite_30s',
-    title: 'MODO CONTRARRELOJ',
-    description: '¡Elige tu desafío! Tienes 3 vidas. El juego termina si se acaba el tiempo o pierdes todos los corazones.',
-    icon: 'stopwatch',
-    color: '#FF6B9D',
-    area: 'bottom',
-    targetScreen: '/(tabs)/extras',
-    defaultSpotlight: { x: 20, y: height * 0.45, w: width - 40, h: 70, radius: 15 }
-  },
-  {
-    id: 'competitive',
-    title: 'MODO COMPETITIVO',
-    description: 'Entra aquí para buscar un oponente en tiempo real y demostrar tu agilidad mental.',
-    icon: 'fire',
-    color: '#FF3D3D',
-    area: 'top',
-    targetScreen: '/(tabs)/play',
-    defaultSpotlight: { x: 20, y: height * 0.45, w: width - 40, h: 100, radius: 30 }
-  },
-  {
     id: 'how_to_play',
     title: 'REGLAS Y MECÁNICAS',
     description: 'Si tienes dudas, consulta este apartado para aprender cómo funcionan las rondas.',
@@ -96,6 +87,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     targetScreen: '/(tabs)/play',
     defaultSpotlight: { x: 20, y: height * 0.45 + 120, w: width - 40, h: 50, radius: 15 }
   },
+
+  // --- SECCIÓN 2: MODO INFINITO (Pestaña Extras) ---
   {
     id: 'extras',
     title: 'PRÁCTICA Y DESAFÍOS',
@@ -107,6 +100,16 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     defaultSpotlight: { x: 0, y: height - 85, w: width * 0.25, h: 85, radius: 0 }
   },
   {
+    id: 'infinite_30s',
+    title: 'MODO CONTRARRELOJ',
+    description: '¡Elige tu desafío! Tienes 3 vidas. El juego termina si se acaba el tiempo o pierdes todos los corazones.',
+    icon: 'stopwatch',
+    color: '#FF6B9D',
+    area: 'bottom',
+    targetScreen: '/(tabs)/extras',
+    defaultSpotlight: { x: 20, y: height * 0.45, w: width - 40, h: 70, radius: 15 }
+  },
+  {
     id: 'infinite_streak',
     title: 'TU RACHA DIARIA',
     description: 'Juega una partida aquí cada día para aumentar tu racha. ¡No dejes que se apague el fuego!',
@@ -116,6 +119,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     targetScreen: '/(tabs)/extras',
     defaultSpotlight: { x: width - 80, y: 50, w: 70, h: 50, radius: 15 }
   },
+
+  // --- SECCIÓN 3: TIENDA (Pestaña Store) ---
   {
     id: 'store',
     title: 'TIENDA DE OBJETOS',
@@ -186,6 +191,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     targetScreen: '/(tabs)/store',
     defaultSpotlight: { x: 260, y: 350, w: 50, h: 50, radius: 25 }
   },
+
+  // --- SECCIÓN 4: PERFIL (Pestaña User) ---
   {
     id: 'profile',
     title: 'GESTIÓN DE PERFIL',
@@ -262,7 +269,8 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const hasSeen = await AsyncStorage.getItem('hasSeenGuidedTour_v28');    if (hasSeen === null) {
+    const hasSeen = await AsyncStorage.getItem('hasSeenGuidedTour_v28');
+    if (hasSeen === null) {
       setTimeout(() => {
         setIsVisible(true);
         router.push(TUTORIAL_STEPS[0].targetScreen as any);
