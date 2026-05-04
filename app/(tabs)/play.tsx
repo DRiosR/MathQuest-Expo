@@ -3,32 +3,42 @@ import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link, router } from 'expo-router';
 import { Question } from 'phosphor-react-native';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, useRef } from 'react';
 import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AnimatedMathBackground from '@/components/ui/AnimatedMathBackground';
 import GameModeButton from '@/components/ui/GameModeButton';
+import TutorialOverlay from '@/components/TutorialOverlay';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAvatar } from '@/contexts/AvatarContext';
 import { useFontContext } from '@/contexts/FontsContext';
+import { useTutorial } from '@/contexts/TutorialContext';
 import { getAllRanks, getUserRankInfo, UserRankInfo } from '@/services/SupabaseService';
 
 const { height } = Dimensions.get('window');
 
-const USER_1 = {
-  name: 'GRASSYOG',
-  score: 1,
-  avatar: 'G',
-};
-
 export default function PlayScreen() {
   const { fontsLoaded } = useFontContext();
+  const { setDynamicSpotlight } = useTutorial();
 
   const { avatar: userAvatar } = useAvatar();
   const { user } = useAuth();
   const [rankInfo, setRankInfo] = useState<UserRankInfo | null>(null);
   const [rankLoading, setRankLoading] = useState<boolean>(false);
+
+  const rankRef = useRef<View>(null);
+  const competitiveRef = useRef<View>(null);
+  const howToPlayRef = useRef<View>(null);
+  const rankingRef = useRef<View>(null);
+
+  const measure = (ref: React.RefObject<any>, id: string, radius: number) => {
+    if (ref.current) {
+      ref.current.measure((x: number, y: number, w: number, h: number, pageX: number, pageY: number) => {
+        setDynamicSpotlight(id, { x: pageX, y: pageY, w, h, radius });
+      });
+    }
+  };
 
   const refreshUserRank = useCallback(async () => {
     if (!user?.id) {
@@ -54,16 +64,20 @@ export default function PlayScreen() {
 
   const rankColor = useMemo(() => {
     const color = rankInfo?.rank?.color || '#A855F7';
-    // Ensure color is a hex or valid CSS color, else fallback
     return color || '#A855F7';
   }, [rankInfo]);
 
-  // Force refresh rank data whenever this screen gains focus (e.g., after a match)
   useFocusEffect(
     React.useCallback(() => {
-      // Bypass cache to ensure latest ELO/Rank
       refreshUserRank();
       refreshRanks();
+      // Measure after a small delay to ensure layout is ready
+      setTimeout(() => {
+        measure(rankRef, 'my_rank', 25);
+        measure(competitiveRef, 'competitive', 30);
+        measure(howToPlayRef, 'how_to_play', 15);
+        measure(rankingRef, 'global_ranking', 25);
+      }, 1000);
       return undefined;
     }, [refreshUserRank, refreshRanks])
   );
@@ -86,13 +100,11 @@ export default function PlayScreen() {
 
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
 
-        {/* Center title */}
         <View style={styles.titleWrap}>
           <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>COMPETITIVO</Text>
         </View>
 
-        {/* Rank banner + progress */}
-        <View style={styles.rankWrap}>
+        <View style={styles.rankWrap} ref={rankRef} onLayout={() => measure(rankRef, 'my_rank', 25)}>
           <TouchableOpacity style={styles.rankBadge} activeOpacity={0.8} onPress={() => router.push('/(modals)/rank-modal')}>
             {rankInfo?.rank?.icon_url ? (
               <Image source={{ uri: rankInfo.rank.icon_url }} style={styles.rankIcon} resizeMode="contain" />
@@ -123,19 +135,20 @@ export default function PlayScreen() {
           </Text>
         </View>
 
-
-
-
         <View style={styles.buttonsWrap}>
-
-          <GameModeButton
-            name="COMPETITIVO!"
-            route="/(games)/matchmaking-screen"
-            gradientColors={["#FF6A6A", "#FF3D3D"]}
-            imagePath={require('@/assets/images/competitive/1v1_roulette.png')}
-            onPress={() => router.push('/(games)/matchmaking-screen')}
-          />
+          <View ref={competitiveRef} onLayout={() => measure(competitiveRef, 'competitive', 30)}>
+            <GameModeButton
+              name="COMPETITIVO!"
+              route="/(games)/matchmaking-screen"
+              gradientColors={["#FF6A6A", "#FF3D3D"]}
+              imagePath={require('@/assets/images/competitive/1v1_roulette.png')}
+              onPress={() => router.push('/(games)/matchmaking-screen')}
+            />
+          </View>
+          
           <TouchableOpacity
+            ref={howToPlayRef}
+            onLayout={() => measure(howToPlayRef, 'how_to_play', 15)}
             activeOpacity={0.9}
             style={styles.howToPlayButton}
             onPress={() => router.push('/(modals)/how-to-play')}
@@ -145,16 +158,14 @@ export default function PlayScreen() {
               <Text style={[styles.howToPlayText, { fontFamily: 'Gilroy-Black' }]}>¿CÓMO JUGAR?</Text>
             </LinearGradient>
           </TouchableOpacity>
-          
         </View>
       </SafeAreaView>
 
       <Link href="/(modals)/leaderboard" asChild>
         <TouchableOpacity
+          ref={rankingRef}
+          onLayout={() => measure(rankingRef, 'global_ranking', 25)}
           style={styles.fab}
-          onPress={() => {
-            console.log('Leaderboard button pressed (play tab)');
-          }}
         >
           <LinearGradient colors={["#FFD45E", "#FFA500"]} style={styles.fabGradient}>
             <FontAwesome5 name="trophy" size={18} color="#fff" />
@@ -162,6 +173,7 @@ export default function PlayScreen() {
           </LinearGradient>
         </TouchableOpacity>
       </Link>
+      <TutorialOverlay />
     </View>
   );
 }
@@ -192,29 +204,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     textAlign: 'center',
   },
-  avatarCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 4,
-    borderColor: '#fff',
-    elevation: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
-  },
-  layeredAvatar: {
-    borderRadius: 34,
-  },
-  topBar: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    alignItems: 'flex-end',
-  },
   rankWrap: {
     paddingHorizontal: 20,
     paddingTop: 8,
@@ -223,10 +212,6 @@ const styles = StyleSheet.create({
   },
   rankBadge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-    borderRadius: 0,
-    borderWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -257,23 +242,6 @@ const styles = StyleSheet.create({
   nextRankText: {
     color: 'rgba(255,255,255,0.9)',
     fontSize: 12,
-  },
-  avatarBlock: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  coinsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 14,
-  },
-  coinsText: {
-    color: '#FFD45E',
-    fontWeight: 'bold',
   },
   titleWrap: {
     paddingHorizontal: 24,

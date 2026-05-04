@@ -24,6 +24,7 @@ import { getUserMatchesDetailed, getUserStats, UserMatchItem } from '@/services/
 import AuthService from '@/Core/Services/AuthService/AuthService';
 import { AuthButton } from '@/components/ui/AuthButton';
 import { AuthInput } from '@/components/ui/AuthInput';
+import TutorialOverlay from '@/components/TutorialOverlay';
 
 const { width, height } = Dimensions.get('window');
 
@@ -600,6 +601,7 @@ export default function UserScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+      <TutorialOverlay />
     </View>
   );
 }

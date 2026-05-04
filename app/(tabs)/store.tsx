@@ -29,6 +29,7 @@ import { useFontContext } from '@/contexts/FontsContext';
 import { useItemStore } from '@/hooks/useItemStore';
 import { getUserInventoryProductIds, incrementCurrentUserCoins, purchaseStoreItem } from '@/services/SupabaseService';
 import { router } from 'expo-router';
+import TutorialOverlay from '@/components/TutorialOverlay';
 
 export default function StoreScreen() {
   const { fontsLoaded } = useFontContext();
@@ -383,6 +384,7 @@ export default function StoreScreen() {
           </View>
         </View>
       </Modal>
+      <TutorialOverlay />
     </View>
   );
 }

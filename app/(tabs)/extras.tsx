@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import InfiniteGameScreen from '@/app/(games)/infinite-game';
 import StreakModal from '@/components/modals/StreakModal';
+import TutorialOverlay from '@/components/TutorialOverlay';
 import { useFontContext } from '@/contexts/FontsContext';
 
 export default function ExtrasScreen() {
@@ -72,6 +73,7 @@ export default function ExtrasScreen() {
       </SafeAreaView>
 
       <StreakModal visible={showStreak} onClose={() => setShowStreak(false)} />
+      <TutorialOverlay />
     </View>
   );
 }
