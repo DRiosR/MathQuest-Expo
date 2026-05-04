@@ -119,17 +119,9 @@ export default function RoundResultView({
       
       {showResult ? (
         <Animated.View style={{ opacity: resultOpacity, width: '100%', alignItems: 'center' }}>
-          <Text style={[styles.waitingText, { fontFamily: 'Digitalt' }]}>Resultados de la ronda procesados</Text>
-          <View style={styles.buttonWrapper}>
-             <Animated.View style={[styles.continueButton]}>
-                <Text 
-                  onPress={onDone}
-                  style={[styles.continueButtonText, { fontFamily: 'Digitalt' }]}
-                >
-                  CONTINUAR
-                </Text>
-             </Animated.View>
-          </View>
+          <Text style={[styles.waitingText, { fontFamily: 'Digitalt', marginTop: 30, opacity: 0.9 }]}>
+            Preparando siguiente ronda…
+          </Text>
         </Animated.View>
       ) : (
         <Text style={[styles.waitingText, { fontFamily: 'Digitalt' }]}>Calculando puntajes…</Text>

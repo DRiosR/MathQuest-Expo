@@ -260,15 +260,6 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
   const checkFirstTime = async () => {
     if (!user?.email) return;
 
-    if (user.email.toLowerCase() === 'daniel.ext1@gmail.com') {
-      setTimeout(() => {
-        setIsVisible(true);
-        setCurrentStepIndex(0);
-        router.push(TUTORIAL_STEPS[0].targetScreen as any);
-      }, 3000);
-      return;
-    }
-
     const hasSeen = await AsyncStorage.getItem('hasSeenGuidedTour_v28');
     if (hasSeen === null) {
       setTimeout(() => {

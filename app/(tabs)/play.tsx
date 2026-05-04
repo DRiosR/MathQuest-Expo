@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,6 +16,7 @@ import { useAvatar } from '@/contexts/AvatarContext';
 import { useFontContext } from '@/contexts/FontsContext';
 import { useTutorial } from '@/contexts/TutorialContext';
 import { getAllRanks, getUserRankInfo, UserRankInfo } from '@/services/SupabaseService';
+import { RankUpModal } from '@/components/modals/RankUpModal';
 
 const { height } = Dimensions.get('window');
 
@@ -26,6 +28,8 @@ export default function PlayScreen() {
   const { user } = useAuth();
   const [rankInfo, setRankInfo] = useState<UserRankInfo | null>(null);
   const [rankLoading, setRankLoading] = useState<boolean>(false);
+  const [showRankUp, setShowRankUp] = useState(false);
+  const [newRankData, setNewRankData] = useState<{ name: string; icon: string | null; color: string } | null>(null);
 
   const rankRef = useRef<View>(null);
   const competitiveRef = useRef<View>(null);
@@ -48,7 +52,31 @@ export default function PlayScreen() {
     setRankLoading(true);
     try {
       const remote = await getUserRankInfo(user.id);
-      setRankInfo(remote ?? null);
+      if (remote?.rank) {
+        setRankInfo(remote);
+        
+        // Check if we should show rank up animation
+        const seenRanksStr = await AsyncStorage.getItem('@mathquest_seen_ranks');
+        const seenRanks = seenRanksStr ? JSON.parse(seenRanksStr) : [];
+        const rankId = remote.rank.id;
+        
+        if (!seenRanks.includes(rankId)) {
+          // If it's a new rank (not the very first time if they are just starting, 
+          // but better to show it anyway to make them feel good)
+          setNewRankData({
+            name: remote.rank.name,
+            icon: remote.rank.icon_url,
+            color: remote.rank.color || '#A855F7'
+          });
+          setShowRankUp(true);
+          
+          // Save as seen
+          const updatedSeen = [...seenRanks, rankId];
+          await AsyncStorage.setItem('@mathquest_seen_ranks', JSON.stringify(updatedSeen));
+        }
+      }
+    } catch (err) {
+      console.error('Error in refreshUserRank:', err);
     } finally {
       setRankLoading(false);
     }
@@ -174,6 +202,16 @@ export default function PlayScreen() {
         </TouchableOpacity>
       </Link>
       <TutorialOverlay />
+      
+      {newRankData && (
+        <RankUpModal
+          visible={showRankUp}
+          rankName={newRankData.name}
+          rankIcon={newRankData.icon}
+          rankColor={newRankData.color}
+          onClose={() => setShowRankUp(false)}
+        />
+      )}
     </View>
   );
 }
