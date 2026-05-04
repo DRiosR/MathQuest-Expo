@@ -34,7 +34,7 @@ export default function PlayScreen() {
 
   const measure = (ref: React.RefObject<any>, id: string, radius: number) => {
     if (ref.current) {
-      ref.current.measure((x: number, y: number, w: number, h: number, pageX: number, pageY: number) => {
+      ref.current.measure((x, y, w, h, pageX, pageY) => {
         setDynamicSpotlight(id, { x: pageX, y: pageY, w, h, radius });
       });
     }
@@ -71,14 +71,14 @@ export default function PlayScreen() {
     React.useCallback(() => {
       refreshUserRank();
       refreshRanks();
-      // Measure after a small delay to ensure layout is ready
-      setTimeout(() => {
+      // Esperamos 2000ms para que las animaciones de entrada terminen y el centrado sea real
+      const timer = setTimeout(() => {
         measure(rankRef, 'my_rank', 25);
         measure(competitiveRef, 'competitive', 30);
         measure(howToPlayRef, 'how_to_play', 15);
         measure(rankingRef, 'global_ranking', 25);
-      }, 1000);
-      return undefined;
+      }, 2000);
+      return () => clearTimeout(timer);
     }, [refreshUserRank, refreshRanks])
   );
 

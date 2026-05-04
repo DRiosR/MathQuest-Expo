@@ -24,6 +24,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAvatar } from '@/contexts/AvatarContext';
 import { useFontContext } from '@/contexts/FontsContext';
 import { useOfflineStorage } from '@/contexts/OfflineStorageContext';
+import { useTutorial } from '@/contexts/TutorialContext';
 import {
   generateQuestion,
   getDifficultyFromScore,
@@ -83,6 +84,17 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
   const { avatar: userAvatar } = useAvatar();
   const { user } = useAuth();
   const { addHighScore, getTopScores, getTopScoresToday } = useOfflineStorage();
+  const { setDynamicSpotlight } = useTutorial();
+
+  const mode30sRef = useRef<View>(null);
+
+  const measure30s = () => {
+    if (mode30sRef.current) {
+      mode30sRef.current.measure((x, y, w, h, pageX, pageY) => {
+        setDynamicSpotlight('infinite_30s', { x: pageX, y: pageY, w, h, radius: 20 });
+      });
+    }
+  };
 
   // Game state
   const [gameMode, setGameMode] = useState<GameMode | null>(null);
@@ -453,14 +465,16 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
           */}
           {/* Mode selection buttons */}
           <View style={styles.modeButtonsWrap}>
-            <InfiniteGameModeButton
-              name="30 SEGUNDOS"
-              route="/infinite-game"
-              gradientColors={['#FF6B9D', '#C44569']}
-              highScore={getTopScores(0.5, 1)[0]?.score || 0}
-              date={getTopScores(0.5, 1)[0] ? new Date(getTopScores(0.5, 1)[0].timestamp).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : 'Sin puntuación'}
-              onPress={() => startGame(0.5)}
-            />
+            <View ref={mode30sRef} onLayout={measure30s}>
+              <InfiniteGameModeButton
+                name="30 SEGUNDOS"
+                route="/infinite-game"
+                gradientColors={['#FF6B9D', '#C44569']}
+                highScore={getTopScores(0.5, 1)[0]?.score || 0}
+                date={getTopScores(0.5, 1)[0] ? new Date(getTopScores(0.5, 1)[0].timestamp).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : 'Sin puntuación'}
+                onPress={() => startGame(0.5)}
+              />
+            </View>
 
             <InfiniteGameModeButton
               name="1 MINUTO"

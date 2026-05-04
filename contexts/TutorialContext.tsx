@@ -29,7 +29,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'welcome',
     title: '¡BIENVENIDO!',
-    description: 'He activado el sistema de "Auto-Calibración" para que el foco sea perfecto.',
+    description: 'Vamos a conocer las funciones clave de MathQuest para que domines el juego.',
     icon: 'hand-paper',
     color: '#8A56FE',
     area: 'middle',
@@ -37,9 +37,19 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     defaultSpotlight: null
   },
   {
+    id: 'play_tab',
+    title: 'PANTALLA DE 1vs1',
+    description: 'Este es el acceso principal. Púlsalo en cualquier momento para volver a la zona de duelos competitivos.',
+    icon: 'gamepad',
+    color: '#FF3D3D',
+    area: 'middle',
+    targetScreen: '/(tabs)/play',
+    defaultSpotlight: { x: width * 0.25, y: height - 85, w: width * 0.25, h: 85, radius: 0 }
+  },
+  {
     id: 'my_rank',
-    title: 'TU RANGO',
-    description: 'Aquí ves tu liga. ¡Sube de nivel para desbloquear nuevos desafíos!',
+    title: 'SISTEMA DE LIGAS',
+    description: 'Toca tu medalla para conocer todas las divisiones y ver cuánto te falta para subir de nivel.',
     icon: 'medal',
     color: '#FFD45E',
     area: 'middle',
@@ -48,8 +58,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'global_ranking',
-    title: 'RANKING GLOBAL',
-    description: 'Mira quiénes lideran el mundo. ¡El botón amarillo te lleva al Top!',
+    title: 'TABLA DE POSICIONES',
+    description: 'Presiona la sección de Ranking para ver el Top 100 mundial y comparar tus puntos ELO.',
     icon: 'trophy',
     color: '#FFD61E',
     area: 'top',
@@ -58,8 +68,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'competitive',
-    title: 'DUELOS 1vs1',
-    description: '¡El gran botón rojo! Aquí es donde empieza la acción de verdad.',
+    title: 'MODO COMPETITIVO',
+    description: 'Entra aquí para buscar un oponente en tiempo real y demostrar tu agilidad mental.',
     icon: 'fire',
     color: '#FF3D3D',
     area: 'top',
@@ -68,8 +78,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'how_to_play',
-    title: '¿CÓMO JUGAR?',
-    description: 'El botón morado te explica todo lo que necesitas saber antes de empezar.',
+    title: 'REGLAS Y MECÁNICAS',
+    description: 'Si tienes dudas, consulta este apartado para aprender cómo funcionan las rondas.',
     icon: 'question-circle',
     color: '#AD1DEB',
     area: 'top',
@@ -78,8 +88,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'extras',
-    title: 'EXTRAS',
-    description: 'Modos adicionales para practicar tus habilidades.',
+    title: 'PRÁCTICA Y DESAFÍOS',
+    description: 'Explora modos de juego adicionales diseñados para mejorar tu velocidad mental.',
     icon: 'plus-circle',
     color: '#31C45A',
     area: 'middle',
@@ -87,9 +97,29 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     defaultSpotlight: { x: 0, y: height - 85, w: width * 0.25, h: 85, radius: 0 }
   },
   {
+    id: 'infinite_streak',
+    title: 'TU RACHA DIARIA',
+    description: 'Juega una partida aquí cada día para aumentar tu racha. ¡No dejes que se apague el fuego!',
+    icon: 'fire',
+    color: '#FF7A00',
+    area: 'middle',
+    targetScreen: '/(tabs)/extras',
+    defaultSpotlight: { x: width - 80, y: 50, w: 70, h: 50, radius: 15 }
+  },
+  {
+    id: 'infinite_30s',
+    title: 'DESAFÍO DE 30 SEGUNDOS',
+    description: 'Resuelve operaciones variadas lo más rápido posible antes de que se agote el tiempo.',
+    icon: 'clock',
+    color: '#C44569',
+    area: 'middle',
+    targetScreen: '/(tabs)/extras',
+    defaultSpotlight: { x: 20, y: 300, w: width - 40, h: 80, radius: 20 }
+  },
+  {
     id: 'store',
-    title: 'TIENDA',
-    description: 'Personaliza tu avatar con los objetos de la tienda.',
+    title: 'TIENDA DE OBJETOS',
+    description: 'Visita la tienda para canjear tus monedas por nuevos avatares y efectos exclusivos.',
     icon: 'shopping-cart',
     color: '#FFD45E',
     area: 'middle',
@@ -98,8 +128,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'profile',
-    title: 'PERFIL',
-    description: 'Toda tu información de jugador en un solo lugar.',
+    title: 'GESTIÓN DE PERFIL',
+    description: 'Accede a tu cuenta para personalizar tu nombre y configurar tu identidad.',
     icon: 'user-cog',
     color: '#FF46A5',
     area: 'middle',
@@ -134,18 +164,20 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     if (!user?.email) return;
 
     if (user.email.toLowerCase() === 'daniel.ext1@gmail.com') {
-      setIsVisible(true);
-      setCurrentStepIndex(0);
-      router.push(TUTORIAL_STEPS[0].targetScreen as any);
+      setTimeout(() => {
+        setIsVisible(true);
+        setCurrentStepIndex(0);
+        router.push(TUTORIAL_STEPS[0].targetScreen as any);
+      }, 3000);
       return;
     }
 
-    const hasSeen = await AsyncStorage.getItem('hasSeenGuidedTour_v11');
+    const hasSeen = await AsyncStorage.getItem('hasSeenGuidedTour_v18');
     if (hasSeen === null) {
       setTimeout(() => {
         setIsVisible(true);
         router.push(TUTORIAL_STEPS[0].targetScreen as any);
-      }, 1500);
+      }, 3000);
     }
   };
 
@@ -162,13 +194,18 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
   const nextStep = () => {
     if (currentStepIndex < TUTORIAL_STEPS.length - 1) {
       const nextIndex = currentStepIndex + 1;
+      const currentStepData = TUTORIAL_STEPS[currentStepIndex];
       const nextStepData = TUTORIAL_STEPS[nextIndex];
       
-      if (nextStepData.targetScreen !== TUTORIAL_STEPS[currentStepIndex].targetScreen) {
+      if (nextStepData.targetScreen !== currentStepData.targetScreen) {
+        // Navegar y esperar a que cargue la nueva pantalla antes de subir el index
         router.push(nextStepData.targetScreen as any);
+        setTimeout(() => {
+          setCurrentStepIndex(nextIndex);
+        }, 800);
+      } else {
+        setCurrentStepIndex(nextIndex);
       }
-      
-      setCurrentStepIndex(nextIndex);
     } else {
       finish();
     }
@@ -179,7 +216,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
   };
 
   const finish = async () => {
-    await AsyncStorage.setItem('hasSeenGuidedTour_v11', 'true');
+    await AsyncStorage.setItem('hasSeenGuidedTour_v18', 'true');
     setIsVisible(false);
   };
 

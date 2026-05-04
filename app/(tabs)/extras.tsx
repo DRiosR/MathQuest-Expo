@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { Fire } from 'phosphor-react-native';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,11 +9,26 @@ import InfiniteGameScreen from '@/app/(games)/infinite-game';
 import StreakModal from '@/components/modals/StreakModal';
 import TutorialOverlay from '@/components/TutorialOverlay';
 import { useFontContext } from '@/contexts/FontsContext';
+import { useTutorial } from '@/contexts/TutorialContext';
 
 export default function ExtrasScreen() {
   const { fontsLoaded } = useFontContext();
+  const { setDynamicSpotlight } = useTutorial();
   const [showStreak, setShowStreak] = useState(false);
   const [streak, setStreak] = useState(0);
+
+  const streakRef = useRef<View>(null);
+
+  const measureStreak = () => {
+    if (streakRef.current) {
+      // Esperamos un segundo a que la pantalla cargue para que la medida no sea 0
+      setTimeout(() => {
+        streakRef.current?.measure((x, y, w, h, pageX, pageY) => {
+          setDynamicSpotlight('infinite_streak', { x: pageX, y: pageY, w, h, radius: 16 });
+        });
+      }, 1000);
+    }
+  };
 
   const PLAY_DAYS_STORAGE_KEY = 'infiniteGamePlayDays';
 
@@ -65,7 +80,13 @@ export default function ExtrasScreen() {
       {/* Overlay streak button on top-right */}
       <SafeAreaView pointerEvents="box-none" style={styles.overlaySafeArea}>
         <View style={styles.topRightOverlay}>
-          <TouchableOpacity style={styles.streakButton} onPress={() => setShowStreak(true)} activeOpacity={0.8}>
+          <TouchableOpacity 
+            ref={streakRef}
+            onLayout={measureStreak}
+            style={styles.streakButton} 
+            onPress={() => setShowStreak(true)} 
+            activeOpacity={0.8}
+          >
             <Fire size={18} color="#FF7A00" weight="fill" />
             <Text style={[styles.streakText, { fontFamily: 'Digitalt' }]}>{streak}</Text>
           </TouchableOpacity>
