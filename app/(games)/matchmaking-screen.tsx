@@ -78,6 +78,7 @@ export default function MatchmakingScreen() {
     onRoundFinished,
     onGameFinished,
     onAnswerResult,
+    onUserLeft,
     currentRoom,
     socketId,
     websocketService,
@@ -85,6 +86,7 @@ export default function MatchmakingScreen() {
   } = useWebSocket();
 
   const [gameState, setGameState] = useState<GameState>('MATCHMAKING');
+  const [myRole, setMyRole] = useState<'p1' | 'p2' | null>(null);
   const [queuePosition, setQueuePosition] = useState<number | undefined>();
   const [opponent, setOpponent] = useState<{ userId: string; username: string } | null>(null);
   const [gameData, setGameData] = useState<any>(null);
@@ -103,6 +105,7 @@ export default function MatchmakingScreen() {
   const [answerText, setAnswerText] = useState<string>('');
   const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
   const [myRoundScore, setMyRoundScore] = useState<number>(0);
+  const [opponentRoundScore, setOpponentRoundScore] = useState<number>(0);
   const [hasCompletedRound, setHasCompletedRound] = useState<boolean>(false);
 
   // Initial countdown state
@@ -136,6 +139,24 @@ export default function MatchmakingScreen() {
     onPlayerFound((data) => {
       setOpponent(data.opponent ?? null);
       if (data.selectedCategory) setSelectedCategory(data.selectedCategory);
+      
+      // Determine role immediately from room users list
+      const currentSocketId = websocketService.socketId;
+      const meIndex = data.users?.findIndex(u => 
+        (u.socketId && u.socketId === currentSocketId) || 
+        (u.id && (u.id === user?.id || u.id === myUserId))
+      ) ?? -1;
+      
+      if (meIndex !== -1) {
+        const role = meIndex === 0 ? 'p1' : 'p2';
+        setMyRole(role);
+        console.log('[Match Found] Assigned Role:', role);
+      } else {
+        // Fallback: if we can't find ourselves in the list, default to p1 but warn
+        setMyRole('p1');
+        console.log('[Match Found] WARNING: Could not find self in room users, defaulting to p1');
+      }
+
       const opponentId = data?.opponent?.userId;
       if (opponentId) {
         (async () => {
@@ -170,6 +191,8 @@ export default function MatchmakingScreen() {
 
   useEffect(() => {
     onRoundStarted((data) => {
+      // Ignore new rounds if we are already in MATCH_END or if the match is concluding
+      if (gameState === 'MATCH_END') return;
 
       setGameData(opponentAvatar ? { ...data, opponentAvatar } : data);
       setSelectedCategory(data?.category);
@@ -180,6 +203,7 @@ export default function MatchmakingScreen() {
       setQuestionIndex(0);
       setAnswerText('');
       setMyRoundScore(0);
+      setOpponentRoundScore(0);
       setHasCompletedRound(false);
       setQuestionStartTime(Date.now());
       
@@ -188,7 +212,10 @@ export default function MatchmakingScreen() {
         setIsInitialCountdown(true);
         setGameState('COUNTDOWN');
       } else {
-        setGameState('ROULETTE');
+        // If we are currently showing results, don't snap away
+        if (gameState !== 'ROUND_RESULT') {
+          setGameState('ROULETTE');
+        }
       }
     });
   }, [onRoundStarted]);
@@ -219,14 +246,32 @@ export default function MatchmakingScreen() {
     });
   }, [onRoundFinished]);
 
-  // MAtch Terminado
+  // Match Terminado
   useEffect(() => {
     onGameFinished((data) => {
 
       setGameData(opponentAvatar ? { ...data, opponentAvatar } : data);
       setGameState('MATCH_END');
     });
-  }, [onGameFinished]);
+  }, [onGameFinished, opponentAvatar]);
+
+  // Usuario sale de la sala
+  useEffect(() => {
+    onUserLeft((data) => {
+      // If the user who left is our opponent
+      if (data.userId === opponent?.userId && gameState !== 'MATCH_END' && gameState !== 'SEARCHING') {
+        // Force match end with forfeit info
+        setGameData((prev: any) => ({
+          ...prev,
+          winner: myUserId,
+          forfeit: true,
+          player1TotalScore: prev?.player1TotalScore || cumulativeTotals.p1,
+          player2TotalScore: prev?.player2TotalScore || cumulativeTotals.p2,
+        }));
+        setGameState('MATCH_END');
+      }
+    });
+  }, [onUserLeft, opponent?.userId, gameState, myUserId, cumulativeTotals]);
 
 
   useEffect(() => {
@@ -355,13 +400,22 @@ export default function MatchmakingScreen() {
   }, [isInitialCountdown]);
 
   useEffect(() => {
-    onAnswerResult((result: { exerciseId: string; isCorrect: boolean; correctAnswer: number; currentScore?: number; totalExercises?: number }) => {
+    onAnswerResult((result: { userId?: string; exerciseId: string; isCorrect: boolean; correctAnswer: number; currentScore?: number; totalExercises?: number }) => {
+      const isMe = !result.userId || result.userId === myUserId;
+      
       if (typeof result?.currentScore === 'number') {
-        setMyRoundScore(result.currentScore);
+        if (isMe) {
+          setMyRoundScore(result.currentScore);
+        } else {
+          setOpponentRoundScore(result.currentScore);
+        }
       }
-      setAnswerText('');
+      
+      if (isMe) {
+        setAnswerText('');
+      }
     });
-  }, [onAnswerResult, exercises.length]);
+  }, [onAnswerResult, exercises.length, myUserId]);
 
   // Quiz helpers
   const handleDigit = (d: string) => {
@@ -602,85 +656,107 @@ export default function MatchmakingScreen() {
           </View>
         );
       case 'ROULETTE':
-        return (
-          <View style={styles.rouletteStage}>
-            {(() => {
-              // Prepare faces ensuring the local player is on the left, and scores align
-              const p1Username = (gameData?.player1Username || myUsername || 'P1').toString();
-              const p2Username = (gameData?.player2Username || opponent?.username || 'P2').toString();
-              const p1Total = (typeof gameData?.player1TotalScore === 'number' ? gameData.player1TotalScore : cumulativeTotals.p1);
-              const p2Total = (typeof gameData?.player2TotalScore === 'number' ? gameData.player2TotalScore : cumulativeTotals.p2);
-              // Only require player ids to decide sides; avoid depending on socketId here
-              const haveIds = Boolean(gameData?.player1Id && gameData?.player2Id);
-              // Decide sides using the player's userId to support being P1 or P2
-              const meIsP1 = haveIds ? (gameData?.player1Id === myUserId) : true;
+        {
+          const haveIds = Boolean(gameData?.player1Id && gameData?.player2Id);
+          const meIsP1 = myRole ? (myRole === 'p1') : (haveIds ? (gameData?.player1Id === socketId || gameData?.player1Id === myUserId) : true);
+          const p1Av = (gameData as any)?.player1Avatar || (meIsP1 ? avatar : opponentAvatar) || defaultAvatar;
+          const p2Av = (gameData as any)?.player2Avatar || (meIsP1 ? opponentAvatar : avatar) || defaultAvatar;
+          const p1Total = (typeof gameData?.player1TotalScore === 'number' ? gameData.player1TotalScore : cumulativeTotals.p1);
+          const p2Total = (typeof gameData?.player2TotalScore === 'number' ? gameData.player2TotalScore : cumulativeTotals.p2);
 
-              const meFace = meIsP1
-                ? { username: p1Username, avatarComponent: <LayeredAvatar avatar={(gameData as any)?.player1Avatar || avatar} size={56} />, totalScore: p1Total }
-                : { username: p2Username, avatarComponent: <LayeredAvatar avatar={(gameData as any)?.player2Avatar || avatar} size={56} />, totalScore: p2Total };
-              const oppFace = meIsP1
-                ? { username: p2Username, avatarComponent: <LayeredAvatar avatar={(gameData as any)?.player2Avatar || opponentAvatar || defaultAvatar} size={56} />, totalScore: p2Total }
-                : { username: p1Username, avatarComponent: <LayeredAvatar avatar={(gameData as any)?.player1Avatar || opponentAvatar || defaultAvatar} size={56} />, totalScore: p1Total };
-
-              return (
-                <RouletteView
-                  selectedCategory={selectedCategory}
-                  player1={{
-                    userId: gameData?.player1Id,
-                    username: p1Username,
-                    avatarComponent: (gameData as any)?.player1Avatar ? <LayeredAvatar avatar={(gameData as any)?.player1Avatar} size={56} /> : null,
-                    totalScore: p1Total
-                  }}
-                  player2={{
-                    userId: gameData?.player2Id,
-                    username: p2Username,
-                    avatarComponent: (gameData as any)?.player2Avatar ? <LayeredAvatar avatar={(gameData as any)?.player2Avatar} size={56} /> : null,
-                    totalScore: p2Total
-                  }}
-                  currentUserId={myUserId}
-                  onSpinComplete={() => {
-                    if (exercises.length >= 6) {
-                      startRouletteToQuizTransition();
-                    }
-                  }}
-                />
-              );
-            })()}
-          </View>
-        );
+          return (
+            <View style={styles.rouletteStage}>
+              <RouletteView
+                selectedCategory={selectedCategory}
+                leftPlayer={{
+                  userId: myUserId,
+                  username: myUsername,
+                  avatarComponent: <LayeredAvatar avatar={meIsP1 ? p1Av : p2Av} size={56} />,
+                  totalScore: meIsP1 ? p1Total : p2Total
+                }}
+                rightPlayer={{
+                  userId: opponent?.userId || '',
+                  username: opponent?.username || 'Oponente',
+                  avatarComponent: <LayeredAvatar avatar={meIsP1 ? p2Av : p1Av} size={56} />,
+                  totalScore: meIsP1 ? p2Total : p1Total
+                }}
+                onSpinComplete={() => {
+                  if (exercises.length >= 6) {
+                    startRouletteToQuizTransition();
+                  }
+                }}
+              />
+            </View>
+          );
+        }
       case 'QUIZ':
-        return (
-          <QuizView
-            roundNumber={gameData?.roundNumber || 1}
-            category={selectedCategory}
-            question={exercises[questionIndex]?.question ?? '...'}
-            index={Math.min(questionIndex, exercises.length ? exercises.length - 1 : 0)}
-            total={exercises.length || 6}
-            answerText={answerText}
-            localScore={myRoundScore}
-            disabled={hasCompletedRound}
-            onDigit={handleDigit}
-            onClear={handleClear}
-            onOk={handleOk}
-            onForfeit={handleForfeit}
-          />
-        );
+        {
+          const haveIds = Boolean(gameData?.player1Id && gameData?.player2Id);
+          const meIsP1 = myRole ? (myRole === 'p1') : (haveIds ? (gameData?.player1Id === socketId || gameData?.player1Id === myUserId) : true);
+          const p1Av = (gameData as any)?.player1Avatar || (meIsP1 ? avatar : opponentAvatar) || defaultAvatar;
+          const p2Av = (gameData as any)?.player2Avatar || (meIsP1 ? opponentAvatar : avatar) || defaultAvatar;
+
+          return (
+            <QuizView
+              roundNumber={gameData?.roundNumber || 1}
+              category={selectedCategory}
+              question={exercises[questionIndex]?.question ?? '...'}
+              index={Math.min(questionIndex, exercises.length ? exercises.length - 1 : 0)}
+              total={exercises.length || 6}
+              answerText={answerText}
+              localScore={myRoundScore}
+              disabled={hasCompletedRound}
+              myAvatar={meIsP1 ? p1Av : p2Av}
+              opponentAvatar={meIsP1 ? p2Av : p1Av}
+              myUsername={myUsername}
+              opponentUsername={opponent?.username || 'Oponente'}
+              myTotalScore={(meIsP1 ? cumulativeTotals.p1 : cumulativeTotals.p2) + myRoundScore}
+              opponentTotalScore={(meIsP1 ? cumulativeTotals.p2 : cumulativeTotals.p1) + opponentRoundScore}
+              onDigit={handleDigit}
+              onClear={handleClear}
+              onOk={handleOk}
+              onForfeit={handleForfeit}
+            />
+          );
+        }
       case 'ROUND_RESULT':
-        return (
-          <RoundResultView
-            roundNumber={gameData?.roundNumber || 1}
-            player1Username={gameData?.player1Username || 'P1'}
-            player2Username={gameData?.player2Username || 'P2'}
-            player1Score={gameData?.player1Score ?? 0}
-            player2Score={gameData?.player2Score ?? 0}
-            player1TotalBefore={roundBeforeTotals.p1}
-            player2TotalBefore={roundBeforeTotals.p2}
-            winner={gameData?.winner}
-            mySocketId={socketId}
-            player1Id={gameData?.player1Id}
-            player2Id={gameData?.player2Id}
-          />
-        );
+        {
+          const haveIds = Boolean(gameData?.player1Id && gameData?.player2Id);
+          const meIsP1 = myRole ? (myRole === 'p1') : (haveIds ? (gameData?.player1Id === socketId || gameData?.player1Id === myUserId) : true);
+          const p1Av = (gameData as any)?.player1Avatar || (meIsP1 ? avatar : opponentAvatar) || defaultAvatar;
+          const p2Av = (gameData as any)?.player2Avatar || (meIsP1 ? opponentAvatar : avatar) || defaultAvatar;
+          
+          const p1TotalBefore = roundBeforeTotals.p1;
+          const p2TotalBefore = roundBeforeTotals.p2;
+
+          return (
+            <RoundResultView
+              roundNumber={gameData?.roundNumber || 1}
+              leftPlayer={{
+                id: myUserId,
+                username: myUsername,
+                score: meIsP1 ? (gameData?.player1Score ?? 0) : (gameData?.player2Score ?? 0),
+                totalBefore: meIsP1 ? p1TotalBefore : p2TotalBefore,
+                avatar: meIsP1 ? p1Av : p2Av
+              }}
+              rightPlayer={{
+                id: opponent?.userId || '',
+                username: opponent?.username || 'Oponente',
+                score: meIsP1 ? (gameData?.player2Score ?? 0) : (gameData?.player1Score ?? 0),
+                totalBefore: meIsP1 ? p2TotalBefore : p1TotalBefore,
+                avatar: meIsP1 ? p2Av : p1Av
+              }}
+              winner={gameData?.winner}
+              onDone={() => {
+                if (gameData?.isFinalRound) {
+                  setGameState('MATCH_END');
+                } else {
+                  setGameState('ROULETTE');
+                }
+              }}
+            />
+          );
+        }
       case 'MATCH_END':
         return (
           <MatchEndView

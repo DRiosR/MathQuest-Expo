@@ -28,6 +28,7 @@ interface UseWebSocketReturn {
   // Listeners
   onPlayerFound: (listener: (data: { roomId: string; message: string; opponent: { userId: string; username: string }; users: User[]; messages: WebSocketMessage[]; selectedCategory?: { id: string; name: string; emoji: string; color: string } }) => void) => void;
   onQueueUpdate: (listener: (position: number) => void) => void;
+  onUserLeft: (listener: (data: { userId: string; username: string; message: string }) => void) => void;
   
   // Listeners del juego
   onRoundStarted: (listener: (data: any) => void) => void;
@@ -366,6 +367,10 @@ export const useWebSocket = (): UseWebSocketReturn => {
     websocketService.onWaitingForPlayer(wrappedListener);
   }, []);
 
+  const onUserLeftWrapper = useCallback((listener: (data: { userId: string; username: string; message: string }) => void) => {
+    websocketService.onUserLeft(listener);
+  }, []);
+
   // Wrapper para onPlayerFound para mantener estabilidad
   const onPlayerFoundWrapper = useCallback((listener: (data: { roomId: string; message: string; opponent: { userId: string; username: string }; users: User[]; messages: WebSocketMessage[]; selectedCategory?: { id: string; name: string; emoji: string; color: string } }) => void) => {
     websocketService.onPlayerFound(listener);
@@ -429,6 +434,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
     // Listeners
     onPlayerFound: onPlayerFoundWrapper,
     onQueueUpdate: onQueueUpdateWrapper,
+    onUserLeft: onUserLeftWrapper,
     
     // Listeners del juego
     onRoundStarted: onRoundStartedWrapper,

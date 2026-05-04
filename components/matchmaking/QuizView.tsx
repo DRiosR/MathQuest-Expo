@@ -3,6 +3,8 @@ import LottieView from 'lottie-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LayeredAvatar } from '@/components/LayeredAvatar';
+import { Avatar } from '@/types/avatar';
 
 type Category = { id: string; name: string; emoji: string; color: string } | undefined;
 
@@ -15,6 +17,12 @@ type Props = {
   answerText: string;
   localScore: number;
   disabled?: boolean;
+  myAvatar: Avatar | null;
+  opponentAvatar: Avatar | null;
+  myUsername: string;
+  opponentUsername: string;
+  myTotalScore: number;
+  opponentTotalScore: number;
   onDigit: (d: string) => void;
   onClear: () => void;
   onOk: () => void;
@@ -33,7 +41,12 @@ function getMascotIdleSource(mascotName?: string) {
   return (mascotName && MASCOT_IDLE_SOURCES[mascotName]) || require('@/assets/lotties/extras/Time-15.json');
 }
 
-export default function QuizView({ roundNumber, category, question, index, total, answerText, localScore, disabled, onDigit, onClear, onOk, onForfeit }: Props) {
+export default function QuizView({ 
+  roundNumber, category, question, index, total, answerText, 
+  localScore, disabled, myAvatar, opponentAvatar, 
+  myUsername, opponentUsername, myTotalScore, opponentTotalScore,
+  onDigit, onClear, onOk, onForfeit 
+}: Props) {
   const insets = useSafeAreaInsets();
   const [trackWidth, setTrackWidth] = useState(0);
   const fillWidth = useRef(new Animated.Value(0)).current;
@@ -48,8 +61,6 @@ export default function QuizView({ roundNumber, category, question, index, total
     }).start();
   }, [index, total, trackWidth]);
 
-
-
   return (
     <View style={styles.quizContainer}>
 
@@ -60,7 +71,6 @@ export default function QuizView({ roundNumber, category, question, index, total
         style={[
           StyleSheet.absoluteFill,
           {
-            // Extend beyond SafeArea to cover the entire screen
             top: -insets.top,
             bottom: -insets.bottom,
             left: -insets.left,
@@ -68,24 +78,44 @@ export default function QuizView({ roundNumber, category, question, index, total
           },
         ]}
       />
-      {/* Header */}
+      {/* Header with Player Info */}
       <View style={styles.header}>
-        <View style={styles.topHeaderRow}>
-          <Text style={[styles.roundTitle, { fontFamily: 'Digitalt' }]}>RONDA {roundNumber || 1}</Text>
-          <TouchableOpacity 
-            style={styles.forfeitBtn} 
-            onPress={onForfeit}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.forfeitBtnText, { fontFamily: 'Gilroy-Black' }]}>ABANDONAR</Text>
-          </TouchableOpacity>
+        <View style={styles.topInfoRow}>
+          {/* My Info */}
+          <View style={styles.playerInfoBlock}>
+            <View style={styles.avatarCircleSmall}>
+              <LayeredAvatar avatar={myAvatar} size={40} />
+            </View>
+            <View style={styles.textInfo}>
+              <Text style={[styles.playerNameText, { fontFamily: 'Digitalt' }]} numberOfLines={1}>TU</Text>
+              <Text style={[styles.playerTotalScore, { fontFamily: 'Digitalt' }]}>{myTotalScore} pts</Text>
+            </View>
+          </View>
+
+          <View style={styles.roundInfoCenter}>
+            <Text style={[styles.roundTitle, { fontFamily: 'Digitalt' }]}>RONDA {roundNumber || 1}</Text>
+          </View>
+
+          {/* Opponent Info */}
+          <View style={[styles.playerInfoBlock, { flexDirection: 'row-reverse' }]}>
+            <View style={styles.avatarCircleSmall}>
+              <LayeredAvatar avatar={opponentAvatar} size={40} />
+            </View>
+            <View style={[styles.textInfo, { alignItems: 'flex-end' }]}>
+              <Text style={[styles.playerNameText, { fontFamily: 'Digitalt' }]} numberOfLines={1}>
+                {opponentUsername.toUpperCase()}
+              </Text>
+              <Text style={[styles.playerTotalScore, { fontFamily: 'Digitalt' }]}>{opponentTotalScore} pts</Text>
+            </View>
+          </View>
         </View>
+
         <Text style={[styles.roundSubtitle, { fontFamily: 'Digitalt' }]}>{category?.name?.toUpperCase() || 'CATEGORÍA'}</Text>
 
         {/* Progress + score row */}
         <View style={styles.progressRow}>
           <Text style={[styles.progressText, { fontFamily: 'Gilroy-Black' }]}>Pregunta {index + 1} de {total || 6}</Text>
-          <Text style={[styles.progressScore, { fontFamily: 'Gilroy-Black' }]}>{localScore} pts</Text>
+          <Text style={[styles.progressScore, { fontFamily: 'Gilroy-Black' }]}>+ {localScore} ronda</Text>
         </View>
 
         {/* Animated progress bar */}
@@ -145,54 +175,99 @@ export default function QuizView({ roundNumber, category, question, index, total
       </View>
 
       {/* Score moved to header next to progress */}
+      
+      {/* Forfeit Button at the bottom right */}
+      <TouchableOpacity 
+        style={styles.forfeitBtnBottomRight} 
+        onPress={onForfeit}
+        activeOpacity={0.7}
+      >
+        <Text style={[styles.forfeitBtnText, { fontFamily: 'Gilroy-Black' }]}>ABANDONAR</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  quizContainer: { flex: 1, paddingHorizontal: 24, justifyContent: 'flex-start' },
+  quizContainer: { flex: 1, paddingHorizontal: 20, justifyContent: 'flex-start', paddingBottom: 20 },
   header: { alignItems: 'center', marginTop: 8, alignSelf: 'stretch' },
-  roundTitle: { color: '#FFFFFF', fontSize: 30, fontWeight: '900', letterSpacing: 1 },
-  roundSubtitle: { color: '#D6CCFF', fontSize: 18, marginTop: 4 },
+  topInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingVertical: 5,
+  },
+  playerInfoBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  avatarCircleSmall: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  textInfo: {
+    justifyContent: 'center',
+    maxWidth: 80,
+  },
+  playerNameText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    opacity: 0.8,
+  },
+  playerTotalScore: {
+    color: '#FFD45E',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  roundInfoCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  roundTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '900', letterSpacing: 0.5 },
+  roundSubtitle: { color: '#D6CCFF', fontSize: 14, marginTop: 2 },
   progressRow: { marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', alignSelf: 'stretch' },
-  progressText: { color: '#EAE6FF', opacity: 0.9, fontSize: 13 },
-  progressScore: { color: '#FFFFFF', opacity: 0.95, fontSize: 13 },
+  progressText: { color: '#EAE6FF', opacity: 0.9, fontSize: 12 },
+  progressScore: { color: '#FFFFFF', opacity: 0.95, fontSize: 12 },
   progressTrack: { marginTop: 6, height: 6, backgroundColor: 'rgba(255,255,255,0.35)', borderRadius: 3, overflow: 'hidden', alignSelf: 'stretch' },
   progressFill: { height: '100%', borderRadius: 3 },
   mascotContainer: { marginTop: 4, alignItems: 'center', marginBottom: -22, zIndex: 2 },
-  mascotLottie: { width: 128, height: 128 },
-  questionCard: { marginTop: 0, backgroundColor: 'rgba(0,0,0,0.15)', paddingVertical: 24, paddingHorizontal: 20, borderRadius: 24, alignItems: 'center' },
-  questionText: { color: '#FFFFFF', fontSize: 28, fontWeight: '800', letterSpacing: 1 },
-  answerDisplay: { marginTop: 16, backgroundColor: '#FFFFFF', paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
+  mascotLottie: { width: 100, height: 100 },
+  questionCard: { marginTop: 0, backgroundColor: 'rgba(0,0,0,0.15)', paddingVertical: 20, paddingHorizontal: 20, borderRadius: 24, alignItems: 'center' },
+  questionText: { color: '#FFFFFF', fontSize: 24, fontWeight: '800', letterSpacing: 1 },
+  answerDisplay: { marginTop: 12, backgroundColor: '#FFFFFF', paddingVertical: 12, borderRadius: 16, alignItems: 'center' },
   answerText: { color: '#000000', fontSize: 24, fontWeight: '900' },
-  keypad: { marginTop: 16 },
-  keypadRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  keypadBtn: { flex: 1, marginHorizontal: 6, backgroundColor: 'rgba(255,255,255,0.2)', paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
-  keypadBtnText: { color: '#FFFFFF', fontSize: 20, fontWeight: '800' },
+  keypad: { marginTop: 12 },
+  keypadRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  keypadBtn: { flex: 1, marginHorizontal: 4, backgroundColor: 'rgba(255,255,255,0.2)', paddingVertical: 14, borderRadius: 16, alignItems: 'center' },
+  keypadBtnText: { color: '#FFFFFF', fontSize: 18, fontWeight: '800' },
   keypadOk: { backgroundColor: '#FF46A5' },
   keypadClear: { backgroundColor: 'rgba(255,255,255,0.25)' },
-  localScore: { marginTop: 8, color: '#FFFFFF', opacity: 0.9, textAlign: 'center' },
-  topHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    position: 'relative',
-  },
-  forfeitBtn: {
+  forfeitBtnBottomRight: {
     position: 'absolute',
-    right: 0,
-    backgroundColor: 'rgba(255, 0, 0, 0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
+    bottom: 20,
+    right: 20,
+    backgroundColor: 'rgba(255, 0, 0, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 0, 0, 0.4)',
+    borderColor: 'rgba(255, 0, 0, 0.3)',
   },
   forfeitBtnText: {
     color: '#FFBABA',
-    fontSize: 10,
-    letterSpacing: 0.5,
+    fontSize: 9,
+    letterSpacing: 1,
+    fontWeight: '700',
   },
 });
 

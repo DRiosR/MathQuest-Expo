@@ -15,9 +15,8 @@ type Face = {
 type Props = {
   selectedCategory?: SelectedCategory;
   onSpinComplete?: () => void;
-  player1?: Face; // Changed from "me"
-  player2?: Face; // Changed from "opponent"
-  currentUserId?: string; // ADD THIS - to know which player is the current user
+  leftPlayer?: Face;
+  rightPlayer?: Face;
 };
 
 const wheelImage: ImageSourcePropType = require('@/assets/images/competitive/roulette-2.png');
@@ -33,18 +32,13 @@ const CLOCKWISE_SLICE_IDS: string[] = [
 export default function RouletteView({ 
   selectedCategory, 
   onSpinComplete, 
-  player1, 
-  player2,
-  currentUserId 
+  leftPlayer, 
+  rightPlayer 
 }: Props) {
   const rotateDeg = useRef(new Animated.Value(0)).current;
   const [landedId, setLandedId] = useState<string | undefined>(selectedCategory?.id);
   const SLICE_COUNT = CLOCKWISE_SLICE_IDS.length;
   const SEGMENT_ANGLE = 360 / SLICE_COUNT;
-
-  // Determine which player is the current user
-  const isPlayer1CurrentUser = currentUserId === player1?.userId;
-  const isPlayer2CurrentUser = currentUserId === player2?.userId;
 
   const indexForCategory = (id?: string) => {
     if (!id) return 0;
@@ -101,51 +95,47 @@ export default function RouletteView({
   return (
     <View style={styles.container}>
       {/* Header with avatars and score */}
-      {(player1 || player2) && (
+      {(leftPlayer || rightPlayer) && (
         <View style={styles.header}>
-          {/* Left player */}
+          {/* Left player (Me) */}
           <View style={styles.playerCol}>
             <View style={[
               styles.avatarCircle,
-              isPlayer1CurrentUser && styles.avatarCircleHighlight
+              styles.avatarCircleHighlight
             ]}>
-              {player1?.avatarComponent}
+              {leftPlayer?.avatarComponent}
             </View>
+            <Text style={[
+              styles.usernameText, 
+              { fontFamily: 'Digitalt' },
+              styles.usernameTextHighlight
+            ]} numberOfLines={1}>
+              {leftPlayer?.username?.toUpperCase() || 'TÚ'}
+            </Text>
             <Text style={[
               styles.scoreText, 
               { fontFamily: 'Digitalt' }
             ]}>
-              {String((player1?.totalScore ?? player1?.score ?? 0)).padStart(2, '0')}
-            </Text>
-            <Text style={[
-              styles.usernameText, 
-              { fontFamily: 'Digitalt' },
-              isPlayer1CurrentUser && styles.usernameTextHighlight
-            ]} numberOfLines={1}>
-              @{player1?.username?.toUpperCase() || 'JUGADOR 1'}
+              {String((leftPlayer?.totalScore ?? leftPlayer?.score ?? 0)).padStart(2, '0')}
             </Text>
           </View>
           
-          {/* Right player */}
+          {/* Right player (Opponent) */}
           <View style={styles.playerCol}>
-            <View style={[
-              styles.avatarCircle,
-              isPlayer2CurrentUser && styles.avatarCircleHighlight
-            ]}>
-              {player2?.avatarComponent}
+            <View style={styles.avatarCircle}>
+              {rightPlayer?.avatarComponent}
             </View>
+            <Text style={[
+              styles.usernameText, 
+              { fontFamily: 'Digitalt' }
+            ]} numberOfLines={1}>
+              {rightPlayer?.username?.toUpperCase() || 'OPONENTE'}
+            </Text>
             <Text style={[
               styles.scoreText, 
               { fontFamily: 'Digitalt' }
             ]}>
-              {String((player2?.totalScore ?? player2?.score ?? 0)).padStart(2, '0')}
-            </Text>
-            <Text style={[
-              styles.usernameText, 
-              { fontFamily: 'Digitalt' },
-              isPlayer2CurrentUser && styles.usernameTextHighlight
-            ]} numberOfLines={1}>
-              @{player2?.username?.toUpperCase() || 'JUGADOR 2'}
+              {String((rightPlayer?.totalScore ?? rightPlayer?.score ?? 0)).padStart(2, '0')}
             </Text>
           </View>
         </View>
