@@ -115,6 +115,7 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
   }>>([]);
   const [correctFlash, setCorrectFlash] = useState(false);
   const [incorrectFlash, setIncorrectFlash] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   
   // Leaderboard modal
   const [showLeaderboard, setShowLeaderboard] = useState(false);
@@ -247,6 +248,7 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
   }, [isCountingDown]);
 
   const startTimer = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
@@ -257,6 +259,20 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
         return prev - 1;
       });
     }, 1000) as unknown as NodeJS.Timeout;
+  };
+
+  const togglePause = () => {
+    if (!isGameActive || gameEnded || isCountingDown) return;
+    
+    if (isPaused) {
+      // Resume
+      setIsPaused(false);
+      startTimer();
+    } else {
+      // Pause
+      setIsPaused(true);
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
   };
 
   const generateNewQuestion = () => {
@@ -570,27 +586,25 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
         )}
         {/* Top bar with timer and score */}
         <View style={styles.gameTopBar}>
-          {/* Back button */}
           <TouchableOpacity 
-            style={styles.backButton}
+            style={styles.pauseButton}
             onPress={() => {
-              if (timerRef.current) {
-                clearInterval(timerRef.current);
+              if (isGameActive && !gameEnded && !isCountingDown) {
+                togglePause();
+              } else {
+                setGameMode(null);
+                setIsGameActive(false);
               }
-              // Go back to mode selection screen
-              setGameMode(null);
-              setScore(0);
-              setWrongAnswers(0);
-              setQuestionsAnswered(0);
-              setUserAnswer('');
-              setIsGameActive(false);
-              setGameEnded(false);
-              scoreRef.current = 0;
-              questionsAnsweredRef.current = 0;
             }}
           >
-            <FontAwesome5 name="arrow-left" size={20} color="#fff" />
+            <LinearGradient
+              colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)']}
+              style={styles.pauseButtonGradient}
+            >
+              <FontAwesome5 name={isGameActive && !gameEnded ? "pause" : "arrow-left"} size={16} color="#fff" />
+            </LinearGradient>
           </TouchableOpacity>
+          
           <View style={styles.statsContainer}>
             <View style={styles.statBox}>
               <Text style={[styles.statLabel, { fontFamily: 'Digitalt' }]}>TIEMPO</Text>
@@ -837,6 +851,61 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
           </View>
         </View>
       </Modal>
+
+      {/* Pause / Confirmation Modal */}
+      <Modal
+        visible={isPaused}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={togglePause}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.gameOverModal}>
+            <Text style={[styles.gameOverTitle, { fontFamily: 'Digitalt' }]}>
+              ¡JUEGO EN PAUSA!
+            </Text>
+            
+            <Text style={[styles.aliasPrompt, { textAlign: 'center', alignSelf: 'center', marginBottom: 30, fontSize: 16 }]}>
+              ¿Seguro que quieres salir?{'\n'}No se guardará el progreso actual.
+            </Text>
+
+            <View style={styles.gameOverButtons}>
+              <TouchableOpacity
+                style={styles.gameOverButton}
+                onPress={togglePause}
+              >
+                <LinearGradient
+                  colors={['#8EF06E', '#31C45A']}
+                  style={styles.gameOverButtonGradient}
+                >
+                  <Text style={[styles.gameOverButtonText, { fontFamily: 'Digitalt' }]}>
+                    CONTINUAR JUGANDO
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.gameOverButton}
+                onPress={() => {
+                  setIsPaused(false);
+                  setIsGameActive(false);
+                  setGameMode(null);
+                  setGameEnded(false);
+                }}
+              >
+                <LinearGradient
+                  colors={['#FF6B6B', '#EE5253']}
+                  style={styles.gameOverButtonGradient}
+                >
+                  <Text style={[styles.gameOverButtonText, { fontFamily: 'Digitalt' }]}>
+                    SALIR DE LA PARTIDA
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       </View>
     </Modal>
   );
@@ -874,18 +943,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     elevation: 10,
   },
-  backButton: {
-    position: 'absolute',
-    top: 15,
-    left: 0,
-    zIndex: 1000,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
+  pauseButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.3)',
+    marginRight: 12,
+  },
+  pauseButtonGradient: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 10,
   },
   mainContent: {
     flex: 1,
@@ -976,17 +1046,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   gameTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 10,
-    position: 'relative',
+    marginBottom: 10,
   },
   statsContainer: {
+    flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   statBox: {
     alignItems: 'center',
