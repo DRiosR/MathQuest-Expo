@@ -168,16 +168,31 @@ export default function AvatarCustomizationScreen() {
 
   const handleSave = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try {
-      setIsSaving(true);
-      // Persist draft avatar to server and update context
-      await updateAvatar(draftAvatar);
-      // Baseline now matches what we saved
-      setOriginalAvatar(draftAvatar);
-    } finally {
-      setIsSaving(false);
-      router.back();
-    }
+    
+    Alert.alert(
+      'Guardar Cambios',
+      '¿Estás seguro de que quieres guardar los cambios en tu avatar?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Guardar', 
+          onPress: async () => {
+            try {
+              setIsSaving(true);
+              // Persist draft avatar to server and update context
+              await updateAvatar(draftAvatar);
+              // Baseline now matches what we saved
+              setOriginalAvatar(draftAvatar);
+              router.back();
+            } catch (error) {
+              Alert.alert('Error', 'No se pudieron guardar los cambios. Intenta de nuevo.');
+            } finally {
+              setIsSaving(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleCategorySelect = (category: AvatarCategory) => {

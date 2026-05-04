@@ -25,6 +25,8 @@ import AuthService from '@/Core/Services/AuthService/AuthService';
 import { AuthButton } from '@/components/ui/AuthButton';
 import { AuthInput } from '@/components/ui/AuthInput';
 import TutorialOverlay from '@/components/TutorialOverlay';
+import { useTutorial } from '@/contexts/TutorialContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -35,6 +37,30 @@ export default function UserScreen() {
 
   const { avatar: userAvatar } = useAvatar();
   const { user, signOut, refreshSession } = useAuth();
+  const { setDynamicSpotlight } = useTutorial();
+
+  const settingsRef = React.useRef<View>(null);
+  const avatarRef = React.useRef<View>(null);
+  const matchesRef = React.useRef<View>(null);
+
+  const measureUser = (ref: React.RefObject<any>, id: string, radius: number) => {
+    if (ref.current) {
+      ref.current.measure((x, y, w, h, pageX, pageY) => {
+        setDynamicSpotlight(id, { x: pageX, y: pageY, w, h, radius });
+      });
+    }
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const timer = setTimeout(() => {
+        measureUser(settingsRef, 'profile_settings', 25);
+        measureUser(avatarRef, 'profile_avatar', 60);
+        measureUser(matchesRef, 'profile_matches', 20);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }, [])
+  );
   const [gamesPlayed, setGamesPlayed] = React.useState(0);
   const [winRate, setWinRate] = React.useState(0);
   const [recentMatch, setRecentMatch] = React.useState<UserMatchItem | null>(null);
@@ -312,7 +338,13 @@ export default function UserScreen() {
           <FadeInView from="top" delay={0}>
             <View style={styles.header}>
               <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>PERFIL</Text>
-              <TouchableOpacity style={styles.headerAction} activeOpacity={0.8} onPress={handleOpenSettings}>
+              <TouchableOpacity 
+                ref={settingsRef}
+                onLayout={() => measureUser(settingsRef, 'profile_settings', 25)}
+                style={styles.headerAction} 
+                activeOpacity={0.8} 
+                onPress={handleOpenSettings}
+              >
                 <GearSixIcon size={20} color="#fff" weight="fill" />
               </TouchableOpacity>
             </View>
@@ -323,6 +355,8 @@ export default function UserScreen() {
           <View style={styles.profileSection}>
             <View style={styles.avatarContainer}>
               <TouchableOpacity 
+                ref={avatarRef}
+                onLayout={() => measureUser(avatarRef, 'profile_avatar', 60)}
                 style={styles.avatarCircle}
                 onPress={handleCustomizeAvatar}
                 activeOpacity={0.8}
@@ -378,7 +412,11 @@ export default function UserScreen() {
 
           {/* Recent Match Section */}
           <FadeInView from="bottom" delay={300}>
-          <View style={styles.recentSection}>
+          <View 
+            ref={matchesRef}
+            onLayout={() => measureUser(matchesRef, 'profile_matches', 20)}
+            style={styles.recentSection}
+          >
             <View style={styles.sectionHeaderRow}>
               <TouchableOpacity onPress={() => setIsRecentOpen(true)} activeOpacity={0.8}>
                 <Text style={[styles.sectionTitle, { fontFamily: 'Gilroy-Black' }]}>PARTIDAS RECIENTES</Text>

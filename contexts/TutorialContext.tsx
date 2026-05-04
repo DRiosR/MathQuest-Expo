@@ -195,6 +195,36 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     area: 'middle',
     targetScreen: '/(tabs)/user',
     defaultSpotlight: { x: width * 0.75, y: height - 85, w: width * 0.25, h: 85, radius: 0 }
+  },
+  {
+    id: 'profile_settings',
+    title: 'CONFIGURACIÓN',
+    description: 'En este menú podrás cambiar tu nombre de usuario y actualizar tu contraseña de forma segura.',
+    icon: 'cog',
+    color: '#A855F7',
+    area: 'bottom',
+    targetScreen: '/(tabs)/user',
+    defaultSpotlight: { x: width - 60, y: 30, w: 50, h: 50, radius: 25 }
+  },
+  {
+    id: 'profile_avatar',
+    title: 'TU AVATAR',
+    description: 'Toca tu foto de perfil para volver a la pantalla de edición y cambiar tu look cuando quieras.',
+    icon: 'user-circle',
+    color: '#A855F7',
+    area: 'bottom',
+    targetScreen: '/(tabs)/user',
+    defaultSpotlight: { x: width / 2 - 60, y: 150, w: 120, h: 120, radius: 60 }
+  },
+  {
+    id: 'profile_matches',
+    title: 'PARTIDAS RECIENTES',
+    description: 'Consulta aquí el historial de tus últimos duelos, tus victorias y tus derrotas contra otros jugadores.',
+    icon: 'history',
+    color: '#A855F7',
+    area: 'top',
+    targetScreen: '/(tabs)/user',
+    defaultSpotlight: { x: 20, y: 400, w: width - 40, h: 100, radius: 20 }
   }
 ];
 
@@ -232,7 +262,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const hasSeen = await AsyncStorage.getItem('hasSeenGuidedTour_v25');    if (hasSeen === null) {
+    const hasSeen = await AsyncStorage.getItem('hasSeenGuidedTour_v26');    if (hasSeen === null) {
       setTimeout(() => {
         setIsVisible(true);
         router.push(TUTORIAL_STEPS[0].targetScreen as any);
@@ -275,7 +305,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
   };
 
   const finish = async () => {
-    await AsyncStorage.setItem('hasSeenGuidedTour_v25', 'true');
+    await AsyncStorage.setItem('hasSeenGuidedTour_v26', 'true');
     setIsVisible(false);
   };
 
