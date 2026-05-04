@@ -127,6 +127,66 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     defaultSpotlight: { x: width * 0.5, y: height - 85, w: width * 0.25, h: 85, radius: 0 }
   },
   {
+    id: 'store_coins',
+    title: 'TUS MONEDAS',
+    description: 'Aquí puedes ver tu saldo actual de MathCoins. ¡Gana partidas para conseguir más!',
+    icon: 'coins',
+    color: '#FFD45E',
+    area: 'bottom',
+    targetScreen: '/(tabs)/store',
+    defaultSpotlight: { x: width - 100, y: 50, w: 80, h: 40, radius: 20 }
+  },
+  {
+    id: 'store_skin',
+    title: 'COLOR DE PIEL',
+    description: 'Toca este icono para elegir entre diferentes tonos y colores de piel para tu avatar.',
+    icon: 'user',
+    color: '#EBDDFF',
+    area: 'bottom',
+    targetScreen: '/(tabs)/store',
+    defaultSpotlight: { x: 20, y: 350, w: 50, h: 50, radius: 25 }
+  },
+  {
+    id: 'store_hair',
+    title: 'CORTES DE PELO',
+    description: 'Aquí puedes probarte diferentes peinados y estilos de cabello.',
+    icon: 'cut',
+    color: '#EBDDFF',
+    area: 'bottom',
+    targetScreen: '/(tabs)/store',
+    defaultSpotlight: { x: 80, y: 350, w: 50, h: 50, radius: 25 }
+  },
+  {
+    id: 'store_eyes',
+    title: 'ESTILO DE OJOS',
+    description: 'Cambia la mirada de tu personaje seleccionando diferentes tipos de ojos.',
+    icon: 'eye',
+    color: '#EBDDFF',
+    area: 'bottom',
+    targetScreen: '/(tabs)/store',
+    defaultSpotlight: { x: 140, y: 350, w: 50, h: 50, radius: 25 }
+  },
+  {
+    id: 'store_mouth',
+    title: 'EXPRESIÓN DE BOCA',
+    description: 'Personaliza la sonrisa o la expresión facial de tu avatar desde aquí.',
+    icon: 'smile',
+    color: '#EBDDFF',
+    area: 'bottom',
+    targetScreen: '/(tabs)/store',
+    defaultSpotlight: { x: 200, y: 350, w: 50, h: 50, radius: 25 }
+  },
+  {
+    id: 'store_clothes',
+    title: 'ROPA Y CAMISAS',
+    description: '¡Viste a tu avatar con las mejores camisas y atuendos de la tienda!',
+    icon: 'tshirt',
+    color: '#EBDDFF',
+    area: 'bottom',
+    targetScreen: '/(tabs)/store',
+    defaultSpotlight: { x: 260, y: 350, w: 50, h: 50, radius: 25 }
+  },
+  {
     id: 'profile',
     title: 'GESTIÓN DE PERFIL',
     description: 'Accede a tu cuenta para personalizar tu nombre y configurar tu identidad.',
@@ -172,8 +232,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const hasSeen = await AsyncStorage.getItem('hasSeenGuidedTour_v18');
-    if (hasSeen === null) {
+    const hasSeen = await AsyncStorage.getItem('hasSeenGuidedTour_v25');    if (hasSeen === null) {
       setTimeout(() => {
         setIsVisible(true);
         router.push(TUTORIAL_STEPS[0].targetScreen as any);
@@ -216,7 +275,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
   };
 
   const finish = async () => {
-    await AsyncStorage.setItem('hasSeenGuidedTour_v18', 'true');
+    await AsyncStorage.setItem('hasSeenGuidedTour_v25', 'true');
     setIsVisible(false);
   };
 

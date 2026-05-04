@@ -30,11 +30,36 @@ import { useItemStore } from '@/hooks/useItemStore';
 import { getUserInventoryProductIds, incrementCurrentUserCoins, purchaseStoreItem } from '@/services/SupabaseService';
 import { router } from 'expo-router';
 import TutorialOverlay from '@/components/TutorialOverlay';
+import { useTutorial } from '@/contexts/TutorialContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function StoreScreen() {
   const { fontsLoaded } = useFontContext();
   const { avatar: userAvatar } = useAvatar();
   const { items: allItems, isLoadingItems, coins, setCoins, refreshCoins } = useItemStore();
+  const { setDynamicSpotlight } = useTutorial();
+
+  const categoryRefs = React.useRef<Record<string, any>>({});
+  const coinsRef = React.useRef<View>(null);
+  
+  const measureCategory = (key: string) => {
+    const ref = key === 'coins' ? coinsRef.current : categoryRefs.current[key];
+    if (ref) {
+      ref.measure((x: number, y: number, w: number, h: number, pageX: number, pageY: number) => {
+        const id = key === 'coins' ? 'store_coins' : `store_${key}`;
+        setDynamicSpotlight(id, { x: pageX, y: pageY, w, h, radius: 20 });
+      });
+    }
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const timer = setTimeout(() => {
+        ['skin', 'hair', 'eyes', 'mouth', 'clothes', 'coins'].forEach(key => measureCategory(key));
+      }, 1500);
+      return () => clearTimeout(timer);
+    }, [])
+  );
 
   const [showMoneyCalc, setShowMoneyCalc] = React.useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = React.useState<
@@ -210,7 +235,13 @@ export default function StoreScreen() {
               </TouchableOpacity>
             </View>
             <View style={styles.headerRight}>
-              <TouchableOpacity onPress={handleDebugAddCoins} activeOpacity={0.8} style={styles.coinsPill}>
+              <TouchableOpacity 
+                ref={coinsRef}
+                onLayout={() => measureCategory('coins')}
+                onPress={handleDebugAddCoins} 
+                activeOpacity={0.8} 
+                style={styles.coinsPill}
+              >
                 <Image source={require('@/assets/images/store/MQ-coin.png')} style={styles.coinPng} />
                 <Text style={[styles.coinsText, { fontFamily: 'Digitalt' }]}>{coins}</Text>
               </TouchableOpacity>
@@ -245,6 +276,8 @@ export default function StoreScreen() {
               return (
                 <TouchableOpacity
                   key={cat.key}
+                  ref={(el) => (categoryRefs.current[cat.key] = el)}
+                  onLayout={() => measureCategory(cat.key)}
                   onPress={() => setSelectedCategory(cat.key)}
                   activeOpacity={0.9}
                   style={[styles.categoryButton, isActive && styles.categoryButtonActive]}
