@@ -16,7 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAvatar } from '@/contexts/AvatarContext';
 import { useFontContext } from '@/contexts/FontsContext';
 import { useWebSocket } from '@/hooks/useWebSocket';
-import { getUserAvatar, getUserElo } from '@/services/SupabaseService';
+import { getUserAvatar, getUserElo, getUserRankInfo, UserRankInfo } from '@/services/SupabaseService';
 import { Avatar } from '@/types/avatar';
 import LottieView from 'lottie-react-native';
 import { Alert } from 'react-native';
@@ -86,6 +86,12 @@ export default function MatchmakingScreen() {
   } = useWebSocket();
 
   const [gameState, setGameState] = useState<GameState>('MATCHMAKING');
+  const gameStateRef = useRef<GameState>('MATCHMAKING');
+
+  // Update ref whenever state changes
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
   const [myRole, setMyRole] = useState<'p1' | 'p2' | null>(null);
   const [queuePosition, setQueuePosition] = useState<number | undefined>();
   const [opponent, setOpponent] = useState<{ userId: string; username: string } | null>(null);
@@ -97,6 +103,8 @@ export default function MatchmakingScreen() {
   const [cumulativeTotals, setCumulativeTotals] = useState<{ p1: number; p2: number }>({ p1: 0, p2: 0 });
   const [roundBeforeTotals, setRoundBeforeTotals] = useState<{ p1: number; p2: number }>({ p1: 0, p2: 0 });
   const [opponentAvatar, setOpponentAvatar] = useState<Avatar | null>(null);
+  const [myRankInfo, setMyRankInfo] = useState<UserRankInfo | null>(null);
+  const [opponentRankInfo, setOpponentRankInfo] = useState<UserRankInfo | null>(null);
 
   // Quiz state
   type Exercise = { id: string; question: string; answer: number; options?: number[]; category: string; startTime?: number };
@@ -136,7 +144,24 @@ export default function MatchmakingScreen() {
 
   // ENCONTRADO!
   useEffect(() => {
-    onPlayerFound((data) => {
+    const unsubPlayerFound = onPlayerFound((data) => {
+      // Solo ignoramos si la partida ya finalizó por completo
+      if (gameStateRef.current === 'MATCH_END') {
+        console.log('⚠️ Ignorando player-found: partida ya finalizada');
+        return;
+      }
+      
+      console.log('✅ Player found! Transitioning to MATCH_FOUND');
+      setGameState('MATCH_FOUND');
+      
+      // Fetch rank info for both
+      if (myUserId) {
+        getUserRankInfo(myUserId).then(setMyRankInfo);
+      }
+      if (data.opponent?.userId) {
+        getUserRankInfo(data.opponent.userId).then(setOpponentRankInfo);
+      }
+      
       setOpponent(data.opponent ?? null);
       if (data.selectedCategory) setSelectedCategory(data.selectedCategory);
       
@@ -152,9 +177,8 @@ export default function MatchmakingScreen() {
         setMyRole(role);
         console.log('[Match Found] Assigned Role:', role);
       } else {
-        // Fallback: if we can't find ourselves in the list, default to p1 but warn
         setMyRole('p1');
-        console.log('[Match Found] WARNING: Could not find self in room users, defaulting to p1');
+        console.log('[Match Found] WARNING: Defaulting to p1');
       }
 
       const opponentId = data?.opponent?.userId;
@@ -190,9 +214,14 @@ export default function MatchmakingScreen() {
 
 
   useEffect(() => {
-    onRoundStarted((data) => {
-      // Ignore new rounds if we are already in MATCH_END or if the match is concluding
-      if (gameState === 'MATCH_END') return;
+    const unsubRoundStarted = onRoundStarted((data) => {
+      // Solo ignoramos si la partida ya terminó definitivamente
+      if (gameStateRef.current === 'MATCH_END') {
+        console.log('⚠️ Ignorando round-started porque la partida ya finalizó');
+        return;
+      }
+
+      console.log('🎯 Round started! Round number:', data?.roundNumber);
 
       setGameData(opponentAvatar ? { ...data, opponentAvatar } : data);
       setSelectedCategory(data?.category);
@@ -208,9 +237,16 @@ export default function MatchmakingScreen() {
       setQuestionStartTime(Date.now());
       
       if ((data?.roundNumber || 1) === 1) {
-        setCountdown(3);
-        setIsInitialCountdown(true);
-        setGameState('COUNTDOWN');
+        // Aseguramos que pasamos por MATCH_FOUND para ver los rangos
+        if (gameState === 'MATCH_FOUND' || gameState === 'MATCHMAKING') {
+          setGameState('MATCH_FOUND');
+          // Esperamos 4 segundos para que se vea la animación de los rangos, iconos y avatares
+          setTimeout(() => {
+            setIsExitingMatchFound(true);
+          }, 4000);
+        } else {
+          setGameState('ROULETTE');
+        }
       } else {
         // If we are currently showing results, don't snap away
         if (gameState !== 'ROUND_RESULT') {
@@ -249,17 +285,21 @@ export default function MatchmakingScreen() {
   // Match Terminado
   useEffect(() => {
     onGameFinished((data) => {
-
-      setGameData(opponentAvatar ? { ...data, opponentAvatar } : data);
+      // Merge with previous gameData to preserve round scores if needed
+      setGameData((prev: any) => {
+        const base = opponentAvatar ? { ...data, opponentAvatar } : data;
+        return prev ? { ...prev, ...base } : base;
+      });
       setGameState('MATCH_END');
     });
   }, [onGameFinished, opponentAvatar]);
 
   // Usuario sale de la sala
   useEffect(() => {
-    onUserLeft((data) => {
-      // If the user who left is our opponent
-      if (data.userId === opponent?.userId && gameState !== 'MATCH_END' && gameState !== 'SEARCHING') {
+    const unsubUserLeft = onUserLeft((data) => {
+      // Solo actuar si el oponente sale ANTES de terminar la partida
+      const currentState = gameStateRef.current;
+      if (data.userId === opponent?.userId && currentState !== 'MATCH_END' && currentState !== 'SEARCHING') {
         // Force match end with forfeit info
         setGameData((prev: any) => ({
           ...prev,
@@ -271,7 +311,8 @@ export default function MatchmakingScreen() {
         setGameState('MATCH_END');
       }
     });
-  }, [onUserLeft, opponent?.userId, gameState, myUserId, cumulativeTotals]);
+    return () => unsubUserLeft?.();
+  }, [onUserLeft, opponent?.userId, myUserId, cumulativeTotals]);
 
 
   useEffect(() => {
@@ -401,7 +442,14 @@ export default function MatchmakingScreen() {
 
   useEffect(() => {
     onAnswerResult((result: { userId?: string; exerciseId: string; isCorrect: boolean; correctAnswer: number; currentScore?: number; totalExercises?: number }) => {
-      const isMe = !result.userId || result.userId === myUserId;
+      // If server doesn't send userId, we might have issues distinguishing.
+      // But if it DOES, we use socketId and myUserId for maximum precision.
+      const currentSocketId = websocketService.socketId;
+      
+      // Determine if this result belongs to me
+      const isMe = result.userId 
+        ? (result.userId === currentSocketId || result.userId === myUserId)
+        : true; // Fallback to true if missing, but ideally server should send it
       
       if (typeof result?.currentScore === 'number') {
         if (isMe) {
@@ -569,11 +617,13 @@ export default function MatchmakingScreen() {
   // Evitar llamar findPlayer múltiples veces (evita "Ya estás en la cola de espera")
   const hasInitiatedSearch = useRef(false);
   useEffect(() => {
-    if (isConnected && !hasInitiatedSearch.current) {
+    // ONLY search if we are in the initial MATCHMAKING state and connected
+    if (isConnected && gameState === 'MATCHMAKING' && !hasInitiatedSearch.current) {
       hasInitiatedSearch.current = true;
+      console.log('🔍 Iniciando búsqueda de jugador...');
       findPlayer(myUserId, myUsername);
     }
-  }, [isConnected, findPlayer, myUserId, myUsername]);
+  }, [isConnected, gameState, findPlayer, myUserId, myUsername]);
 
   const handleCancel = () => {
     cancelSearch(myUserId);
@@ -600,18 +650,17 @@ export default function MatchmakingScreen() {
   };
 
   const handleExitMatchEnd = () => {
+    console.log('🚪 Saliendo de la partida y reseteando estados...');
+    cancelSearch(myUserId);
     websocketService.disconnect();
+    hasInitiatedSearch.current = false;
+    setMyRole(null); // Reset role for next time
     router.back();
   };
 
-  // Cuando aparece MATCH_FOUND, espera 5s luego desvanece y mueve a ROULETTE
+  // Cuando aparece MATCH_FOUND, esperamos a que onRoundStarted nos diga que ya podemos salir
   useEffect(() => {
-    if (gameState === 'MATCH_FOUND') {
-      const t = setTimeout(() => {
-        setIsExitingMatchFound(true);
-      }, 5000);
-      return () => clearTimeout(t);
-    } else {
+    if (gameState !== 'MATCH_FOUND') {
       setIsExitingMatchFound(false);
     }
   }, [gameState]);
@@ -637,24 +686,24 @@ export default function MatchmakingScreen() {
       case 'MATCH_FOUND':
         return (
           <MatchFoundView
-            me={{ username: myUsername?.toUpperCase(), avatarComponent: <LayeredAvatar avatar={avatar} size={92} /> }}
+            me={{ 
+              username: myUsername?.toUpperCase(), 
+              avatarComponent: <LayeredAvatar avatar={avatar} size={80} />,
+              rankInfo: myRankInfo
+            }}
             opponent={{
               username: (opponent?.username || 'OPONENTE').toUpperCase(),
-              avatarComponent: <LayeredAvatar avatar={opponentAvatar || defaultAvatar} size={92} />,
+              avatarComponent: <LayeredAvatar avatar={opponentAvatar || defaultAvatar} size={80} />,
+              rankInfo: opponentRankInfo
             }}
             isExiting={isExitingMatchFound}
             onExitComplete={() => {
-              // Simplemente dejamos que onRoundStarted maneje el siguiente estado
-              // o si el servidor tarda, nos quedamos aquí un momento
+              // Una vez que termina la animación de salida, pasamos directamente a la ruleta
+              setGameState('ROULETTE');
             }}
           />
         );
-      case 'COUNTDOWN':
-        return (
-          <View style={styles.countdownStage}>
-            <Text style={[styles.preparingText, { fontFamily: 'Digitalt' }]}>¡PREPÁRATE!</Text>
-          </View>
-        );
+
       case 'ROULETTE':
         {
           const haveIds = Boolean(gameData?.player1Id && gameData?.player2Id);
@@ -799,22 +848,7 @@ export default function MatchmakingScreen() {
         )}
         {renderContent()}
 
-        {isInitialCountdown && (
-          <View style={styles.initialCountdownOverlay}>
-            <Animated.Text 
-              style={[
-                styles.initialCountdownText, 
-                { 
-                  fontFamily: 'Digitalt',
-                  transform: [{ scale: countdownScale }],
-                  opacity: countdownOpacity
-                }
-              ]}
-            >
-              {countdown}
-            </Animated.Text>
-          </View>
-        )}
+
 
         {(isTransitioningToQuiz || isTransitioningFromQuiz) && (
           <Animated.View

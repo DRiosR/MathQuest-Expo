@@ -72,11 +72,7 @@ export default function RoundResultView({
       ]).start(() => {
         // 3. Show result
         setShowResult(true);
-        Animated.timing(resultOpacity, { toValue: 1, duration: 500, useNativeDriver: true }).start(() => {
-          setTimeout(() => {
-            if (onDone) onDone();
-          }, 3000);
-        });
+        Animated.timing(resultOpacity, { toValue: 1, duration: 500, useNativeDriver: true }).start();
       });
     });
 
@@ -122,11 +118,19 @@ export default function RoundResultView({
       </Animated.View>
       
       {showResult ? (
-        <>
-          <Animated.Text style={[styles.resultWinner, { color: resultColor, opacity: resultOpacity, fontFamily: 'Digitalt' }]}>{resultText}</Animated.Text>
-          <Animated.Text style={[styles.resultHint, { opacity: resultOpacity, fontFamily: 'Digitalt' }]}>{hintText}</Animated.Text>
-          <Text style={[styles.waitingText, { fontFamily: 'Digitalt' }]}>Esperando la siguiente ronda...</Text>
-        </>
+        <Animated.View style={{ opacity: resultOpacity, width: '100%', alignItems: 'center' }}>
+          <Text style={[styles.waitingText, { fontFamily: 'Digitalt' }]}>Resultados de la ronda procesados</Text>
+          <View style={styles.buttonWrapper}>
+             <Animated.View style={[styles.continueButton]}>
+                <Text 
+                  onPress={onDone}
+                  style={[styles.continueButtonText, { fontFamily: 'Digitalt' }]}
+                >
+                  CONTINUAR
+                </Text>
+             </Animated.View>
+          </View>
+        </Animated.View>
       ) : (
         <Text style={[styles.waitingText, { fontFamily: 'Digitalt' }]}>Calculando puntajes…</Text>
       )}
@@ -146,5 +150,25 @@ const styles = StyleSheet.create({
   vsDivider: { color: '#FFFFFF', fontSize: 24, opacity: 0.5, marginHorizontal: 10 },
   resultWinner: { fontSize: 28, fontWeight: '900', marginBottom: 12, textAlign: 'center' },
   resultHint: { color: '#FFFFFF', fontSize: 18, opacity: 0.9, textAlign: 'center', marginBottom: 20 },
-  waitingText: { color: '#FFFFFF', fontSize: 14, opacity: 0.6, marginTop: 20 },
+  waitingText: { color: '#FFFFFF', fontSize: 16, opacity: 0.6, marginTop: 20, textAlign: 'center' },
+  buttonWrapper: { marginTop: 30, width: '100%', alignItems: 'center' },
+  continueButton: {
+    backgroundColor: '#34C759',
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    borderRadius: 25,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  continueButtonText: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: 1,
+  }
 });
