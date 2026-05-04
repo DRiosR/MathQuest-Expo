@@ -52,7 +52,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     description: 'Toca tu medalla para conocer todas las divisiones y ver cuánto te falta para subir de nivel.',
     icon: 'medal',
     color: '#FFD45E',
-    area: 'middle',
+    area: 'bottom',
     targetScreen: '/(tabs)/play',
     defaultSpotlight: { x: 20, y: 150, w: 220, h: 60, radius: 25 }
   },
@@ -65,6 +65,16 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     area: 'top',
     targetScreen: '/(tabs)/play',
     defaultSpotlight: { x: width - 140, y: height - 100, w: 120, h: 50, radius: 25 }
+  },
+  {
+    id: 'infinite_30s',
+    title: 'MODO CONTRARRELOJ',
+    description: '¡Elige tu desafío! Tienes 3 vidas. El juego termina si se acaba el tiempo o pierdes todos los corazones.',
+    icon: 'stopwatch',
+    color: '#FF6B9D',
+    area: 'bottom',
+    targetScreen: '/(tabs)/extras',
+    defaultSpotlight: { x: 20, y: height * 0.45, w: width - 40, h: 70, radius: 15 }
   },
   {
     id: 'competitive',
@@ -105,16 +115,6 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     area: 'middle',
     targetScreen: '/(tabs)/extras',
     defaultSpotlight: { x: width - 80, y: 50, w: 70, h: 50, radius: 15 }
-  },
-  {
-    id: 'infinite_30s',
-    title: 'DESAFÍO DE 30 SEGUNDOS',
-    description: 'Resuelve operaciones variadas lo más rápido posible antes de que se agote el tiempo.',
-    icon: 'clock',
-    color: '#C44569',
-    area: 'middle',
-    targetScreen: '/(tabs)/extras',
-    defaultSpotlight: { x: 20, y: 300, w: width - 40, h: 80, radius: 20 }
   },
   {
     id: 'store',
@@ -262,7 +262,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const hasSeen = await AsyncStorage.getItem('hasSeenGuidedTour_v26');    if (hasSeen === null) {
+    const hasSeen = await AsyncStorage.getItem('hasSeenGuidedTour_v28');    if (hasSeen === null) {
       setTimeout(() => {
         setIsVisible(true);
         router.push(TUTORIAL_STEPS[0].targetScreen as any);
@@ -305,7 +305,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
   };
 
   const finish = async () => {
-    await AsyncStorage.setItem('hasSeenGuidedTour_v26', 'true');
+    await AsyncStorage.setItem('hasSeenGuidedTour_v28', 'true');
     setIsVisible(false);
   };
 

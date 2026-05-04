@@ -114,9 +114,11 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
     timestamp: number;
   }>>([]);
   const [correctFlash, setCorrectFlash] = useState(false);
+  const [incorrectFlash, setIncorrectFlash] = useState(false);
   
   // Leaderboard modal
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showGameOverModal, setShowGameOverModal] = useState(false);
   
   // Alias input for game end
   const [aliasInput, setAliasInput] = useState('');
@@ -131,6 +133,7 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
   // Animations
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
+  const flashOpacity = useRef(new Animated.Value(0)).current;
 
   // Timer ref
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -180,6 +183,11 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
     setUserAnswer('');
     setGameEnded(false);
     setIsGameActive(true);
+    
+    // Reset visual feedback
+    setCorrectFlash(false);
+    setIncorrectFlash(false);
+    flashOpacity.setValue(0);
     
     // Reset refs
     scoreRef.current = 0;
@@ -260,7 +268,7 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
   };
 
   const checkAnswer = () => {
-    if (!currentQuestion || !userAnswer.trim()) return;
+    if (!currentQuestion || !userAnswer.trim() || !isGameActive || wrongAnswers >= 3) return;
 
     const userNum = parseInt(userAnswer.trim());
     const isCorrect = userNum === currentQuestion.correctAnswer;
@@ -291,6 +299,13 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
         return newCount;
       });
       
+      // Flash screen green
+      setCorrectFlash(true);
+      Animated.sequence([
+        Animated.timing(flashOpacity, { toValue: 0.3, duration: 50, useNativeDriver: true }),
+        Animated.timing(flashOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+      ]).start();
+
       // Pulse animation for correct answer
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -305,14 +320,12 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
         }),
       ]).start();
 
-      // Brief green flash on the answer text
-      setCorrectFlash(true);
-      setTimeout(() => setCorrectFlash(false), 400);
+      setTimeout(() => setCorrectFlash(false), 250);
 
       // Generate new question after a short delay
       setTimeout(() => {
         generateNewQuestion();
-      }, 500);
+      }, 300); // Super fast transition
     } else {
       // Wrong answer
       setWrongAnswers(prev => prev + 1);
@@ -322,26 +335,38 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
         return newCount;
       });
 
-      // Shake animation for wrong answer
+      // Clear answer immediately so they can type the NEXT one
+      setUserAnswer('');
+
+      // Flash screen red
+      setIncorrectFlash(true);
       Animated.sequence([
-        Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+        Animated.timing(flashOpacity, { toValue: 0.5, duration: 50, useNativeDriver: true }),
+        Animated.timing(flashOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
       ]).start();
 
-      Vibration.vibrate(200);
+      // Shake animation for wrong answer
+      Animated.sequence([
+        Animated.timing(shakeAnim, { toValue: 20, duration: 40, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -20, duration: 40, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 20, duration: 40, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -20, duration: 40, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 0, duration: 40, useNativeDriver: true }),
+      ]).start();
+
+      Vibration.vibrate([0, 100, 50, 100]);
+      setTimeout(() => setIncorrectFlash(false), 600);
 
       // Check if game should end (3 wrong answers)
       if (wrongAnswers + 1 >= 3) {
         setTimeout(() => {
           endGame();
-        }, 1000);
+        }, 800);
       } else {
         // Generate new question after delay
         setTimeout(() => {
           generateNewQuestion();
-        }, 1000);
+        }, 800); // Reduced from 1200ms
       }
     }
   };
@@ -373,20 +398,18 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
   const saveGameScore = async () => {
     const { score: finalScore, questionsAnswered: finalQuestionsAnswered, accuracy } = gameOverStats;
     
-    // Save high score with alias and username
+    // Save high score with username
     if (gameMode && finalScore > 0) {
       await addHighScore({
         mode: gameMode,
         score: finalScore,
         accuracy,
         questionsAnswered: finalQuestionsAnswered,
-        alias: aliasInput.trim() || undefined,
         username: user?.username,
       });
     }
 
     // Reset and close modal
-    setAliasInput('');
     setShowGameOverModal(false);
   };
 
@@ -510,7 +533,17 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
 
   // Game screen
   return (
-    <View style={styles.container}>
+    <Modal
+      visible={isGameActive || gameEnded}
+      animationType="slide"
+      statusBarTranslucent
+      onRequestClose={() => {
+        setIsGameActive(false);
+        setGameEnded(false);
+        setGameMode(null);
+      }}
+    >
+      <View style={styles.container}>
       <LinearGradient
         colors={['#A855F7', '#7C3AED']}
         style={styles.gradientBackground}
@@ -568,11 +601,45 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
               <Text style={[styles.statValue, { fontFamily: 'Digitalt' }]}>{score}</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={[styles.statLabel, { fontFamily: 'Digitalt' }]}>ERRORES</Text>
-              <Text style={[styles.statValue, { fontFamily: 'Digitalt' }]}>{wrongAnswers}/3</Text>
+              <Text style={[styles.statLabel, { fontFamily: 'Digitalt' }]}>VIDAS</Text>
+              <View style={styles.heartsRow}>
+                {[1, 2, 3].map((h) => (
+                  <FontAwesome5 
+                    key={h} 
+                    name="heart" 
+                    size={16} 
+                    color={h > 3 - wrongAnswers ? '#4b5563' : '#ef4444'} 
+                    solid={h <= 3 - wrongAnswers}
+                    style={h > 3 - wrongAnswers ? styles.heartBroken : null}
+                  />
+                ))}
+              </View>
             </View>
           </View>
         </View>
+
+        {/* Visual Feedback Overlays */}
+        <Animated.View 
+          pointerEvents="none"
+          style={[
+            styles.flashOverlay, 
+            { 
+              backgroundColor: correctFlash ? '#22c55e' : (incorrectFlash ? '#ef4444' : 'transparent'),
+              opacity: flashOpacity 
+            }
+          ]} 
+        />
+
+        {correctFlash && (
+          <View pointerEvents="none" style={styles.feedbackIconOverlay}>
+            <FontAwesome5 name="check-circle" size={100} color="#22c55e" />
+          </View>
+        )}
+        {incorrectFlash && (
+          <View pointerEvents="none" style={styles.feedbackIconOverlay}>
+            <FontAwesome5 name="times-circle" size={100} color="#ef4444" />
+          </View>
+        )}
 
         {/* Main Content */}
         <View style={styles.mainContent}>
@@ -651,12 +718,12 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
 
           {/* Submit Button */}
           <TouchableOpacity
-            style={[styles.submitButton, !userAnswer.trim() && styles.submitButtonDisabled]}
+            style={[styles.submitButton, (!userAnswer.trim() || !isGameActive || wrongAnswers >= 3) && styles.submitButtonDisabled]}
             onPress={checkAnswer}
-            disabled={!userAnswer.trim()}
+            disabled={!userAnswer.trim() || !isGameActive || wrongAnswers >= 3}
           >
             <LinearGradient
-              colors={userAnswer.trim() ? ['#FFA65A', '#FF5EA3'] : ['#666', '#444']}
+              colors={(userAnswer.trim() && isGameActive && wrongAnswers < 3) ? ['#FFA65A', '#FF5EA3'] : ['#666', '#444']}
               style={styles.submitButtonGradient}
             >
               <Text style={[styles.submitButtonText, { fontFamily: 'Digitalt' }]}>
@@ -711,18 +778,6 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
               </View>
             </View>
 
-            <Text style={[styles.aliasPrompt, { fontFamily: 'Gilroy-Black' }]}>
-              Nombre para la tabla (opcional):
-            </Text>
-            <TextInput
-              style={[styles.aliasInput, { fontFamily: 'Gilroy-Black' }]}
-              placeholder={user?.username || "Tu nombre"}
-              placeholderTextColor="#999"
-              value={aliasInput}
-              onChangeText={setAliasInput}
-              maxLength={20}
-            />
-
             <View style={styles.gameOverButtons}>
               
 
@@ -730,8 +785,13 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
                 style={styles.gameOverButton}
                 onPress={() => {
                   saveGameScore();
-                  setGameMode(null);
-                  setGameEnded(false);
+                  if (gameMode) {
+                    // Reset flashes before restarting
+                    setCorrectFlash(false);
+                    setIncorrectFlash(false);
+                    flashOpacity.setValue(0);
+                    startGame(gameMode);
+                  }
                 }}
               >
                 <LinearGradient
@@ -748,7 +808,7 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
                 style={styles.gameOverButton}
                 onPress={() => {
                   saveGameScore();
-                  // Ensure full dismiss and reset
+                  // Reset all states to go back to MODE SELECTION (inside this screen)
                   setGameMode(null);
                   setIsGameActive(false);
                   setGameEnded(false);
@@ -757,9 +817,11 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
                   setQuestionsAnswered(0);
                   setUserAnswer('');
                   setShowGameOverModal(false);
-                  // Usar replace en vez de back: el modo infinito está en la pestaña Extras,
-                  // no hay pantalla previa en la pila, así que back falla con GO_BACK
-                  router.replace('/(tabs)/play');
+                  
+                  // Reset flashes
+                  setCorrectFlash(false);
+                  setIncorrectFlash(false);
+                  flashOpacity.setValue(0);
                 }}
               >
                 <LinearGradient
@@ -775,7 +837,8 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
           </View>
         </View>
       </Modal>
-    </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -1265,5 +1328,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     letterSpacing: 1,
+  },
+  heartsRow: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 8,
+  },
+  heartBroken: {
+    opacity: 0.3,
+    transform: [{ scale: 0.8 }],
+  },
+  flashOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 9998,
+  },
+  feedbackIconOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
   },
 });

@@ -1,4 +1,5 @@
 import * as Haptics from 'expo-haptics';
+import { FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import {
@@ -37,7 +38,7 @@ export default function UserScreen() {
 
   const { avatar: userAvatar } = useAvatar();
   const { user, signOut, refreshSession } = useAuth();
-  const { setDynamicSpotlight } = useTutorial();
+  const { setDynamicSpotlight, startTutorial } = useTutorial();
 
   const settingsRef = React.useRef<View>(null);
   const avatarRef = React.useRef<View>(null);
@@ -45,7 +46,7 @@ export default function UserScreen() {
 
   const measureUser = (ref: React.RefObject<any>, id: string, radius: number) => {
     if (ref.current) {
-      ref.current.measure((x, y, w, h, pageX, pageY) => {
+      ref.current.measure((x: number, y: number, w: number, h: number, pageX: number, pageY: number) => {
         setDynamicSpotlight(id, { x: pageX, y: pageY, w, h, radius });
       });
     }
@@ -636,6 +637,33 @@ export default function UserScreen() {
                 style={styles.settingsActionButton}
               />
             </FadeInView>
+
+            <View style={styles.settingsDivider} />
+
+            {/* Section: Replay Tutorial */}
+            <FadeInView from="bottom" delay={300} style={styles.settingsCard}>
+              <Text style={[styles.settingsSectionTitle, { fontFamily: 'Digitalt' }]}>
+                AYUDA Y SOPORTE
+              </Text>
+              <TouchableOpacity 
+                style={styles.replayTutorialButton}
+                onPress={() => {
+                  setIsSettingsOpen(false);
+                  startTutorial();
+                }}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#8A56FE', '#6E72FC']}
+                  style={styles.replayTutorialGradient}
+                >
+                  <FontAwesome5 name="magic" size={16} color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={[styles.replayTutorialText, { fontFamily: 'Digitalt' }]}>
+                    VER TUTORIAL DE NUEVO
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </FadeInView>
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -1081,6 +1109,29 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     fontSize: 16,
     fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  replayTutorialButton: {
+    marginTop: 10,
+    height: 50,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+  },
+  replayTutorialGradient: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  replayTutorialText: {
+    color: '#fff',
+    fontSize: 14,
     letterSpacing: 1,
   },
 });
