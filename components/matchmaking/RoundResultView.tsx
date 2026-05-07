@@ -18,6 +18,7 @@ type Props = {
   rightPlayer: PlayerResult;
   winner: string | null | undefined;
   onDone?: () => void;
+  isFinalRound?: boolean;
 };
 
 export default function RoundResultView({
@@ -26,6 +27,7 @@ export default function RoundResultView({
   rightPlayer,
   winner,
   onDone,
+  isFinalRound,
 }: Props) {
   // We assume leftPlayer is the local player and rightPlayer is the opponent
   const leftName = 'TU';
@@ -119,9 +121,11 @@ export default function RoundResultView({
       
       {showResult ? (
         <Animated.View style={{ opacity: resultOpacity, width: '100%', alignItems: 'center' }}>
-          <Text style={[styles.waitingText, { fontFamily: 'Digitalt', marginTop: 30, opacity: 0.9 }]}>
-            Preparando siguiente ronda…
-          </Text>
+          {!isFinalRound && (
+            <Text style={[styles.waitingText, { fontFamily: 'Digitalt', marginTop: 30, opacity: 0.9 }]}>
+              Preparando siguiente ronda…
+            </Text>
+          )}
         </Animated.View>
       ) : (
         <Text style={[styles.waitingText, { fontFamily: 'Digitalt' }]}>Calculando puntajes…</Text>

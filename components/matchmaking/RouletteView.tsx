@@ -37,6 +37,7 @@ export default function RouletteView({
 }: Props) {
   const rotateDeg = useRef(new Animated.Value(0)).current;
   const [landedId, setLandedId] = useState<string | undefined>(selectedCategory?.id);
+  const [isSpinComplete, setIsSpinComplete] = useState(false);
   const SLICE_COUNT = CLOCKWISE_SLICE_IDS.length;
   const SEGMENT_ANGLE = 360 / SLICE_COUNT;
 
@@ -80,6 +81,7 @@ export default function RouletteView({
         const landedIdx = computeLandedIndex(final);
         const id = CLOCKWISE_SLICE_IDS[landedIdx];
         setLandedId(id);
+        setIsSpinComplete(true);
         onSpinComplete?.();
       });
     }, 3000);
@@ -142,7 +144,7 @@ export default function RouletteView({
       )}
 
       <View style={styles.wheelContainer}>
-        <View style={styles.pointer} />
+        {!isSpinComplete && <View style={styles.pointer} />}
         <Animated.View style={[styles.wheelWrap, { transform: [{ rotate: rotation }] }]}>
           <Image source={wheelImage} style={styles.wheel} resizeMode="contain" />
         </Animated.View>

@@ -54,6 +54,7 @@ export default function QuizView({
   const insets = useSafeAreaInsets();
   const [trackWidth, setTrackWidth] = useState(0);
   const fillWidth = useRef(new Animated.Value(0)).current;
+  const waitingFadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (trackWidth <= 0) return;
@@ -97,6 +98,18 @@ export default function QuizView({
 
     return () => clearInterval(interval);
   }, [localCountdown !== null && localCountdown > 0]);
+
+  useEffect(() => {
+    if (disabled) {
+      Animated.timing(waitingFadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      waitingFadeAnim.setValue(0);
+    }
+  }, [disabled]);
 
   return (
     <View style={styles.quizContainer}>
@@ -236,7 +249,7 @@ export default function QuizView({
 
       {/* Pantalla de espera si yo ya terminé */}
       {disabled && (
-        <View style={styles.waitingOverlay}>
+        <Animated.View style={[styles.waitingOverlay, { opacity: waitingFadeAnim }]}>
           <LinearGradient
             colors={['rgba(0,0,0,0.85)', 'rgba(0,0,0,0.95)']}
             style={StyleSheet.absoluteFill}
@@ -257,7 +270,7 @@ export default function QuizView({
               </Text>
             </View>
           )}
-        </View>
+        </Animated.View>
       )}
     </View>
   );

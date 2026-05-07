@@ -291,12 +291,18 @@ export default function MatchmakingScreen() {
   // Match Terminado
   useEffect(() => {
     onGameFinished((data) => {
+      console.log('🏆 Match finished data received');
       // Merge with previous gameData to preserve round scores if needed
       setGameData((prev: any) => {
         const base = opponentAvatar ? { ...data, opponentAvatar } : data;
         return prev ? { ...prev, ...base } : base;
       });
-      setGameState('MATCH_END');
+      
+      // Esperar un tiempo para que el usuario vea el resultado de la última ronda
+      // antes de pasar a la pantalla final de ELO y trofeos
+      setTimeout(() => {
+        setGameState('MATCH_END');
+      }, 4000); // 4 segundos de cortesía para ver la última ronda
     });
   }, [onGameFinished, opponentAvatar]);
 
@@ -825,6 +831,7 @@ export default function MatchmakingScreen() {
                 avatar: meIsP1 ? p2Av : p1Av
               }}
               winner={gameData?.winner}
+              isFinalRound={gameData?.isFinalRound}
               onDone={() => {
                 if (gameData?.isFinalRound) {
                   setGameState('MATCH_END');
