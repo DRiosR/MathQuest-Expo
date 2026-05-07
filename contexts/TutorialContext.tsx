@@ -100,14 +100,44 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     defaultSpotlight: { x: 0, y: height - 85, w: width * 0.25, h: 85, radius: 0 }
   },
   {
-    id: 'infinite_30s',
-    title: 'MODO CONTRARRELOJ',
-    description: '¡Elige tu desafío! Tienes 3 vidas. El juego termina si se acaba el tiempo o pierdes todos los corazones.',
-    icon: 'stopwatch',
+    id: 'infinite_operation',
+    title: '1. ELIGE LA OPERACIÓN',
+    description: 'Primero selecciona qué tipo de ejercicios quieres practicar: sumas, restas, multiplicación, división o “todo en uno”.',
+    icon: 'calculator',
     color: '#FF6B9D',
     area: 'bottom',
     targetScreen: '/(tabs)/extras',
-    defaultSpotlight: { x: 20, y: height * 0.45, w: width - 40, h: 70, radius: 15 }
+    defaultSpotlight: { x: 20, y: 180, w: width - 40, h: 190, radius: 24 }
+  },
+  {
+    id: 'infinite_time',
+    title: '2. SELECCIONA EL TIEMPO',
+    description: 'Ahora elige cuánto durará la partida. El juego termina cuando se acaba el tiempo o cometes 3 errores.',
+    icon: 'stopwatch',
+    color: '#FF6B9D',
+    area: 'top',
+    targetScreen: '/(tabs)/extras',
+    defaultSpotlight: null
+  },
+  {
+    id: 'infinite_difficulty',
+    title: '3. AJUSTA LA DIFICULTAD',
+    description: 'Escoge el nivel: fácil, medio o difícil. En difícil podrás usar números negativos.',
+    icon: 'signal',
+    color: '#FF6B9D',
+    area: 'top',
+    targetScreen: '/(tabs)/extras',
+    defaultSpotlight: null
+  },
+  {
+    id: 'infinite_start',
+    title: '¡INICIA EL DESAFÍO!',
+    description: 'Cuando tengas todo listo, pulsa “EMPEZAR”. Recuerda: tienes 3 vidas y gana quien más acierte antes de que termine el tiempo.',
+    icon: 'play',
+    color: '#FF6B9D',
+    area: 'top',
+    targetScreen: '/(tabs)/extras',
+    defaultSpotlight: null
   },
   {
     id: 'infinite_streak',

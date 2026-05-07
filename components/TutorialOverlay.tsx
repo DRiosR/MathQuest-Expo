@@ -47,42 +47,55 @@ export default function TutorialOverlay() {
 
   if (!isVisible || !shouldShowOnThisScreen) return null;
 
+  const spotlight = dynamicSpotlights[currentStep.id] || currentStep.defaultSpotlight;
+
+  // Avoid "flash": for these steps, don't show a fallback spotlight.
+  // Still render the tutorial card (text + buttons) so the user can continue.
+  const requiresMeasuredSpotlight =
+    currentStep.id === 'infinite_time' ||
+    currentStep.id === 'infinite_difficulty' ||
+    currentStep.id === 'infinite_start';
+
+  const effectiveSpotlight = requiresMeasuredSpotlight
+    ? (dynamicSpotlights[currentStep.id] || null)
+    : spotlight;
+
+  // Position the tutorial card so it doesn't cover the UI.
+  // For some steps we prefer a fixed position (area) to avoid overlap on small screens.
   const getAreaStyle = () => {
     switch (currentStep.area) {
       case 'top': return { justifyContent: 'flex-start', paddingTop: 80 };
       case 'middle': return { justifyContent: 'center' };
       case 'bottom': return { justifyContent: 'flex-end', paddingBottom: 150 };
-      case 'tabs': return { justifyContent: 'center' }; // Usually centered when highlighting tabs
+      case 'tabs': return { justifyContent: 'center' };
       default: return { justifyContent: 'center' };
     }
   };
-
-  const spotlight = dynamicSpotlights[currentStep.id] || currentStep.defaultSpotlight;
 
   return (
     <Modal transparent visible={isVisible} animationType="none">
       <View style={styles.overlay}>
         {/* Spotlight Effect Layer */}
-        {spotlight && (
+        {effectiveSpotlight && (
           <View style={StyleSheet.absoluteFill}>
             {/* Dark areas around the spotlight */}
-            <View style={[styles.maskBase, { top: 0, left: 0, right: 0, height: spotlight.y }]} />
-            <View style={[styles.maskBase, { top: spotlight.y + spotlight.h, left: 0, right: 0, bottom: 0 }]} />
-            <View style={[styles.maskBase, { top: spotlight.y, left: 0, width: spotlight.x, height: spotlight.h }]} />
-            <View style={[styles.maskBase, { top: spotlight.y, left: spotlight.x + spotlight.w, right: 0, height: spotlight.h }]} />
+            <View style={[styles.maskBase, { top: 0, left: 0, right: 0, height: effectiveSpotlight.y }]} />
+            <View style={[styles.maskBase, { top: effectiveSpotlight.y + effectiveSpotlight.h, left: 0, right: 0, bottom: 0 }]} />
+            <View style={[styles.maskBase, { top: effectiveSpotlight.y, left: 0, width: effectiveSpotlight.x, height: effectiveSpotlight.h }]} />
+            <View style={[styles.maskBase, { top: effectiveSpotlight.y, left: effectiveSpotlight.x + effectiveSpotlight.w, right: 0, height: effectiveSpotlight.h }]} />
             
             {/* The actual hole (Spotlight) with pulse ring */}
             <View style={[styles.hole, { 
-              top: spotlight.y, 
-              left: spotlight.x, 
-              width: spotlight.w, 
-              height: spotlight.h,
-              borderRadius: spotlight.radius
+              top: effectiveSpotlight.y, 
+              left: effectiveSpotlight.x, 
+              width: effectiveSpotlight.w, 
+              height: effectiveSpotlight.h,
+              borderRadius: effectiveSpotlight.radius
             }]}>
               <Animated.View style={[
                 styles.pulseRing, 
                 { 
-                  borderRadius: spotlight.radius + 5,
+                  borderRadius: effectiveSpotlight.radius + 5,
                   borderColor: currentStep.color,
                   transform: [{ scale: pulseAnim }]
                 }
@@ -91,7 +104,7 @@ export default function TutorialOverlay() {
           </View>
         )}
 
-        {!spotlight && <View style={styles.dimBg} />}
+        {!effectiveSpotlight && <View style={styles.dimBg} />}
         
         <SafeAreaView style={[styles.contentContainer, getAreaStyle() as any]} pointerEvents="box-none">
           <Animated.View style={[styles.cardContainer, { opacity: fadeAnim }]}>

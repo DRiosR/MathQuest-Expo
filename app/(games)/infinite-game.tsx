@@ -25,7 +25,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAvatar } from '@/contexts/AvatarContext';
 import { useFontContext } from '@/contexts/FontsContext';
 import { useOfflineStorage } from '@/contexts/OfflineStorageContext';
-import { useTutorial } from '@/contexts/TutorialContext';
+import { TUTORIAL_STEPS, useTutorial } from '@/contexts/TutorialContext';
 import {
   generateQuestion,
   getDifficultyFromScore,
@@ -109,17 +109,132 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
   const { avatar: userAvatar } = useAvatar();
   const { user } = useAuth();
   const { addHighScore, getTopScores, getTopScoresToday } = useOfflineStorage();
-  const { setDynamicSpotlight } = useTutorial();
+  const { setDynamicSpotlight, isVisible, currentStepIndex } = useTutorial();
 
-  const mode30sRef = useRef<View>(null);
+  // Tutorial spotlights (Modo Infinito)
+  // Use section-level refs (title + controls) for stable, "fixed" spotlights.
+  const operationSectionRef = useRef<View>(null);
+  const timeSectionRef = useRef<View>(null);
+  const difficultySectionRef = useRef<View>(null);
+  const startSectionRef = useRef<View>(null);
+  const selectionScrollRef = useRef<ScrollView>(null);
+  const scrollOffsetYRef = useRef(0);
+  const [scrollViewportH, setScrollViewportH] = useState(0);
+  const lastEnsureKeyRef = useRef<string | null>(null);
+  const [sectionLayout, setSectionLayout] = useState<Record<string, { y: number; h: number }>>({});
 
-  const measure30s = () => {
-    if (mode30sRef.current) {
-      mode30sRef.current.measure((x, y, w, h, pageX, pageY) => {
-        setDynamicSpotlight('infinite_30s', { x: pageX, y: pageY, w, h, radius: 20 });
+  const measureRef = (
+    id: string,
+    ref: React.RefObject<View>,
+    radius: number,
+    padding: number = 10
+  ) => {
+    if (!ref.current) return;
+    ref.current.measure((x, y, w, h, pageX, pageY) => {
+      const pad = Math.max(0, padding);
+      const sx = Math.max(pageX - pad, 0);
+      const sy = Math.max(pageY - pad, 0);
+      const sw = Math.min(w + pad * 2, width - sx);
+      const sh = Math.min(h + pad * 2, height - sy);
+
+      setDynamicSpotlight(id, {
+        x: sx,
+        y: sy,
+        w: sw,
+        h: sh,
+        radius: radius + Math.min(pad, 14),
       });
+    });
+  };
+
+  const getSectionRef = (id: string): React.RefObject<View> | null => {
+    switch (id) {
+      case 'infinite_operation': return operationSectionRef;
+      case 'infinite_time': return timeSectionRef;
+      case 'infinite_difficulty': return difficultySectionRef;
+      case 'infinite_start': return startSectionRef;
+      default: return null;
     }
   };
+
+  const ensureSectionVisible = (stepId: string) => {
+    if (!selectionScrollRef.current) return;
+    if (scrollViewportH <= 0) return;
+
+    const entry = sectionLayout[stepId];
+    if (!entry) return;
+
+    const sectionTopInViewport = entry.y - scrollOffsetYRef.current;
+    const sectionBottomInViewport = sectionTopInViewport + entry.h;
+
+    // Margins so it looks good with the tutorial card
+    const marginTop = 140;   // card is at top for these steps
+    const marginBottom = 80;
+
+    const alreadyVisible =
+      sectionTopInViewport >= marginTop &&
+      sectionBottomInViewport <= scrollViewportH - marginBottom;
+    if (alreadyVisible) return;
+
+    // Anchor the section's center around a stable viewport position (not too low).
+    const anchor =
+      stepId === 'infinite_start'
+        ? 0.62
+        : 0.42; // time/difficulty higher so they don't end up "muy abajo"
+
+    const sectionCenterY = entry.y + entry.h / 2;
+    const desiredCenterY = scrollViewportH * anchor;
+    const targetScrollY = Math.max(sectionCenterY - desiredCenterY, 0);
+
+    // Avoid huge jumps; it should feel like a gentle assist.
+    const delta = targetScrollY - scrollOffsetYRef.current;
+    const clampedDelta = Math.max(Math.min(delta, 260), -260);
+    const nextY = Math.max(scrollOffsetYRef.current + clampedDelta, 0);
+
+    selectionScrollRef.current.scrollTo({ y: nextY, animated: true });
+  };
+
+  // When a tutorial step is on the selection screen, scroll *only if needed*
+  // so the highlighted control is visible. Minimal movement avoids "descuadre".
+  useEffect(() => {
+    if (!isVisible) return;
+    if (gameMode) return; // only selection screen
+
+    const stepId = TUTORIAL_STEPS?.[currentStepIndex]?.id as string | undefined;
+    if (!stepId) return;
+
+    // Only for steps in the infinite-mode setup
+    if (
+      stepId !== 'infinite_operation' &&
+      stepId !== 'infinite_time' &&
+      stepId !== 'infinite_difficulty' &&
+      stepId !== 'infinite_start'
+    ) return;
+
+    // Avoid repeated loops for same step.
+    if (lastEnsureKeyRef.current === stepId) return;
+    lastEnsureKeyRef.current = stepId;
+
+    // Wait a tick so layouts settle, then scroll (if needed), then measure once.
+    const t = setTimeout(() => {
+      if (stepId !== 'infinite_operation') {
+        ensureSectionVisible(stepId);
+      }
+
+      const ref = getSectionRef(stepId);
+      if (!ref) return;
+
+      const pad = stepId === 'infinite_start' ? 14 : 10;
+      const rad =
+        stepId === 'infinite_operation' ? 26 :
+        stepId === 'infinite_start' ? 30 :
+        22;
+
+      // Measure after scroll animation has time to settle.
+      setTimeout(() => measureRef(stepId, ref, rad, pad), 420);
+    }, 60);
+    return () => clearTimeout(t);
+  }, [isVisible, currentStepIndex, gameMode, scrollViewportH, sectionLayout]);
 
   // Game state
   const [gameMode, setGameMode] = useState<GameMode | null>(null);
@@ -563,97 +678,137 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
           */}
           {/* Selection UI */}
           <ScrollView 
+            ref={selectionScrollRef}
+            onLayout={(e) => {
+              setScrollViewportH(e.nativeEvent.layout.height);
+            }}
+            onScroll={(e) => {
+              scrollOffsetYRef.current = e.nativeEvent.contentOffset.y;
+            }}
+            scrollEventThrottle={16}
             style={styles.selectionScrollView}
             contentContainerStyle={styles.selectionContent}
             showsVerticalScrollIndicator={false}
           >
             {/* 1. Categorías */}
-            <Text style={[styles.selectionTitle, { fontFamily: 'Digitalt' }]}>1. ELIGE TU OPERACIÓN</Text>
-            <View style={styles.categoryGrid}>
-              {CATEGORIES.map((cat) => (
-                <TouchableOpacity
-                  key={cat.id}
-                  onPress={() => setSelectedCategory(cat.id)}
-                  style={styles.categoryCardWrapper}
-                >
-                  <LinearGradient
-                    colors={selectedCategory === cat.id 
-                      ? [cat.colors[0] + '66', cat.colors[1] + '44'] 
-                      : ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']
-                    }
-                    style={[
-                      styles.categoryCard,
-                      selectedCategory === cat.id && { borderColor: cat.colors[0], borderWidth: 2.5 }
-                    ]}
+            <View
+              ref={operationSectionRef}
+              onLayout={() => setTimeout(() => measureRef('infinite_operation', operationSectionRef, 26, 10), 250)}
+            >
+              <Text style={[styles.selectionTitle, { fontFamily: 'Digitalt' }]}>1. ELIGE TU OPERACIÓN</Text>
+              <View style={styles.categoryGrid}>
+                {CATEGORIES.map((cat) => (
+                  <TouchableOpacity
+                    key={cat.id}
+                    onPress={() => setSelectedCategory(cat.id)}
+                    style={styles.categoryCardWrapper}
                   >
-                    <View style={styles.mascotContainer}>
-                      {cat.lottie ? (
-                        <LottieView
-                          source={cat.lottie}
-                          autoPlay
-                          loop
-                          style={styles.categoryMascot}
-                        />
-                      ) : (
-                        <FontAwesome5 name={cat.icon} size={30 * scaleFactor} color={selectedCategory === cat.id ? "#fff" : "#a855f7"} />
-                      )}
-                    </View>
-                    <Text style={[styles.categoryName, { fontFamily: 'Gilroy-Black' }]}>{cat.name}</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              ))}
+                    <LinearGradient
+                      colors={selectedCategory === cat.id 
+                        ? [cat.colors[0] + '66', cat.colors[1] + '44'] 
+                        : ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']
+                      }
+                      style={[
+                        styles.categoryCard,
+                        selectedCategory === cat.id && { borderColor: cat.colors[0], borderWidth: 2.5 }
+                      ]}
+                    >
+                      <View style={styles.mascotContainer}>
+                        {cat.lottie ? (
+                          <LottieView
+                            source={cat.lottie}
+                            autoPlay
+                            loop
+                            style={styles.categoryMascot}
+                          />
+                        ) : (
+                          <FontAwesome5 name={cat.icon} size={30 * scaleFactor} color={selectedCategory === cat.id ? "#fff" : "#a855f7"} />
+                        )}
+                      </View>
+                      <Text style={[styles.categoryName, { fontFamily: 'Gilroy-Black' }]}>{cat.name}</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             {/* 2. Tiempo */}
-            <Text style={[styles.selectionTitle, { fontFamily: 'Digitalt', marginTop: 20 }]}>2. ¿CUÁNTO TIEMPO?</Text>
-            <View style={styles.chipsRow}>
-              {TIMES.map((t) => (
-                <TouchableOpacity
-                  key={t.id}
-                  style={[
-                    styles.chip,
-                    selectedTime === t.id && styles.chipActive
-                  ]}
-                  onPress={() => setSelectedTime(t.id)}
-                >
-                  <Text style={[styles.chipText, { fontFamily: 'Digitalt' }]}>{t.name}</Text>
-                </TouchableOpacity>
-              ))}
+            <View
+              ref={timeSectionRef}
+              onLayout={(e) => {
+                const y = e.nativeEvent.layout.y;
+                const h = e.nativeEvent.layout.height;
+                setSectionLayout(prev => ({ ...prev, infinite_time: { y, h } }));
+              }}
+            >
+              <Text style={[styles.selectionTitle, { fontFamily: 'Digitalt', marginTop: 20 }]}>2. ¿CUÁNTO TIEMPO?</Text>
+              <View style={styles.chipsRow}>
+                {TIMES.map((t) => (
+                  <TouchableOpacity
+                    key={t.id}
+                    style={[
+                      styles.chip,
+                      selectedTime === t.id && styles.chipActive
+                    ]}
+                    onPress={() => setSelectedTime(t.id)}
+                  >
+                    <Text style={[styles.chipText, { fontFamily: 'Digitalt' }]}>{t.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             {/* 3. Dificultad */}
-            <Text style={[styles.selectionTitle, { fontFamily: 'Digitalt', marginTop: 20 }]}>3. NIVEL DE DIFICULTAD</Text>
-            <View style={styles.chipsRow}>
-              {DIFFICULTIES.map((d) => (
-                <TouchableOpacity
-                  key={d.id}
-                  style={[
-                    styles.difficultyChip,
-                    selectedDifficulty === d.id && { backgroundColor: d.colors[0] }
-                  ]}
-                  onPress={() => setSelectedDifficulty(d.id)}
-                >
-                  <Text style={[styles.chipText, { fontFamily: 'Digitalt' }]}>{d.name}</Text>
-                </TouchableOpacity>
-              ))}
+            <View
+              ref={difficultySectionRef}
+              onLayout={(e) => {
+                const y = e.nativeEvent.layout.y;
+                const h = e.nativeEvent.layout.height;
+                setSectionLayout(prev => ({ ...prev, infinite_difficulty: { y, h } }));
+              }}
+            >
+              <Text style={[styles.selectionTitle, { fontFamily: 'Digitalt', marginTop: 20 }]}>3. NIVEL DE DIFICULTAD</Text>
+              <View style={styles.chipsRow}>
+                {DIFFICULTIES.map((d) => (
+                  <TouchableOpacity
+                    key={d.id}
+                    style={[
+                      styles.difficultyChip,
+                      selectedDifficulty === d.id && { backgroundColor: d.colors[0] }
+                    ]}
+                    onPress={() => setSelectedDifficulty(d.id)}
+                  >
+                    <Text style={[styles.chipText, { fontFamily: 'Digitalt' }]}>{d.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             {/* Start Button */}
-            <TouchableOpacity
-              style={[styles.mainStartButton, (!selectedTime) && styles.mainStartButtonDisabled]}
-              onPress={() => selectedTime && startGame(selectedTime)}
-              disabled={!selectedTime}
+            <View
+              ref={startSectionRef}
+              onLayout={(e) => {
+                const y = e.nativeEvent.layout.y;
+                const h = e.nativeEvent.layout.height;
+                setSectionLayout(prev => ({ ...prev, infinite_start: { y, h } }));
+              }}
             >
-              <LinearGradient
-                colors={['#FFA65A', '#FF5EA3']}
-                style={styles.mainStartButtonGradient}
+              <TouchableOpacity
+                style={[styles.mainStartButton, (!selectedTime) && styles.mainStartButtonDisabled]}
+                onPress={() => selectedTime && startGame(selectedTime)}
+                disabled={!selectedTime}
               >
-                <Text style={[styles.mainStartButtonText, { fontFamily: 'Digitalt' }]}>
-                  {selectedTime ? '¡EMPEZAR DESAFÍO!' : 'ELIGE UN TIEMPO'}
-                </Text>
-                <FontAwesome5 name="play" size={18} color="#fff" />
-              </LinearGradient>
-            </TouchableOpacity>
+                <LinearGradient
+                  colors={['#FFA65A', '#FF5EA3']}
+                  style={styles.mainStartButtonGradient}
+                >
+                  <Text style={[styles.mainStartButtonText, { fontFamily: 'Digitalt' }]}>
+                  {selectedTime ? '¡EMPEZAR DESAFÍO!' : 'ELIGE TIEMPO PARA JUGAR'}
+                  </Text>
+                  <FontAwesome5 name="play" size={18} color="#fff" />
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
           </ScrollView>
         </SafeAreaView>
       </View>
