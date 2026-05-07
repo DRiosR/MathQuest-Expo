@@ -325,7 +325,11 @@ export default function MatchmakingScreen() {
         });
       }
     });
-    return () => unsubTyping?.();
+    return () => {
+      if (typeof unsubTyping === 'function') {
+        (unsubTyping as Function)();
+      }
+    };
   }, [myUserId, socketId]);
 
   useEffect(() => {

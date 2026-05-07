@@ -3,21 +3,23 @@ import React, { createContext, ReactNode, useContext, useEffect, useState } from
 
 export type HighScore = {
   id: string;
-  mode: 0.5 | 1 | 3 | 5; // 0.5 = 30 seconds, others in minutes
+  mode: number; // Time in minutes (flexible)
   score: number;
   accuracy: number;
   questionsAnswered: number;
   timestamp: string;
   synced: boolean;
-  alias?: string; // Optional alias for the score
-  username?: string; // Username of the player
+  alias?: string; 
+  username?: string;
+  category?: string;
+  difficulty?: number;
 };
 
 type OfflineStorageContextType = {
   highScores: HighScore[];
   addHighScore: (score: Omit<HighScore, 'id' | 'timestamp' | 'synced'>) => Promise<void>;
-  getTopScores: (mode?: 0.5 | 1 | 3 | 5, limit?: number) => HighScore[];
-  getTopScoresToday: (mode?: 0.5 | 1 | 3 | 5, limit?: number) => HighScore[];
+  getTopScores: (mode?: number, limit?: number) => HighScore[];
+  getTopScoresToday: (mode?: number, limit?: number) => HighScore[];
   clearAllScores: () => Promise<void>;
   getUnsyncedScores: () => HighScore[];
   markAsSynced: (id: string) => Promise<void>;
@@ -77,7 +79,7 @@ export const OfflineStorageProvider: React.FC<{ children: ReactNode }> = ({ chil
     await saveScores(updatedScores);
   };
 
-  const getTopScores = (mode?: 0.5 | 1 | 3 | 5, limit: number = 10): HighScore[] => {
+  const getTopScores = (mode?: number, limit: number = 10): HighScore[] => {
     let filtered = highScores;
     
     if (mode) {
@@ -94,7 +96,7 @@ export const OfflineStorageProvider: React.FC<{ children: ReactNode }> = ({ chil
       .slice(0, limit);
   };
 
-  const getTopScoresToday = (mode?: 0.5 | 1 | 3 | 5, limit: number = 3): HighScore[] => {
+  const getTopScoresToday = (mode?: number, limit: number = 3): HighScore[] => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     

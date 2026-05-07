@@ -20,84 +20,56 @@ export function generateQuestion(
 ): GeneratedQuestion {
   const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   
-  // Generate numbers based on difficulty
-  const getRandomNumber = () => {
-    switch (difficulty) {
-      case 1: return Math.floor(Math.random() * 10) + 1; // 1-10
-      case 2: return Math.floor(Math.random() * 90) + 10; // 10-99
-      case 3: return Math.floor(Math.random() * 900) + 100; // 100-999
-      default: return Math.floor(Math.random() * 10) + 1;
-    }
-  };
+  // Helper to get random in range
+  const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 
-  const a = getRandomNumber();
-  const b = getRandomNumber();
-
-  switch (category) {
-    case 'Suma':
+  switch (category as unknown as string) {
+    case 'Suma': {
+      let a, b;
+      if (difficulty === 1) { a = rand(1, 12); b = rand(1, 12); }
+      else if (difficulty === 2) { a = rand(10, 60); b = rand(10, 60); }
+      else { a = rand(100, 999); b = rand(100, 999); }
+      
       const sumAnswer = a + b;
-      return {
-        id,
-        question: `${a} + ${b} = ?`,
-        correctAnswer: sumAnswer,
-        category,
-        difficulty,
-        options: generateOptions(sumAnswer, difficulty)
-      };
+      return { id, question: `${a} + ${b} = ?`, correctAnswer: sumAnswer, category: 'Suma' as unknown as Category, difficulty, options: generateOptions(sumAnswer, difficulty) };
+    }
 
-    case 'Resta':
-      // Ensure positive result for subtraction
-      const larger = Math.max(a, b);
-      const smaller = Math.min(a, b);
-      const subAnswer = larger - smaller;
-      return {
-        id,
-        question: `${larger} - ${smaller} = ?`,
-        correctAnswer: subAnswer,
-        category,
-        difficulty,
-        options: generateOptions(subAnswer, difficulty)
-      };
+    case 'Resta': {
+      let a, b;
+      if (difficulty === 1) { a = rand(5, 15); b = rand(1, a); }
+      else if (difficulty === 2) { a = rand(20, 99); b = rand(10, a); }
+      else { a = rand(100, 999); b = rand(50, a); }
+      
+      const subAnswer = a - b;
+      return { id, question: `${a} - ${b} = ?`, correctAnswer: subAnswer, category: 'Resta' as unknown as Category, difficulty, options: generateOptions(subAnswer, difficulty) };
+    }
 
-    case 'Multiplicación':
-      // Use smaller numbers for multiplication to keep it reasonable
-      const multA = difficulty === 1 ? a : Math.min(a, 12);
-      const multB = difficulty === 1 ? b : Math.min(b, 12);
-      const multAnswer = multA * multB;
-      return {
-        id,
-        question: `${multA} × ${multB} = ?`,
-        correctAnswer: multAnswer,
-        category,
-        difficulty,
-        options: generateOptions(multAnswer, difficulty)
-      };
+    case 'Multiplicación': {
+      let a, b;
+      if (difficulty === 1) { a = rand(1, 10); b = rand(1, 10); }
+      else if (difficulty === 2) { a = rand(2, 12); b = rand(2, 15); }
+      else { a = rand(5, 15); b = rand(5, 25); }
+      
+      const multAnswer = a * b;
+      return { id, question: `${a} × ${b} = ?`, correctAnswer: multAnswer, category: 'Multiplicación' as unknown as Category, difficulty, options: generateOptions(multAnswer, difficulty) };
+    }
 
-    case 'División':
-      // Generate clean division problems
-      const divisor = difficulty === 1 ? Math.floor(Math.random() * 9) + 2 : Math.floor(Math.random() * 12) + 2;
-      const quotient = getRandomNumber();
+    case 'División': {
+      let divisor, quotient;
+      if (difficulty === 1) { divisor = rand(2, 5); quotient = rand(1, 10); }
+      else if (difficulty === 2) { divisor = rand(2, 10); quotient = rand(5, 15); }
+      else { divisor = rand(5, 15); quotient = rand(10, 25); }
+      
       const dividend = divisor * quotient;
-      return {
-        id,
-        question: `${dividend} ÷ ${divisor} = ?`,
-        correctAnswer: quotient,
-        category,
-        difficulty,
-        options: generateOptions(quotient, difficulty)
-      };
+      return { id, question: `${dividend} ÷ ${divisor} = ?`, correctAnswer: quotient, category: 'División' as unknown as Category, difficulty, options: generateOptions(quotient, difficulty) };
+    }
 
-    default:
-      // Default to addition
-      const defaultAnswer = a + b;
-      return {
-        id,
-        question: `${a} + ${b} = ?`,
-        correctAnswer: defaultAnswer,
-        category: 'Suma',
-        difficulty,
-        options: generateOptions(defaultAnswer, difficulty)
-      };
+    default: {
+      const a = rand(1, 10);
+      const b = rand(1, 10);
+      const ans = a + b;
+      return { id, question: `${a} + ${b} = ?`, correctAnswer: ans, category: 'Suma' as unknown as Category, difficulty, options: generateOptions(ans, difficulty) };
+    }
   }
 }
 
@@ -140,7 +112,7 @@ function generateOptions(correctAnswer: number, difficulty: DifficultyLevel): [s
  * Gets a random category for variety
  */
 export function getRandomCategory(): Category {
-  const categories: Category[] = ['Suma', 'Resta', 'Multiplicación', 'División'];
+  const categories: Category[] = ['Suma' as unknown as Category, 'Resta' as unknown as Category, 'Multiplicación' as unknown as Category, 'División' as unknown as Category];
   return categories[Math.floor(Math.random() * categories.length)];
 }
 

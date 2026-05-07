@@ -9,6 +9,7 @@ import {
   Animated,
   Dimensions,
   Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -32,15 +33,16 @@ import {
 } from '@/utils/generateQuestions';
 
 const { width, height } = Dimensions.get('window');
-const isSmallScreen = height < 700;
-const scaleFactor = isSmallScreen ? 0.8 : 1;
+const isSmallScreen = height < 750;
+const scaleFactor = isSmallScreen ? 0.9 : 1.1; // Increased scale factor for better visibility
 
 // Mascot animations
 const mascotAnimations = {
-  suma: require('@/assets/lotties/mascots/Plusito/1v1_Idle.json'),
-  resta: require('@/assets/lotties/mascots/Restin/1v1_Idle.json'),
-  multiplicacion: require('@/assets/lotties/mascots/Porfix/1v1_Idle.json'),
-  division: require('@/assets/lotties/mascots/Dividin/1v1_Idle.json'),
+  Suma: require('@/assets/lotties/mascots/Plusito/1v1_Idle.json'),
+  Resta: require('@/assets/lotties/mascots/Restin/1v1_Idle.json'),
+  Multiplicación: require('@/assets/lotties/mascots/Porfix/1v1_Idle.json'),
+  División: require('@/assets/lotties/mascots/Dividin/1v1_Idle.json'),
+  Totalin: require('@/assets/lotties/mascots/Totalin/1v1_Idle.json'),
 };
 
 // Custom numpad layout
@@ -51,7 +53,28 @@ const NUMPAD = [
   ['−', 0, '⌫'],
 ];
 
-type GameMode = 0.5 | 1 | 3 | 5; // 0.5 = 30 seconds, others in minutes
+type GameMode = number; // Time in minutes
+
+const CATEGORIES = [
+  { id: 'Suma', name: 'SUMAS', lottie: mascotAnimations.Suma, colors: ['#4ade80', '#22c55e'] },
+  { id: 'Resta', name: 'RESTAS', lottie: mascotAnimations.Resta, colors: ['#60a5fa', '#3b82f6'] },
+  { id: 'Multiplicación', name: 'MULTIPLICACIÓN', lottie: mascotAnimations.Multiplicación, colors: ['#f87171', '#ef4444'] },
+  { id: 'División', name: 'DIVISIÓN', lottie: mascotAnimations.División, colors: ['#facc15', '#eab308'] },
+  { id: 'mix', name: 'TODO EN UNO', icon: 'brain', colors: ['#9333ea', '#7e22ce'] },
+];
+
+const TIMES = [
+  { id: 0.5, name: '30 SEG' },
+  { id: 1, name: '1 MIN' },
+  { id: 2, name: '2 MIN' },
+  { id: 3, name: '3 MIN' },
+];
+
+const DIFFICULTIES = [
+  { id: 1, name: 'FÁCIL', colors: ['#4ade80', '#16a34a'] },
+  { id: 2, name: 'MEDIO', colors: ['#fbbf24', '#d97706'] },
+  { id: 3, name: 'DIFICIL', colors: ['#f87171', '#dc2626'] },
+];
 
 type InfiniteGameProps = {
   onPlayedToday?: () => void;
@@ -100,6 +123,10 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
 
   // Game state
   const [gameMode, setGameMode] = useState<GameMode | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState('Suma');
+  const [selectedDifficulty, setSelectedDifficulty] = useState(1);
+  const [currentDifficulty, setCurrentDifficulty] = useState(1);
+  const [selectedTime, setSelectedTime] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [score, setScore] = useState(0);
   const [wrongAnswers, setWrongAnswers] = useState(0);
@@ -177,8 +204,20 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
     loadAnswerHistory();
   }, []);
 
-  const startGame = (mode: GameMode) => {
+  const startGame = (mode: number, category?: string, diff?: number) => {
+    const finalCategory = category || selectedCategory;
+    const finalDiff = diff || selectedDifficulty;
+    
     setGameMode(mode);
+    // Don't overwrite category/difficulty if they are already set in state
+    if (category) setSelectedCategory(category);
+    if (diff) {
+      setSelectedDifficulty(diff);
+      setCurrentDifficulty(diff);
+    } else {
+      setCurrentDifficulty(selectedDifficulty);
+    }
+    
     setTimeLeft(mode * 60); // Convert minutes to seconds
     setScore(0);
     setWrongAnswers(0);
@@ -196,7 +235,7 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
     scoreRef.current = 0;
     questionsAnsweredRef.current = 0;
     
-    generateNewQuestion();
+    generateNewQuestion(finalCategory, finalDiff);
     
     // Start countdown instead of immediate timer
     setIsCountingDown(true);
@@ -277,11 +316,28 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
     }
   };
 
-  const generateNewQuestion = () => {
-    const category = getRandomCategory();
-    const difficulty = getDifficultyFromScore(score);
-    const question = generateQuestion(category, difficulty);
-    setCurrentQuestion(question);
+  const generateNewQuestion = (forceCat?: string, forceDiff?: number) => {
+    const baseDiff = forceDiff || selectedDifficulty;
+    const baseCat = forceCat || selectedCategory;
+
+    // Progressive difficulty logic
+    let dynamicDiff = baseDiff;
+    if (baseDiff === 1) {
+      if (score >= 20) dynamicDiff = 3;
+      else if (score >= 10) dynamicDiff = 2;
+    } else if (baseDiff === 2) {
+      if (score >= 10) dynamicDiff = 3;
+    }
+
+    setCurrentDifficulty(dynamicDiff);
+
+    const currentCat = baseCat === 'mix' ? getRandomCategory() : baseCat;
+    
+    // Create a truly fresh question
+    const question = generateQuestion(currentCat as any, dynamicDiff as any);
+    
+    // Force state update with a new object reference
+    setCurrentQuestion({ ...question, _timestamp: Date.now() });
     setUserAnswer('');
   };
 
@@ -414,16 +470,15 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
   };
 
   const saveGameScore = async () => {
-    const { score: finalScore, questionsAnswered: finalQuestionsAnswered, accuracy } = gameOverStats;
-    
-    // Save high score with username
-    if (gameMode && finalScore > 0) {
+    if (user && gameMode) {
       await addHighScore({
-        mode: gameMode,
-        score: finalScore,
-        accuracy,
-        questionsAnswered: finalQuestionsAnswered,
-        username: user?.username,
+        score: scoreRef.current,
+        mode: gameMode as any,
+        username: user.username || aliasInput || 'Invitado',
+        questionsAnswered: questionsAnsweredRef.current,
+        accuracy: questionsAnsweredRef.current > 0 ? (scoreRef.current / questionsAnsweredRef.current) * 100 : 0,
+        category: selectedCategory,
+        difficulty: selectedDifficulty
       });
     }
 
@@ -444,7 +499,9 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
       // Backspace
       setUserAnswer(prev => prev.slice(0, -1));
     } else if (val === '−') {
-      // Toggle negative sign
+      // Toggle negative sign - ALLOWED IF CURRENT DIFFICULTY IS 3
+      if (currentDifficulty !== 3) return;
+      
       setUserAnswer(prev => {
         if (prev.startsWith('-')) {
           return prev.slice(1);
@@ -504,46 +561,100 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
             </Text>
           </TouchableOpacity>
           */}
-          {/* Mode selection buttons */}
-          <View style={styles.modeButtonsWrap}>
-            <View ref={mode30sRef} onLayout={measure30s}>
-              <InfiniteGameModeButton
-                name="30 SEGUNDOS"
-                route="/infinite-game"
-                gradientColors={['#FF6B9D', '#C44569']}
-                highScore={getTopScores(0.5, 1)[0]?.score || 0}
-                date={getTopScores(0.5, 1)[0] ? new Date(getTopScores(0.5, 1)[0].timestamp).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : 'Sin puntuación'}
-                onPress={() => startGame(0.5)}
-              />
+          {/* Selection UI */}
+          <ScrollView 
+            style={styles.selectionScrollView}
+            contentContainerStyle={styles.selectionContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* 1. Categorías */}
+            <Text style={[styles.selectionTitle, { fontFamily: 'Digitalt' }]}>1. ELIGE TU OPERACIÓN</Text>
+            <View style={styles.categoryGrid}>
+              {CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={cat.id}
+                  onPress={() => setSelectedCategory(cat.id)}
+                  style={styles.categoryCardWrapper}
+                >
+                  <LinearGradient
+                    colors={selectedCategory === cat.id 
+                      ? [cat.colors[0] + '66', cat.colors[1] + '44'] 
+                      : ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']
+                    }
+                    style={[
+                      styles.categoryCard,
+                      selectedCategory === cat.id && { borderColor: cat.colors[0], borderWidth: 2.5 }
+                    ]}
+                  >
+                    <View style={styles.mascotContainer}>
+                      {cat.lottie ? (
+                        <LottieView
+                          source={cat.lottie}
+                          autoPlay
+                          loop
+                          style={styles.categoryMascot}
+                        />
+                      ) : (
+                        <FontAwesome5 name={cat.icon} size={30 * scaleFactor} color={selectedCategory === cat.id ? "#fff" : "#a855f7"} />
+                      )}
+                    </View>
+                    <Text style={[styles.categoryName, { fontFamily: 'Gilroy-Black' }]}>{cat.name}</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              ))}
             </View>
 
-            <InfiniteGameModeButton
-              name="1 MINUTO"
-              route="/infinite-game"
-              gradientColors={['#FFA65A', '#FF5EA3']}
-              highScore={getTopScores(1, 1)[0]?.score || 0}
-              date={getTopScores(1, 1)[0] ? new Date(getTopScores(1, 1)[0].timestamp).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : 'Sin puntuación'}
-              onPress={() => startGame(1)}
-            />
+            {/* 2. Tiempo */}
+            <Text style={[styles.selectionTitle, { fontFamily: 'Digitalt', marginTop: 20 }]}>2. ¿CUÁNTO TIEMPO?</Text>
+            <View style={styles.chipsRow}>
+              {TIMES.map((t) => (
+                <TouchableOpacity
+                  key={t.id}
+                  style={[
+                    styles.chip,
+                    selectedTime === t.id && styles.chipActive
+                  ]}
+                  onPress={() => setSelectedTime(t.id)}
+                >
+                  <Text style={[styles.chipText, { fontFamily: 'Digitalt' }]}>{t.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-            <InfiniteGameModeButton
-              name="3 MINUTOS"
-              route="/infinite-game"
-              gradientColors={['#8EF06E', '#31C45A']}
-              highScore={getTopScores(3, 1)[0]?.score || 0}
-              date={getTopScores(3, 1)[0] ? new Date(getTopScores(3, 1)[0].timestamp).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : 'Sin puntuación'}
-              onPress={() => startGame(3)}
-            />
+            {/* 3. Dificultad */}
+            <Text style={[styles.selectionTitle, { fontFamily: 'Digitalt', marginTop: 20 }]}>3. NIVEL DE DIFICULTAD</Text>
+            <View style={styles.chipsRow}>
+              {DIFFICULTIES.map((d) => (
+                <TouchableOpacity
+                  key={d.id}
+                  style={[
+                    styles.difficultyChip,
+                    selectedDifficulty === d.id && { backgroundColor: d.colors[0] }
+                  ]}
+                  onPress={() => setSelectedDifficulty(d.id)}
+                >
+                  <Text style={[styles.chipText, { fontFamily: 'Digitalt' }]}>{d.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-            <InfiniteGameModeButton
-              name="5 MINUTOS"
-              route="/infinite-game"
-              gradientColors={['#6CCBFF', '#5B9FED']}
-              highScore={getTopScores(5, 1)[0]?.score || 0}
-              date={getTopScores(5, 1)[0] ? new Date(getTopScores(5, 1)[0].timestamp).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : 'Sin puntuación'}
-              onPress={() => startGame(5)}
-            />
-          </View>
+            {/* Start Button */}
+            <TouchableOpacity
+              style={[styles.mainStartButton, (!selectedTime) && styles.mainStartButtonDisabled]}
+              onPress={() => selectedTime && startGame(selectedTime)}
+              disabled={!selectedTime}
+            >
+              <LinearGradient
+                colors={['#FFA65A', '#FF5EA3']}
+                style={styles.mainStartButtonGradient}
+              >
+                <Text style={[styles.mainStartButtonText, { fontFamily: 'Digitalt' }]}>
+                  {selectedTime ? '¡EMPEZAR DESAFÍO!' : 'ELIGE UN TIEMPO'}
+                </Text>
+                <FontAwesome5 name="play" size={18} color="#fff" />
+              </LinearGradient>
+            </TouchableOpacity>
+          </ScrollView>
         </SafeAreaView>
       </View>
     );
@@ -718,17 +829,26 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
             <View style={styles.numpadContainer}>
               {NUMPAD.map((row, i) => (
                 <View key={i} style={styles.numpadRow}>
-                  {row.map((val, j) => (
-                    <TouchableOpacity
-                      key={j}
-                      style={styles.numpadButton}
-                      onPress={() => handleNumpadPress(val)}
-                    >
-                      <Text style={[styles.numpadButtonText, { fontFamily: 'Digitalt' }]}>
-                        {val}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                  {row.map((val, j) => {
+                    const isNegative = val === '−';
+                    const isDisabledNegative = isNegative && currentDifficulty !== 3;
+                    
+                    return (
+                      <TouchableOpacity
+                        key={j}
+                        style={[
+                          styles.numpadButton,
+                          isDisabledNegative && { opacity: 0.3 }
+                        ]}
+                        onPress={() => !isDisabledNegative && handleNumpadPress(val)}
+                        disabled={isDisabledNegative}
+                      >
+                        <Text style={[styles.numpadButtonText, { fontFamily: 'Digitalt' }]}>
+                          {val}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               ))}
             </View>
@@ -1436,5 +1556,110 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 9999,
+  },
+  // New Selection Styles
+  selectionScrollView: {
+    flex: 1,
+    marginTop: 10,
+  },
+  selectionContent: {
+    paddingBottom: 40,
+    paddingHorizontal: 20,
+  },
+  selectionTitle: {
+    color: '#fff',
+    fontSize: 20 * scaleFactor,
+    marginBottom: 12 * scaleFactor,
+    letterSpacing: 1,
+    opacity: 0.9,
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'space-between',
+    paddingVertical: 5,
+  },
+  categoryCardWrapper: {
+    width: '48%',
+    marginBottom: 12,
+  },
+  categoryCard: {
+    width: '100%',
+    borderRadius: 24 * scaleFactor,
+    padding: 12 * scaleFactor,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.05)',
+    overflow: 'hidden',
+  },
+  mascotContainer: {
+    width: 70 * scaleFactor,
+    height: 70 * scaleFactor,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  categoryMascot: {
+    width: 80 * scaleFactor,
+    height: 80 * scaleFactor,
+  },
+  categoryName: {
+    color: '#fff',
+    fontSize: 11 * scaleFactor,
+    textAlign: 'center',
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  chip: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 15,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  chipActive: {
+    borderColor: '#FFA65A',
+    backgroundColor: 'rgba(255,166,90,0.2)',
+  },
+  chipText: {
+    color: '#fff',
+    fontSize: 15 * scaleFactor,
+  },
+  difficultyChip: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 18,
+    paddingVertical: 12 * scaleFactor,
+    paddingHorizontal: 18 * scaleFactor,
+  },
+  mainStartButton: {
+    marginTop: 30 * scaleFactor,
+    height: 65 * scaleFactor,
+    borderRadius: 32 * scaleFactor,
+    overflow: 'hidden',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+  },
+  mainStartButtonDisabled: {
+    opacity: 0.5,
+  },
+  mainStartButtonGradient: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  mainStartButtonText: {
+    color: '#fff',
+    fontSize: 20 * scaleFactor,
+    fontWeight: 'bold',
+    letterSpacing: 2,
   },
 });
