@@ -41,7 +41,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser(null);
         }
       } catch (error) {
-        console.error('Error getting initial user:', error);
+        // No mostrar como error fatal si es solo un token expirado, ya que Supabase se recuperará o pedirá login
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        if (errorMsg.includes('Invalid Refresh Token')) {
+          console.log('ℹ️ Sesión previa expirada, el usuario deberá iniciar sesión.');
+        } else {
+          console.warn('⚠️ Error al obtener usuario inicial:', errorMsg);
+        }
         setUser(null);
       } finally {
         setLoading(false);

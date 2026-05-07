@@ -10,7 +10,14 @@ import { Slot } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import LottieView from 'lottie-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet } from 'react-native';
+import { Animated, StyleSheet, LogBox } from 'react-native';
+
+// Ignorar errores ruidosos que no son fatales (como el refresh token de Supabase al iniciar)
+LogBox.ignoreLogs([
+  'Invalid Refresh Token',
+  'InternalBytecode.js',
+  'ENOENT: no such file or directory',
+]);
 
 
 void SplashScreen.preventAutoHideAsync();

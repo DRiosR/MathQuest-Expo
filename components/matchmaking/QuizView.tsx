@@ -5,6 +5,7 @@ import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LayeredAvatar } from '@/components/LayeredAvatar';
 import { Avatar } from '@/types/avatar';
+import { defaultAvatar } from '@/constants/avatarAssets';
 
 type Category = { id: string; name: string; emoji: string; color: string } | undefined;
 
@@ -23,6 +24,8 @@ type Props = {
   opponentUsername: string;
   myTotalScore: number;
   opponentTotalScore: number;
+  opponentFinished?: boolean;
+  finalCountdown?: number | null;
   onDigit: (d: string) => void;
   onClear: () => void;
   onOk: () => void;
@@ -45,6 +48,7 @@ export default function QuizView({
   roundNumber, category, question, index, total, answerText, 
   localScore, disabled, myAvatar, opponentAvatar, 
   myUsername, opponentUsername, myTotalScore, opponentTotalScore,
+  opponentFinished, finalCountdown,
   onDigit, onClear, onOk, onForfeit 
 }: Props) {
   const insets = useSafeAreaInsets();
@@ -60,6 +64,39 @@ export default function QuizView({
       useNativeDriver: false,
     }).start();
   }, [index, total, trackWidth]);
+
+  const [localCountdown, setLocalCountdown] = useState<number | null>(null);
+
+  // Sincronizar con el tiempo que mande el servidor
+  useEffect(() => {
+    if (finalCountdown !== undefined && finalCountdown !== null) {
+      setLocalCountdown(finalCountdown);
+    }
+  }, [finalCountdown]);
+
+  // Si el oponente termina y no tenemos tiempo del servidor, empezamos en 30
+  useEffect(() => {
+    if (opponentFinished && !disabled && localCountdown === null) {
+      setLocalCountdown(30);
+    }
+  }, [opponentFinished, disabled]);
+
+  // Lógica de la cuenta regresiva
+  useEffect(() => {
+    if (localCountdown === null || localCountdown <= 0) return;
+    
+    const interval = setInterval(() => {
+      setLocalCountdown(prev => {
+        if (prev === null || prev <= 0) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [localCountdown !== null && localCountdown > 0]);
 
   return (
     <View style={styles.quizContainer}>
@@ -84,7 +121,7 @@ export default function QuizView({
           {/* My Info */}
           <View style={styles.playerInfoBlock}>
             <View style={styles.avatarCircleSmall}>
-              <LayeredAvatar avatar={myAvatar} size={40} />
+              <LayeredAvatar avatar={myAvatar || defaultAvatar} size={40} />
             </View>
             <View style={styles.textInfo}>
               <Text style={[styles.playerNameText, { fontFamily: 'Digitalt' }]} numberOfLines={1}>TU</Text>
@@ -99,7 +136,7 @@ export default function QuizView({
           {/* Opponent Info */}
           <View style={[styles.playerInfoBlock, { flexDirection: 'row-reverse' }]}>
             <View style={styles.avatarCircleSmall}>
-              <LayeredAvatar avatar={opponentAvatar} size={40} />
+              <LayeredAvatar avatar={opponentAvatar || defaultAvatar} size={40} />
             </View>
             <View style={[styles.textInfo, { alignItems: 'flex-end' }]}>
               <Text style={[styles.playerNameText, { fontFamily: 'Digitalt' }]} numberOfLines={1}>
@@ -109,6 +146,18 @@ export default function QuizView({
             </View>
           </View>
         </View>
+        
+        {/* Timer de 30s si el oponente ya terminó */}
+        {opponentFinished && !disabled && (
+          <View style={styles.finalCountdownContainer}>
+            <View style={styles.timerBadge}>
+              <Text style={[styles.timerLabel, { fontFamily: 'Digitalt' }]}>¡RÁPIDO!</Text>
+              <Text style={[styles.timerValue, { fontFamily: 'Digitalt' }]}>
+                {localCountdown !== null ? localCountdown : 30}s
+              </Text>
+            </View>
+          </View>
+        )}
 
         <Text style={[styles.roundSubtitle, { fontFamily: 'Digitalt' }]}>{category?.name?.toUpperCase() || 'CATEGORÍA'}</Text>
 
@@ -184,6 +233,32 @@ export default function QuizView({
       >
         <Text style={[styles.forfeitBtnText, { fontFamily: 'Gilroy-Black' }]}>ABANDONAR</Text>
       </TouchableOpacity>
+
+      {/* Pantalla de espera si yo ya terminé */}
+      {disabled && (
+        <View style={styles.waitingOverlay}>
+          <LinearGradient
+            colors={['rgba(0,0,0,0.85)', 'rgba(0,0,0,0.95)']}
+            style={StyleSheet.absoluteFill}
+          />
+          <LottieView
+            source={getMascotIdleSource(category?.emoji)}
+            autoPlay
+            loop
+            style={styles.waitingMascotLottie}
+          />
+          <Text style={[styles.waitingTitle, { fontFamily: 'Digitalt' }]}>¡TERMINASTE!</Text>
+          <Text style={[styles.waitingSubtitle, { fontFamily: 'Digitalt' }]}>Esperando a que el rival finalice...</Text>
+          
+          {localCountdown !== null && (
+            <View style={styles.waitingTimerContainer}>
+              <Text style={[styles.waitingTimerText, { fontFamily: 'Digitalt' }]}>
+                La ronda termina en: {localCountdown}s
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -268,6 +343,77 @@ const styles = StyleSheet.create({
     fontSize: 9,
     letterSpacing: 1,
     fontWeight: '700',
+  },
+  // Waiting Overlay Styles
+  waitingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 30,
+  },
+  waitingMascotLottie: {
+    width: 240,
+    height: 240,
+    marginBottom: 10,
+  },
+  waitingTitle: {
+    color: '#FFFFFF',
+    fontSize: 32,
+    textAlign: 'center',
+    marginBottom: 10,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  waitingSubtitle: {
+    color: '#D6CCFF',
+    fontSize: 18,
+    textAlign: 'center',
+    opacity: 0.9,
+  },
+  waitingTimerContainer: {
+    marginTop: 40,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  waitingTimerText: {
+    color: '#FFD45E',
+    fontSize: 16,
+  },
+  // Final Countdown Styles
+  finalCountdownContainer: {
+    position: 'absolute',
+    top: 60,
+    alignSelf: 'center',
+    zIndex: 50,
+  },
+  timerBadge: {
+    backgroundColor: '#FF4444',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
+  },
+  timerLabel: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    marginRight: 8,
+  },
+  timerValue: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '900',
   },
 });
 

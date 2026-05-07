@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { authService } from '../../../Core/Services/AuthService';
 import { HighScore, UserProfile, userService } from '../../../Core/Services/UserService';
-import { Avatar } from '../../../Data/Models/avatar';
+import { Avatar } from '../../../data/Models/avatar';
 
 export interface ProfileViewModelState {
   // User profile

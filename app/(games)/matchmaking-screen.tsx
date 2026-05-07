@@ -79,6 +79,8 @@ export default function MatchmakingScreen() {
     onGameFinished,
     onAnswerResult,
     onUserLeft,
+    onPlayerCompleted,
+    onTimerStarted,
     currentRoom,
     socketId,
     websocketService,
@@ -115,6 +117,8 @@ export default function MatchmakingScreen() {
   const [myRoundScore, setMyRoundScore] = useState<number>(0);
   const [opponentRoundScore, setOpponentRoundScore] = useState<number>(0);
   const [hasCompletedRound, setHasCompletedRound] = useState<boolean>(false);
+  const [opponentFinished, setOpponentFinished] = useState<boolean>(false);
+  const [finalCountdown, setFinalCountdown] = useState<number | null>(null);
 
   // Initial countdown state
   const [countdown, setCountdown] = useState(3);
@@ -234,6 +238,8 @@ export default function MatchmakingScreen() {
       setMyRoundScore(0);
       setOpponentRoundScore(0);
       setHasCompletedRound(false);
+      setOpponentFinished(false);
+      setFinalCountdown(null);
       setQuestionStartTime(Date.now());
       
       if ((data?.roundNumber || 1) === 1) {
@@ -299,7 +305,7 @@ export default function MatchmakingScreen() {
     const unsubUserLeft = onUserLeft((data) => {
       // Solo actuar si el oponente sale ANTES de terminar la partida
       const currentState = gameStateRef.current;
-      if (data.userId === opponent?.userId && currentState !== 'MATCH_END' && currentState !== 'SEARCHING') {
+      if (data.userId === opponent?.userId && currentState !== 'MATCH_END' && currentState !== 'MATCHMAKING') {
         // Force match end with forfeit info
         setGameData((prev: any) => ({
           ...prev,
@@ -464,6 +470,27 @@ export default function MatchmakingScreen() {
       }
     });
   }, [onAnswerResult, exercises.length, myUserId]);
+
+  // Listener para cuando un jugador termina su quiz
+  useEffect(() => {
+    const unsub = onPlayerCompleted((data: { userId: string }) => {
+      console.log('🏁 Player completed quiz:', data.userId);
+      const currentSocketId = websocketService.socketId;
+      if (data.userId !== currentSocketId && data.userId !== myUserId) {
+        setOpponentFinished(true);
+      }
+    });
+    return () => unsub?.();
+  }, [onPlayerCompleted, myUserId]);
+
+  // Listener para el temporizador final (30s)
+  useEffect(() => {
+    const unsub = onTimerStarted((data: { time: number }) => {
+      console.log('⏰ Final timer started:', data.time);
+      setFinalCountdown(data.time);
+    });
+    return () => unsub?.();
+  }, [onTimerStarted]);
 
   // Quiz helpers
   const handleDigit = (d: string) => {
@@ -761,6 +788,8 @@ export default function MatchmakingScreen() {
               opponentUsername={opponent?.username || 'Oponente'}
               myTotalScore={(meIsP1 ? cumulativeTotals.p1 : cumulativeTotals.p2) + myRoundScore}
               opponentTotalScore={(meIsP1 ? cumulativeTotals.p2 : cumulativeTotals.p1) + opponentRoundScore}
+              opponentFinished={opponentFinished}
+              finalCountdown={finalCountdown}
               onDigit={handleDigit}
               onClear={handleClear}
               onOk={handleOk}

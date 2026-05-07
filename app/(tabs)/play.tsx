@@ -53,26 +53,38 @@ export default function PlayScreen() {
     try {
       const remote = await getUserRankInfo(user.id);
       if (remote?.rank) {
+        // Determinar si es una subida de rango (nuevo min_points > anterior min_points)
+        const isRankUp = !rankInfo?.rank || remote.rank.min_points > rankInfo.rank.min_points;
+
         setRankInfo(remote);
         
         // Check if we should show rank up animation
         const seenRanksStr = await AsyncStorage.getItem('@mathquest_seen_ranks');
+        const isFirstLoad = seenRanksStr === null;
         const seenRanks = seenRanksStr ? JSON.parse(seenRanksStr) : [];
         const rankId = remote.rank.id;
+        const rankName = remote.rank.name.toLowerCase();
+        
+        // No mostrar animación para rangos de Bronce
+        const isBronze = rankName.includes('bronce') || rankName.includes('bronze');
         
         if (!seenRanks.includes(rankId)) {
-          // If it's a new rank (not the very first time if they are just starting, 
-          // but better to show it anyway to make them feel good)
-          setNewRankData({
-            name: remote.rank.name,
-            icon: remote.rank.icon_url,
-            color: remote.rank.color || '#A855F7'
-          });
-          setShowRankUp(true);
-          
-          // Save as seen
+          // Guardar como visto inmediatamente
           const updatedSeen = [...seenRanks, rankId];
           await AsyncStorage.setItem('@mathquest_seen_ranks', JSON.stringify(updatedSeen));
+
+          // Solo mostrar si:
+          // 1. No es un rango de bronce
+          // 2. No es la primerísima vez que entramos
+          // 3. Es una SUBIDA de rango (no bajada)
+          if (!isBronze && !isFirstLoad && isRankUp) {
+            setNewRankData({
+              name: remote.rank.name,
+              icon: remote.rank.icon_url,
+              color: remote.rank.color || '#A855F7'
+            });
+            setShowRankUp(true);
+          }
         }
       }
     } catch (err) {
