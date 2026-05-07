@@ -30,6 +30,8 @@ import {
 } from '@/utils/generateQuestions';
 
 const { width, height } = Dimensions.get('window');
+const isSmallScreen = height < 700;
+const scaleFactor = isSmallScreen ? 0.8 : 1;
 
 // Adventure Level Structure
 interface AdventureLevel {
@@ -311,7 +313,7 @@ const adventureWorlds: AdventureWorld[] = [
 ];
 
 // Mascot animations
-const mascotAnimations = {
+const mascotAnimations: { [key: string]: any } = {
   suma: require('@/assets/lotties/mascots/Plusito/1v1_Idle.json'),
   resta: require('@/assets/lotties/mascots/Restin/1v1_Idle.json'),
   multiplicacion: require('@/assets/lotties/mascots/Porfix/1v1_Idle.json'),
@@ -340,15 +342,15 @@ export default function AdventureGameScreen() {
   const [userAnswer, setUserAnswer] = useState('');
   const [questionsAnswered, setQuestionsAnswered] = useState(0);
   const [correctAnswers, setCorrectAnswers] = useState(0);
+  const [isCountingDown, setIsCountingDown] = useState(false);
+  const [countdown, setCountdown] = useState(3);
+  const countdownScale = useRef(new Animated.Value(1)).current;
+  const countdownOpacity = useRef(new Animated.Value(1)).current;
+
+  const [showLevelComplete, setShowLevelComplete] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [gameEnded, setGameEnded] = useState(false);
   const [levelStats, setLevelStats] = useState({ correct: 0, total: 0, stars: 0 });
-
-  // Countdown state
-  const [countdown, setCountdown] = useState(3);
-  const [isCountingDown, setIsCountingDown] = useState(false);
-  const countdownScale = useRef(new Animated.Value(1)).current;
-  const countdownOpacity = useRef(new Animated.Value(1)).current;
 
   // Animations
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -430,8 +432,8 @@ export default function AdventureGameScreen() {
   }, [isCountingDown]);
 
   const generateNewQuestion = (level: AdventureLevel) => {
-    const category = categories[level.category];
-    const question = generateQuestion(category.displayName, level.difficulty);
+    const category = level.category as any;
+    const question = generateQuestion(category, level.difficulty);
     setCurrentQuestion(question);
     setUserAnswer('');
   };
@@ -788,11 +790,10 @@ export default function AdventureGameScreen() {
           </View>
         </View>
 
-        {/* Main content */}
-        <View style={styles.mainContent}>
-          {/* Mascot and question area */}
-          <View style={styles.questionAreaWrapper}>
-            {/* Mascot animation */}
+        {/* Main content - Using Proportion-based layout */}
+        <View style={styles.gameMainWrapper}>
+          {/* Question section (Proportional) */}
+          <View style={styles.gameQuestionSection}>
             <View style={styles.mascotContainer}>
               {selectedLevel && mascotAnimations[selectedLevel.category] && (
                 <LottieView
@@ -804,7 +805,6 @@ export default function AdventureGameScreen() {
               )}
             </View>
 
-            {/* Question card */}
             <Animated.View style={[
               styles.questionContainer,
               { 
@@ -827,60 +827,63 @@ export default function AdventureGameScreen() {
             </Animated.View>
           </View>
 
-          {/* Answer display */}
-          <Animated.View style={[
-            styles.answerDisplay,
-            { 
-              transform: [{ scale: pulseAnim }],
-              backgroundColor: correctFlash.interpolate({
-                inputRange: [0, 1],
-                outputRange: ['#fff', '#90EE90']
-              })
-            }
-          ]}>
-            <Text style={[
-              styles.answerText,
-              userAnswer === '' && styles.answerTextEmpty,
-              { fontFamily: 'Digitalt' }
+          {/* Answer section (Proportional) */}
+          <View style={styles.gameAnswerSection}>
+            <Animated.View style={[
+              styles.answerDisplay,
+              { 
+                transform: [{ scale: pulseAnim }],
+                backgroundColor: correctFlash.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['#fff', '#90EE90']
+                })
+              }
             ]}>
-              {userAnswer || '0'}
-            </Text>
-          </Animated.View>
-
-          {/* Numpad */}
-          <View style={styles.numpadContainer}>
-            {NUMPAD.map((row, i) => (
-              <View key={i} style={styles.numpadRow}>
-                {row.map((val, j) => (
-                  <TouchableOpacity
-                    key={j}
-                    style={styles.numpadButton}
-                    onPress={() => handleNumpadPress(val)}
-                  >
-                    <Text style={[styles.numpadButtonText, { fontFamily: 'Digitalt' }]}>
-                      {val}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ))}
+              <Text style={[
+                styles.answerText,
+                userAnswer === '' && styles.answerTextEmpty,
+                { fontFamily: 'Digitalt' }
+              ]}>
+                {userAnswer || '0'}
+              </Text>
+            </Animated.View>
           </View>
 
-          {/* Submit button */}
-          <TouchableOpacity
-            style={[styles.submitButton, !userAnswer.trim() && styles.submitButtonDisabled]}
-            onPress={checkAnswer}
-            disabled={!userAnswer.trim()}
-          >
-            <LinearGradient
-              colors={userAnswer.trim() ? ['#FFA65A', '#FF5EA3'] : ['#666', '#444']}
-              style={styles.submitButtonGradient}
+          {/* Controls section (Proportional) */}
+          <View style={styles.gameControlsSection}>
+            <View style={styles.numpadContainer}>
+              {NUMPAD.map((row, i) => (
+                <View key={i} style={styles.numpadRow}>
+                  {row.map((val, j) => (
+                    <TouchableOpacity
+                      key={j}
+                      style={styles.numpadButton}
+                      onPress={() => handleNumpadPress(val)}
+                    >
+                      <Text style={[styles.numpadButtonText, { fontFamily: 'Digitalt' }]}>
+                        {val}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.submitButton, !userAnswer.trim() && styles.submitButtonDisabled]}
+              onPress={checkAnswer}
+              disabled={!userAnswer.trim()}
             >
-              <Text style={[styles.submitButtonText, { fontFamily: 'Digitalt' }]}>
-                ENVIAR
-              </Text>
-            </LinearGradient>
-          </TouchableOpacity>
+              <LinearGradient
+                colors={userAnswer.trim() ? ['#FFA65A', '#FF5EA3'] : ['#666', '#444']}
+                style={styles.submitButtonGradient}
+              >
+                <Text style={[styles.submitButtonText, { fontFamily: 'Digitalt' }]}>
+                  ENVIAR
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
 
@@ -1133,19 +1136,20 @@ const styles = StyleSheet.create({
   },
   // Game screen styles
   gameHeader: {
-    paddingHorizontal: 20,
-    paddingTop: 15,
+    paddingHorizontal: 15,
+    paddingTop: 10,
     position: 'relative',
+    height: 70, 
   },
   gameBackButton: {
     position: 'absolute',
-    top: 15,
+    top: 10,
     left: 0,
     zIndex: 1000,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
     borderRadius: 20,
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 10,
@@ -1154,9 +1158,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     backgroundColor: 'rgba(0,0,0,0.2)',
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    width: '90%',
+    alignSelf: 'center',
+    transform: [{ scale: 0.8 }],
+  },
+  countdownOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    zIndex: 9999,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  countdownText: {
+    color: '#FFD616',
+    fontSize: 150,
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 4, height: 4 },
+    textShadowRadius: 15,
   },
   statBox: {
     alignItems: 'center',
@@ -1175,21 +1197,35 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginTop: 4,
   },
-  mainContent: {
+  gameMainWrapper: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 15,
+  },
+  gameQuestionSection: {
+    flex: 0.35, // 35% del espacio
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingTop: 20,
+    paddingTop: isSmallScreen ? 10 : 0,
+  },
+  gameAnswerSection: {
+    flex: 0.15, // 15% del espacio
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gameControlsSection: {
+    flex: 0.5, // 50% del espacio para teclado y botón
+    justifyContent: 'flex-start',
+    alignItems: 'center',
   },
   questionAreaWrapper: {
     alignItems: 'center',
     width: '100%',
   },
   mascotContainer: {
-    width: 120,
-    height: 120,
-    marginBottom: 20,
+    width: 70 * scaleFactor, 
+    height: 70 * scaleFactor,
+    marginBottom: -65 * scaleFactor, // Integración profunda con la tarjeta
+    zIndex: 10,
   },
   mascotAnimation: {
     width: '100%',
@@ -1198,7 +1234,7 @@ const styles = StyleSheet.create({
   questionContainer: {
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 20,
-    padding: 25,
+    padding: 15 * scaleFactor, 
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.2)',
@@ -1206,14 +1242,14 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     color: '#FFD45E',
-    fontSize: 16,
+    fontSize: 14 * scaleFactor,
     fontWeight: 'bold',
     letterSpacing: 1,
-    marginBottom: 16,
+    marginBottom: 8 * scaleFactor,
   },
   questionText: {
     color: '#fff',
-    fontSize: 32,
+    fontSize: 28 * scaleFactor,
     fontWeight: 'bold',
     letterSpacing: 2,
     textAlign: 'center',
@@ -1221,11 +1257,11 @@ const styles = StyleSheet.create({
   answerDisplay: {
     backgroundColor: '#fff',
     borderRadius: 25,
-    paddingVertical: 15,
-    paddingHorizontal: 40,
+    paddingVertical: 10 * scaleFactor,
+    paddingHorizontal: 40 * scaleFactor,
     width: '85%',
     alignItems: 'center',
-    marginVertical: 10,
+    marginVertical: 8 * scaleFactor,
   },
   answerText: {
     color: '#1f2937',
@@ -1238,19 +1274,19 @@ const styles = StyleSheet.create({
   },
   numpadContainer: {
     width: '100%',
-    paddingHorizontal: 10,
+    paddingHorizontal: 5,
   },
   numpadRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 10,
-    gap: 12,
+    marginBottom: 6,
+    gap: 8,
   },
   numpadButton: {
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 26,
-    width: 80,
-    height: 60,
+    borderRadius: 15,
+    width: width * 0.22, 
+    height: 40 * scaleFactor, 
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1260,11 +1296,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   submitButton: {
-    width: '85%',
-    height: 50,
-    borderRadius: 25,
+    width: '90%',
+    height: 44 * scaleFactor,
+    borderRadius: 22,
     overflow: 'hidden',
-    marginTop: 10,
+    marginTop: 5 * scaleFactor,
   },
   submitButtonDisabled: {
     opacity: 0.5,

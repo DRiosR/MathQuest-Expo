@@ -32,6 +32,8 @@ import {
 } from '@/utils/generateQuestions';
 
 const { width, height } = Dimensions.get('window');
+const isSmallScreen = height < 700;
+const scaleFactor = isSmallScreen ? 0.8 : 1;
 
 // Mascot animations
 const mascotAnimations = {
@@ -655,11 +657,10 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
           </View>
         )}
 
-        {/* Main Content */}
-        <View style={styles.mainContent}>
-          {/* Question area with mascots on top */}
-          <View style={styles.questionAreaWrapper}>
-            {/* Mascot animations row - positioned on top of card */}
+        {/* Main Content - Using Proportion-based layout */}
+        <View style={styles.gameMainWrapper}>
+          {/* Question area (Proportional) */}
+          <View style={styles.gameQuestionSection}>
             <View style={styles.mascotsRow}>
               {Object.entries(mascotAnimations).map(([key, animation]) => (
                 <View key={key} style={styles.mascotWrapper}>
@@ -673,7 +674,6 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
               ))}
             </View>
 
-            {/* Question card */}
             <View style={styles.questionContainer}>
               {currentQuestion && (
                 <Animated.View style={[
@@ -696,55 +696,58 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
             </View>
           </View>
 
-          {/* Answer Display */}
-          <Animated.View style={[
-            styles.answerDisplay,
-            { transform: [{ scale: pulseAnim }] }
-          ]}>
-            <Text style={[
-              styles.answerText,
-              userAnswer === '' && styles.answerTextEmpty,
-            correctFlash && styles.answerTextCorrectFlash,
-              { fontFamily: 'Digitalt' }
+          {/* Answer Display (Proportional) */}
+          <View style={styles.gameAnswerSection}>
+            <Animated.View style={[
+              styles.answerDisplay,
+              { transform: [{ scale: pulseAnim }] }
             ]}>
-              {userAnswer || '0'}
-            </Text>
-          </Animated.View>
-
-          {/* Custom Numpad */}
-          <View style={styles.numpadContainer}>
-            {NUMPAD.map((row, i) => (
-              <View key={i} style={styles.numpadRow}>
-                {row.map((val, j) => (
-                  <TouchableOpacity
-                    key={j}
-                    style={styles.numpadButton}
-                    onPress={() => handleNumpadPress(val)}
-                  >
-                    <Text style={[styles.numpadButtonText, { fontFamily: 'Digitalt' }]}>
-                      {val}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ))}
+              <Text style={[
+                styles.answerText,
+                userAnswer === '' && styles.answerTextEmpty,
+                correctFlash && styles.answerTextCorrectFlash,
+                { fontFamily: 'Digitalt' }
+              ]}>
+                {userAnswer || '0'}
+              </Text>
+            </Animated.View>
           </View>
 
-          {/* Submit Button */}
-          <TouchableOpacity
-            style={[styles.submitButton, (!userAnswer.trim() || !isGameActive || wrongAnswers >= 3) && styles.submitButtonDisabled]}
-            onPress={checkAnswer}
-            disabled={!userAnswer.trim() || !isGameActive || wrongAnswers >= 3}
-          >
-            <LinearGradient
-              colors={(userAnswer.trim() && isGameActive && wrongAnswers < 3) ? ['#FFA65A', '#FF5EA3'] : ['#666', '#444']}
-              style={styles.submitButtonGradient}
+          {/* Controls section (Proportional) */}
+          <View style={styles.gameControlsSection}>
+            <View style={styles.numpadContainer}>
+              {NUMPAD.map((row, i) => (
+                <View key={i} style={styles.numpadRow}>
+                  {row.map((val, j) => (
+                    <TouchableOpacity
+                      key={j}
+                      style={styles.numpadButton}
+                      onPress={() => handleNumpadPress(val)}
+                    >
+                      <Text style={[styles.numpadButtonText, { fontFamily: 'Digitalt' }]}>
+                        {val}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.submitButton, (!userAnswer.trim() || !isGameActive || wrongAnswers >= 3) && styles.submitButtonDisabled]}
+              onPress={checkAnswer}
+              disabled={!userAnswer.trim() || !isGameActive || wrongAnswers >= 3}
             >
-              <Text style={[styles.submitButtonText, { fontFamily: 'Digitalt' }]}>
-                ENVIAR
-              </Text>
-            </LinearGradient>
-          </TouchableOpacity>
+              <LinearGradient
+                colors={(userAnswer.trim() && isGameActive && wrongAnswers < 3) ? ['#FFA65A', '#FF5EA3'] : ['#666', '#444']}
+                style={styles.submitButtonGradient}
+              >
+                <Text style={[styles.submitButtonText, { fontFamily: 'Digitalt' }]}>
+                  ENVIAR
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
 
@@ -957,12 +960,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  mainContent: {
+  gameMainWrapper: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 15,
+  },
+  gameQuestionSection: {
+    flex: 0.4, // 40% del espacio para mascota + pregunta
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingTop: 20,
+  },
+  gameAnswerSection: {
+    flex: 0.15, // 15% del espacio para la respuesta
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gameControlsSection: {
+    flex: 0.45, // 45% del espacio para teclado y botón
+    justifyContent: 'flex-start',
+    alignItems: 'center',
   },
   title: {
     color: '#fff',
@@ -1075,10 +1090,10 @@ const styles = StyleSheet.create({
   },
   statValue: {
     color: '#fff',
-    fontSize: 24,
+    fontSize: 20, // Reducido ligeramente
     fontWeight: 'bold',
     letterSpacing: 1,
-    marginTop: 4,
+    marginTop: 2,
   },
   questionAreaWrapper: {
     alignItems: 'center',
@@ -1091,14 +1106,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: 10,
     position: 'absolute',
-    top: -30, // Position above the card
+    top: isSmallScreen ? 35 : 45, // Más integradas en el rectángulo
     left: 0,
     right: 0,
     zIndex: 10,
   },
   mascotWrapper: {
-    width: width / 4 - 10,
-    height: 85,
+    width: (width / 4 - 15) * scaleFactor, 
+    height: 70 * scaleFactor, 
     marginHorizontal: 1,
   },
   mascotAnimation: {
@@ -1107,28 +1122,27 @@ const styles = StyleSheet.create({
   },
   questionContainer: {
     width: '100%',
-    paddingTop: 45, // Space for mascots
+    paddingTop: isSmallScreen ? 15 : 25, // Menos espacio arriba para que las mascotas toquen la tarjeta
   },
   questionBox: {
     backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
-    paddingHorizontal: 25,
+    borderRadius: 15,
+    paddingVertical: 12 * scaleFactor, 
+    paddingHorizontal: 20 * scaleFactor,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.2)',
   },
   categoryText: {
     color: '#FFD45E',
-    fontSize: 16,
+    fontSize: 14 * scaleFactor,
     fontWeight: 'bold',
     letterSpacing: 1,
-    marginBottom: 16,
+    marginBottom: 8 * scaleFactor,
   },
   questionText: {
     color: '#fff',
-    fontSize: 32,
+    fontSize: 28 * scaleFactor,
     fontWeight: 'bold',
     letterSpacing: 2,
     textAlign: 'center',
@@ -1136,15 +1150,15 @@ const styles = StyleSheet.create({
   answerDisplay: {
     backgroundColor: '#fff',
     borderRadius: 25,
-    paddingVertical: 15,
-    paddingHorizontal: 40,
-    width: '85%',
+    paddingVertical: 8 * scaleFactor,
+    paddingHorizontal: 30 * scaleFactor,
+    width: '80%',
     alignItems: 'center',
-    marginVertical: 10,
+    marginVertical: 5 * scaleFactor,
   },
   answerText: {
     color: '#1f2937',
-    fontSize: 32,
+    fontSize: 32 * scaleFactor,
     fontWeight: 'bold',
     letterSpacing: 2,
   },
@@ -1166,9 +1180,9 @@ const styles = StyleSheet.create({
   },
   numpadButton: {
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 26,
-    width: 80,
-    height: 60,
+    borderRadius: 15,
+    width: width * 0.22,
+    height: 40 * scaleFactor, 
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1179,10 +1193,10 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     width: '85%',
-    height: 50,
+    height: 50 * scaleFactor,
     borderRadius: 25,
     overflow: 'hidden',
-    marginTop: 10,
+    marginTop: 10 * scaleFactor,
   },
   submitButtonDisabled: {
     opacity: 0.5,

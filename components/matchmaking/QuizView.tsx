@@ -371,9 +371,11 @@ export default function QuizView({
       <TouchableOpacity 
         style={styles.forfeitBtnBottomRight} 
         onPress={onForfeit}
-        activeOpacity={0.7}
+        activeOpacity={0.8}
       >
-        <Text style={[styles.forfeitBtnText, { fontFamily: 'Gilroy-Black' }]}>ABANDONAR</Text>
+        <Text style={[styles.forfeitBtnText, { fontFamily: 'Gilroy-Black' }]}>
+          🚪 ABANDONAR
+        </Text>
       </TouchableOpacity>
 
       {/* Pantalla de espera si yo ya terminé */}
@@ -508,18 +510,24 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 20,
     right: 20,
-    backgroundColor: 'rgba(255, 0, 0, 0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 0, 0, 0.3)',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    backgroundColor: '#FF4444',
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#FF7676',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   forfeitBtnText: {
-    color: '#FFBABA',
-    fontSize: 9,
-    letterSpacing: 1,
-    fontWeight: '700',
+    color: '#FFFFFF',
+    fontSize: 11,
+    letterSpacing: 0.5,
+    fontWeight: '900',
+    textAlign: 'center',
   },
   // Waiting Overlay Styles
   waitingOverlay: {
