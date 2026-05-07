@@ -81,10 +81,15 @@ export default function MatchmakingScreen() {
     onUserLeft,
     onPlayerCompleted,
     onTimerStarted,
+    onMessage,
+    onChatMessage,
     currentRoom,
     socketId,
     websocketService,
     forfeitGame,
+    sendMessage,
+    sendChatMessage,
+    typingUsers,
   } = useWebSocket();
 
   const [gameState, setGameState] = useState<GameState>('MATCHMAKING');
@@ -119,6 +124,7 @@ export default function MatchmakingScreen() {
   const [hasCompletedRound, setHasCompletedRound] = useState<boolean>(false);
   const [opponentFinished, setOpponentFinished] = useState<boolean>(false);
   const [finalCountdown, setFinalCountdown] = useState<number | null>(null);
+  const [lastEmote, setLastEmote] = useState<{ userId: string; emote: string; timestamp: number } | null>(null);
 
   // Initial countdown state
   const [countdown, setCountdown] = useState(3);
@@ -240,6 +246,7 @@ export default function MatchmakingScreen() {
       setHasCompletedRound(false);
       setOpponentFinished(false);
       setFinalCountdown(null);
+      setLastEmote(null);
       setQuestionStartTime(Date.now());
       
       if ((data?.roundNumber || 1) === 1) {
@@ -288,9 +295,55 @@ export default function MatchmakingScreen() {
     });
   }, [onRoundFinished]);
 
+  // DETECCIÓN DEFINITIVA: Vía Typing (El único evento que el servidor retransmite)
+  useEffect(() => {
+    // Vigilamos los usuarios que están "escribiendo"
+    Object.keys(typingUsers).forEach(uid => {
+      if (typingUsers[uid]) {
+        // En nuestro hack, el "username" de typingService contendrá el emote
+        // Pero necesitamos acceder al servicio para ver qué mandó
+        const isMe = uid === myUserId || uid === socketId;
+        if (!isMe) {
+          // Si el rival está "escribiendo", revisamos si es un emote
+          // Nota: El servicio de typing del server suele mandar el evento a todos
+          // Vamos a usar un listener directo para mayor precisión
+        }
+      }
+    });
+  }, [typingUsers]);
+
+  useEffect(() => {
+    // Escuchador directo de typing para capturar el emote camuflado
+    const unsubTyping = websocketService.onTyping((data: any) => {
+      const isMe = data.userId === myUserId || data.userId === socketId;
+      if (!isMe && data.isTyping && data.username.startsWith('emote:')) {
+        const emoteId = data.username.replace('emote:', '');
+        setLastEmote({
+          userId: 'opponent',
+          emote: emoteId,
+          timestamp: Date.now()
+        });
+      }
+    });
+    return () => unsubTyping?.();
+  }, [myUserId, socketId]);
+
+  useEffect(() => {
+    // Escuchador de chat real para los mensajes predeterminados
+    const unsubChat = onChatMessage((data: any) => {
+      const isMe = data.userId === myUserId || data.userId === socketId;
+      setLastEmote({
+        userId: isMe ? 'me' : 'opponent',
+        emote: data.message,
+        timestamp: Date.now()
+      });
+    });
+    return () => unsubChat?.();
+  }, [onChatMessage, myUserId, socketId]);
+
   // Match Terminado
   useEffect(() => {
-    onGameFinished((data) => {
+    const unsubGameEnd = onGameFinished((data) => {
       console.log('🏆 Match finished data received');
       // Merge with previous gameData to preserve round scores if needed
       setGameData((prev: any) => {
@@ -304,6 +357,7 @@ export default function MatchmakingScreen() {
         setGameState('MATCH_END');
       }, 4000); // 4 segundos de cortesía para ver la última ronda
     });
+    return () => unsubGameEnd?.();
   }, [onGameFinished, opponentAvatar]);
 
   // Usuario sale de la sala
@@ -453,16 +507,26 @@ export default function MatchmakingScreen() {
   }, [isInitialCountdown]);
 
   useEffect(() => {
-    onAnswerResult((result: { userId?: string; exerciseId: string; isCorrect: boolean; correctAnswer: number; currentScore?: number; totalExercises?: number }) => {
-      // If server doesn't send userId, we might have issues distinguishing.
-      // But if it DOES, we use socketId and myUserId for maximum precision.
+    const unsubAns = onAnswerResult((result: any) => {
+      // DETECCIÓN DE EMOTE POR CÓDIGO DE POSICIÓN
+      const senderId = result.userId;
       const currentSocketId = websocketService.socketId;
+      const isMe = senderId === currentSocketId || senderId === myUserId;
       
-      // Determine if this result belongs to me
-      const isMe = result.userId 
-        ? (result.userId === currentSocketId || result.userId === myUserId)
-        : true; // Fallback to true if missing, but ideally server should send it
-      
+      // Si recibimos una "respuesta" del rival pero es un código de emote
+      if (!isMe && exercises.length > 0) {
+        const exerciseIndex = exercises.findIndex(ex => ex.id === result.exerciseId);
+        if (exerciseIndex >= 0 && exerciseIndex <= 3) {
+          const EMOTE_MAP = ['happy', 'sad', 'angry', 'gg'];
+          setLastEmote({
+            userId: 'opponent',
+            emote: EMOTE_MAP[exerciseIndex],
+            timestamp: Date.now()
+          });
+          return;
+        }
+      }
+
       if (typeof result?.currentScore === 'number') {
         if (isMe) {
           setMyRoundScore(result.currentScore);
@@ -475,30 +539,41 @@ export default function MatchmakingScreen() {
         setAnswerText('');
       }
     });
-  }, [onAnswerResult, exercises.length, myUserId]);
+    return () => unsubAns?.();
+  }, [onAnswerResult, exercises.length, myUserId, socketId]);
 
   // Listener para cuando un jugador termina su quiz
   useEffect(() => {
-    const unsub = onPlayerCompleted((data: { userId: string }) => {
+    const unsubComp = onPlayerCompleted((data: { userId: string }) => {
       console.log('🏁 Player completed quiz:', data.userId);
       const currentSocketId = websocketService.socketId;
       if (data.userId !== currentSocketId && data.userId !== myUserId) {
         setOpponentFinished(true);
       }
     });
-    return () => unsub?.();
+    return () => unsubComp?.();
   }, [onPlayerCompleted, myUserId]);
 
   // Listener para el temporizador final (30s)
   useEffect(() => {
-    const unsub = onTimerStarted((data: { time: number }) => {
+    const unsubTimer = onTimerStarted((data: { time: number }) => {
       console.log('⏰ Final timer started:', data.time);
       setFinalCountdown(data.time);
     });
-    return () => unsub?.();
+    return () => unsubTimer?.();
   }, [onTimerStarted]);
 
   // Quiz helpers
+  const handleSendEmote = (emoteId: string) => {
+    if (!currentRoom) return;
+    
+    // Usamos el nuevo sistema de chat del servidor
+    sendChatMessage(currentRoom, emoteId, myUserId, myUsername);
+
+    // Eco local inmediato ya no es necesario porque el servidor lo retransmite a todos incluyendo al emisor
+    // Pero lo dejamos por latencia si quieres, aunque onChatMessage lo capturará.
+  };
+
   const handleDigit = (d: string) => {
     setAnswerText((prev) => (prev.length >= 8 ? prev : (prev === '0' ? d : prev + d)));
   };
@@ -796,10 +871,12 @@ export default function MatchmakingScreen() {
               opponentTotalScore={(meIsP1 ? cumulativeTotals.p2 : cumulativeTotals.p1) + opponentRoundScore}
               opponentFinished={opponentFinished}
               finalCountdown={finalCountdown}
+              emoteReceived={lastEmote}
               onDigit={handleDigit}
               onClear={handleClear}
               onOk={handleOk}
               onForfeit={handleForfeit}
+              onSendEmote={handleSendEmote}
             />
           );
         }

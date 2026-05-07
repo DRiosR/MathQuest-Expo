@@ -24,19 +24,22 @@ interface UseWebSocketReturn {
   ping: () => void;
   disconnect: () => void;
   forfeitGame: (roomId: string) => void;
+  sendChatMessage: (roomId: string, message: string, userId: string, username: string, extraData?: any) => void;
   
   // Listeners
-  onPlayerFound: (listener: (data: { roomId: string; message: string; opponent: { userId: string; username: string }; users: User[]; messages: WebSocketMessage[]; selectedCategory?: { id: string; name: string; emoji: string; color: string } }) => void) => void;
-  onQueueUpdate: (listener: (position: number) => void) => void;
-  onUserLeft: (listener: (data: { userId: string; username: string; message: string }) => void) => void;
+  onPlayerFound: (listener: (data: { roomId: string; message: string; opponent: { userId: string; username: string }; users: User[]; messages: WebSocketMessage[]; selectedCategory?: { id: string; name: string; emoji: string; color: string } }) => void) => (() => void) | void;
+  onQueueUpdate: (listener: (position: number) => void) => (() => void) | void;
+  onUserLeft: (listener: (data: { userId: string; username: string; message: string }) => void) => (() => void) | void;
+  onMessage: (listener: (message: WebSocketMessage) => void) => (() => void) | void;
   
   // Listeners del juego
-  onRoundStarted: (listener: (data: any) => void) => void;
-  onRoundFinished: (listener: (data: any) => void) => void;
-  onGameFinished: (listener: (data: any) => void) => void;
-  onPlayerCompleted: (listener: (data: any) => void) => void;
-  onTimerStarted: (listener: (data: any) => void) => void;
-  onAnswerResult: (listener: (data: any) => void) => void;
+  onRoundStarted: (listener: (data: any) => void) => (() => void) | void;
+  onRoundFinished: (listener: (data: any) => void) => (() => void) | void;
+  onGameFinished: (listener: (data: any) => void) => (() => void) | void;
+  onPlayerCompleted: (listener: (data: any) => void) => (() => void) | void;
+  onTimerStarted: (listener: (data: any) => void) => (() => void) | void;
+  onAnswerResult: (listener: (data: any) => void) => (() => void) | void;
+  onChatMessage: (listener: (data: any) => void) => (() => void) | void;
   
   // WebSocket Service
   websocketService: typeof websocketService;
@@ -80,6 +83,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
   const playerCompletedListenerRef = useRef<(data: any) => void>(undefined);
   const timerStartedListenerRef = useRef<(data: any) => void>(undefined);
   const answerResultListenerRef = useRef<(data: any) => void>(undefined);
+  const chatMessageListenerRef = useRef<(data: any) => void>(undefined);
 
   // Limpiar listeners de typing después de un tiempo
   const clearTypingTimeout = useRef<{ [userId: string]: ReturnType<typeof setTimeout> }>({});
@@ -305,6 +309,9 @@ export const useWebSocket = (): UseWebSocketReturn => {
       if (answerResultListenerRef.current) {
         websocketService.removeAnswerResultListener(answerResultListenerRef.current);
       }
+      if (chatMessageListenerRef.current) {
+        websocketService.removeChatMessageListener(chatMessageListenerRef.current);
+      }
     };
   }, []);
 
@@ -359,52 +366,65 @@ export const useWebSocket = (): UseWebSocketReturn => {
     }
   }, []);
 
+  const sendChatMessage = useCallback((roomId: string, message: string, userId: string, username: string, extraData?: any) => {
+    websocketService.emit('send-chat-message', { roomId, message, userId, username, extraData });
+  }, []);
+
   // Wrapper para onQueueUpdate que convierte la firma
   const onQueueUpdateWrapper = useCallback((listener: (position: number) => void) => {
     const wrappedListener = (data: { message: string; position: number }) => {
       listener(data.position);
     };
-    websocketService.onWaitingForPlayer(wrappedListener);
+    return websocketService.onWaitingForPlayer(wrappedListener);
   }, []);
 
   const onUserLeftWrapper = useCallback((listener: (data: { userId: string; username: string; message: string }) => void) => {
-    websocketService.onUserLeft(listener);
+    return websocketService.onUserLeft(listener);
+  }, []);
+
+  const onMessageWrapper = useCallback((listener: (message: WebSocketMessage) => void) => {
+    return websocketService.onMessage(listener);
   }, []);
 
   // Wrapper para onPlayerFound para mantener estabilidad
   const onPlayerFoundWrapper = useCallback((listener: (data: { roomId: string; message: string; opponent: { userId: string; username: string }; users: User[]; messages: WebSocketMessage[]; selectedCategory?: { id: string; name: string; emoji: string; color: string } }) => void) => {
-    websocketService.onPlayerFound(listener);
+    return websocketService.onPlayerFound(listener);
   }, []);
 
   // Wrappers para listeners del juego
   const onRoundStartedWrapper = useCallback((listener: (data: any) => void) => {
     roundStartedListenerRef.current = listener;
-    websocketService.onRoundStarted(listener);
+    return websocketService.onRoundStarted(listener);
   }, []);
 
   const onRoundFinishedWrapper = useCallback((listener: (data: any) => void) => {
     roundFinishedListenerRef.current = listener;
-    websocketService.onRoundFinished(listener);
+    return websocketService.onRoundFinished(listener);
   }, []);
 
   const onGameFinishedWrapper = useCallback((listener: (data: any) => void) => {
     gameFinishedListenerRef.current = listener;
-    websocketService.onGameFinished(listener);
+    return websocketService.onGameFinished(listener);
   }, []);
 
   const onPlayerCompletedWrapper = useCallback((listener: (data: any) => void) => {
     playerCompletedListenerRef.current = listener;
-    websocketService.onPlayerCompleted(listener);
+    return websocketService.onPlayerCompleted(listener);
   }, []);
 
   const onTimerStartedWrapper = useCallback((listener: (data: any) => void) => {
     timerStartedListenerRef.current = listener;
-    websocketService.onTimerStarted(listener);
+    return websocketService.onTimerStarted(listener);
   }, []);
 
   const onAnswerResultWrapper = useCallback((listener: (data: any) => void) => {
     answerResultListenerRef.current = listener;
-    websocketService.onAnswerResult(listener);
+    return websocketService.onAnswerResult(listener);
+  }, []);
+
+  const onChatMessageWrapper = useCallback((listener: (data: any) => void) => {
+    chatMessageListenerRef.current = listener;
+    return websocketService.onChatMessage(listener);
   }, []);
 
   return {
@@ -430,11 +450,13 @@ export const useWebSocket = (): UseWebSocketReturn => {
     ping,
     disconnect,
     forfeitGame,
+    sendChatMessage,
     
     // Listeners
     onPlayerFound: onPlayerFoundWrapper,
     onQueueUpdate: onQueueUpdateWrapper,
     onUserLeft: onUserLeftWrapper,
+    onMessage: onMessageWrapper,
     
     // Listeners del juego
     onRoundStarted: onRoundStartedWrapper,
@@ -443,6 +465,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
     onPlayerCompleted: onPlayerCompletedWrapper,
     onTimerStarted: onTimerStartedWrapper,
     onAnswerResult: onAnswerResultWrapper,
+    onChatMessage: onChatMessageWrapper,
     
     // WebSocket Service
     websocketService,

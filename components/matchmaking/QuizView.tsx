@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LayeredAvatar } from '@/components/LayeredAvatar';
 import { Avatar } from '@/types/avatar';
@@ -30,6 +30,8 @@ type Props = {
   onClear: () => void;
   onOk: () => void;
   onForfeit?: () => void;
+  onSendEmote?: (emote: string) => void;
+  emoteReceived?: { userId: string; emote: string; timestamp: number } | null;
 };
 
 // Map mascot names to their static Lottie requires (React Native requires static paths)
@@ -40,8 +42,20 @@ const MASCOT_IDLE_SOURCES: Record<string, any> = {
   Dividin: require('@/assets/lotties/mascots/Dividin/1v1_Idle.json'),
   Totalin: require('@/assets/lotties/mascots/Totalin/1v1_Idle.json'),
 };
+
 function getMascotIdleSource(mascotName?: string) {
   return (mascotName && MASCOT_IDLE_SOURCES[mascotName]) || require('@/assets/lotties/extras/Time-15.json');
+}
+
+const CHAT_LOTTIE_SOURCES: Record<string, any> = {
+  pensando: require('@/assets/lotties/chat/pensando.json'),
+  sorprendido: require('@/assets/lotties/chat/sorprendido.json'),
+  payaso: require('@/assets/lotties/chat/payaso.json'),
+  risas: require('@/assets/lotties/chat/risas.json'),
+};
+
+function getChatLottieSource(id: string) {
+  return CHAT_LOTTIE_SOURCES[id] || require('@/assets/lotties/extras/Time-15.json');
 }
 
 export default function QuizView({ 
@@ -49,7 +63,8 @@ export default function QuizView({
   localScore, disabled, myAvatar, opponentAvatar, 
   myUsername, opponentUsername, myTotalScore, opponentTotalScore,
   opponentFinished, finalCountdown,
-  onDigit, onClear, onOk, onForfeit 
+  onDigit, onClear, onOk, onForfeit,
+  onSendEmote, emoteReceived
 }: Props) {
   const insets = useSafeAreaInsets();
   const [trackWidth, setTrackWidth] = useState(0);
@@ -111,6 +126,68 @@ export default function QuizView({
     }
   }, [disabled]);
 
+  // Estados para emotes
+  const [showEmoteMenu, setShowEmoteMenu] = useState(false);
+  const [activeEmotes, setActiveEmotes] = useState<{ [userId: string]: { emote: string; opacity: Animated.Value; scale: Animated.Value; translateY: Animated.Value } }>({});
+  const emoteTimeouts = useRef<{ [userId: string]: any }>({});
+
+  const QUICK_CHAT = [
+    { id: 'pensando', label: 'Pensando' },
+    { id: 'sorprendido', label: 'Sorprendido' },
+    { id: 'payaso', label: 'Payaso' },
+    { id: 'risas', label: 'Risas' },
+  ];
+
+  const handleSendEmote = (emoteId: string) => {
+    onSendEmote?.(emoteId);
+    setShowEmoteMenu(false);
+  };
+
+  useEffect(() => {
+    if (emoteReceived) {
+      console.log('🎭 [QuizView] Emote received in component:', emoteReceived.emote, 'for:', emoteReceived.userId);
+      const { userId, emote } = emoteReceived;
+
+      // Limpiar timeout previo si existe para este usuario para reiniciar el contador de 3s
+      if (emoteTimeouts.current[userId]) {
+        clearTimeout(emoteTimeouts.current[userId]);
+      }
+
+      const opacity = new Animated.Value(0);
+      const scale = new Animated.Value(0.2); // Empezar más pequeña para efecto pop
+      const translateY = new Animated.Value(15); // Empezar un poco más abajo
+      
+      setActiveEmotes(prev => ({
+        ...prev,
+        [userId]: { emote, opacity, scale, translateY }
+      }));
+
+      // Animación de entrada (Pop)
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.spring(scale, { toValue: 1, friction: 5, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 200, useNativeDriver: true }),
+      ]).start();
+
+      // Configurar el nuevo timeout de 3 segundos
+      emoteTimeouts.current[userId] = setTimeout(() => {
+        // Animación de salida (Fade Out)
+        Animated.parallel([
+          Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 0.8, duration: 300, useNativeDriver: true }),
+        ]).start(() => {
+          // Eliminar del estado una vez terminada la animación
+          setActiveEmotes(prev => {
+            const next = { ...prev };
+            delete next[userId];
+            return next;
+          });
+          delete emoteTimeouts.current[userId];
+        });
+      }, 3000);
+    }
+  }, [emoteReceived]);
+
   return (
     <View style={styles.quizContainer}>
 
@@ -135,6 +212,32 @@ export default function QuizView({
           <View style={styles.playerInfoBlock}>
             <View style={styles.avatarCircleSmall}>
               <LayeredAvatar avatar={myAvatar || defaultAvatar} size={40} />
+              {/* Burbuja de emote propia */}
+              {activeEmotes['me'] && (
+                <Animated.View 
+                  style={[
+                    styles.emoteBubble, 
+                    { 
+                      opacity: activeEmotes['me'].opacity, 
+                      left: 40,
+                      transform: [
+                        { scale: activeEmotes['me'].scale },
+                        { translateY: activeEmotes['me'].translateY }
+                      ]
+                    }
+                  ]}
+                >
+                  <View style={styles.bubbleArrowLeft} />
+                  <View style={styles.circularBubbleContent}>
+                    <LottieView
+                      source={getChatLottieSource(activeEmotes['me'].emote)}
+                      autoPlay
+                      loop
+                      style={styles.mascotEmojiLarge}
+                    />
+                  </View>
+                </Animated.View>
+              )}
             </View>
             <View style={styles.textInfo}>
               <Text style={[styles.playerNameText, { fontFamily: 'Digitalt' }]} numberOfLines={1}>TU</Text>
@@ -150,6 +253,32 @@ export default function QuizView({
           <View style={[styles.playerInfoBlock, { flexDirection: 'row-reverse' }]}>
             <View style={styles.avatarCircleSmall}>
               <LayeredAvatar avatar={opponentAvatar || defaultAvatar} size={40} />
+              {/* Burbuja de emote oponente */}
+              {activeEmotes['opponent'] && (
+                <Animated.View 
+                  style={[
+                    styles.emoteBubble, 
+                    { 
+                      opacity: activeEmotes['opponent'].opacity, 
+                      right: 40,
+                      transform: [
+                        { scale: activeEmotes['opponent'].scale },
+                        { translateY: activeEmotes['opponent'].translateY }
+                      ]
+                    }
+                  ]}
+                >
+                  <View style={styles.bubbleArrowRight} />
+                  <View style={styles.circularBubbleContent}>
+                    <LottieView
+                      source={getChatLottieSource(activeEmotes['opponent'].emote)}
+                      autoPlay
+                      loop
+                      style={styles.mascotEmojiLarge}
+                    />
+                  </View>
+                </Animated.View>
+              )}
             </View>
             <View style={[styles.textInfo, { alignItems: 'flex-end' }]}>
               <Text style={[styles.playerNameText, { fontFamily: 'Digitalt' }]} numberOfLines={1}>
@@ -271,6 +400,41 @@ export default function QuizView({
             </View>
           )}
         </Animated.View>
+      )}
+
+      {/* Botón de Emotes (Ahora siempre encima) */}
+      <TouchableOpacity 
+        style={styles.emoteBtnBottomLeft} 
+        onPress={() => setShowEmoteMenu(!showEmoteMenu)}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.emoteBtnIcon}>💬</Text>
+      </TouchableOpacity>
+
+      {/* Menú de Emotes (Ahora siempre encima) */}
+      {showEmoteMenu && (
+        <View style={styles.emoteMenuContainer}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.emoteMenuScroll}
+          >
+            {QUICK_CHAT.map(chat => (
+              <TouchableOpacity 
+                key={chat.id} 
+                style={styles.emoteOptionHorizontal} 
+                onPress={() => handleSendEmote(chat.id)}
+              >
+                <LottieView
+                  source={getChatLottieSource(chat.id)}
+                  autoPlay
+                  loop
+                  style={styles.mascotMenuIcon}
+                />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
       )}
     </View>
   );
@@ -427,6 +591,125 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 22,
     fontWeight: '900',
+  },
+  // Emote Styles
+  emoteBtnBottomLeft: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    backgroundColor: '#FFD45E', // Amarillo sólido para visibilidad
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    zIndex: 2001, // Por encima de la pantalla de espera
+    elevation: 10,
+  },
+  emoteBtnIcon: {
+    fontSize: 20,
+  },
+  emoteMenuContainer: {
+    position: 'absolute',
+    bottom: 80,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    borderRadius: 20,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    zIndex: 2000,
+  },
+  emoteMenuScroll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingRight: 10,
+  },
+  emoteOptionHorizontal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 15,
+    gap: 8,
+  },
+  emoteOptionEmoji: {
+    fontSize: 20,
+  },
+  emoteOptionLabel: {
+    color: '#FFF',
+    fontSize: 12,
+    fontFamily: 'Digitalt',
+  },
+  emoteBubble: {
+    position: 'absolute',
+    top: -15, // Bajado para que no sobresalga tanto
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#FFD45E',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 10,
+    zIndex: 1000,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    borderRadius: 35,
+    width: 70,
+    height: 70,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  circularBubbleContent: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderRadius: 35,
+  },
+  emoteEmojiLarge: {
+    fontSize: 32,
+  },
+  mascotEmojiLarge: {
+    width: 60,
+    height: 60,
+  },
+  mascotMenuIcon: {
+    width: 50,
+    height: 50,
+  },
+  bubbleArrowLeft: {
+    position: 'absolute',
+    bottom: 5,
+    left: -12, // Un poco más larga
+    width: 0,
+    height: 0,
+    borderTopWidth: 8,
+    borderBottomWidth: 8,
+    borderRightWidth: 16, // Más ancha
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
+    borderRightColor: '#FFD45E',
+  },
+  bubbleArrowRight: {
+    position: 'absolute',
+    bottom: 5,
+    right: -12, // Un poco más larga
+    width: 0,
+    height: 0,
+    borderTopWidth: 8,
+    borderBottomWidth: 8,
+    borderLeftWidth: 16, // Más ancha
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
+    borderLeftColor: '#FFD45E',
   },
 });
 

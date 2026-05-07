@@ -86,6 +86,7 @@ class WebSocketService {
   private playerCompletedListeners: ((data: any) => void)[] = [];
   private timerStartedListeners: ((data: any) => void)[] = [];
   private answerResultListeners: ((data: any) => void)[] = [];
+  private chatMessageListeners: ((data: any) => void)[] = [];
 
   constructor() {
     // No inicializar automáticamente, solo cuando se llame connect()
@@ -129,6 +130,12 @@ class WebSocketService {
     if (!this.socket) return;
 
     // Eventos de conexión
+    this.socket.onAny((event: string, ...args: any[]) => {
+      if (event !== 'ping' && event !== 'pong') {
+        console.log(`🌐 [WS ANY] Event: ${event}`, args);
+      }
+    });
+
     this.socket.on('connect', () => {
       console.log('✅ Conectado al servidor WebSocket');
       this.isConnected = true;
@@ -319,6 +326,17 @@ class WebSocketService {
         this.lastActivity = Date.now();
         console.log('⏰ Temporizador iniciado:', data);
         this.timerStartedListeners.forEach(listener => listener(data));
+      });
+
+      this.socket.on('game-message', (data: any) => {
+        console.log('🎮 [WS] Game message received:', data);
+        this.messageListeners.forEach(listener => listener(data));
+      });
+
+      this.socket.on('chat-message', (data: any) => {
+        this.lastActivity = Date.now();
+        console.log('💬 [WS] Chat message received:', data);
+        this.chatMessageListeners.forEach(listener => listener(data));
       });
 
       this.socket.on('answer-result', (data: any) => {
@@ -547,6 +565,7 @@ class WebSocketService {
   // Métodos para agregar listeners
   onMessage(listener: (message: WebSocketMessage) => void) {
     this.messageListeners.push(listener);
+    return () => this.removeMessageListener(listener);
   }
 
   onMessageExpired(listener: (data: { messageId: string }) => void) {
@@ -559,6 +578,7 @@ class WebSocketService {
 
   onUserLeft(listener: (data: { userId: string; username: string; message: string }) => void) {
     this.userLeftListeners.push(listener);
+    return () => this.removeUserLeftListener(listener);
   }
 
   onTyping(listener: (data: { userId: string; username: string; isTyping: boolean }) => void) {
@@ -575,10 +595,12 @@ class WebSocketService {
 
   onWaitingForPlayer(listener: (data: { message: string; position: number }) => void) {
     this.waitingForPlayerListeners.push(listener);
+    return () => this.removeWaitingForPlayerListener(listener);
   }
 
   onPlayerFound(listener: (data: { roomId: string; message: string; opponent: { userId: string; username: string }; users: User[]; messages: WebSocketMessage[] }) => void) {
     this.playerFoundListeners.push(listener);
+    return () => this.removePlayerFoundListener(listener);
   }
 
   onSearchCancelled(listener: (data: { message: string }) => void) {
@@ -596,10 +618,12 @@ class WebSocketService {
   // Métodos para eventos del juego
   onRoundStarted(listener: (data: any) => void) {
     this.roundStartedListeners.push(listener);
+    return () => this.removeRoundStartedListener(listener);
   }
 
   onRoundFinished(listener: (data: any) => void) {
     this.roundFinishedListeners.push(listener);
+    return () => this.removeRoundFinishedListener(listener);
   }
 
   onGameFinished(listener: (data: any) => void) {
@@ -608,14 +632,22 @@ class WebSocketService {
 
   onPlayerCompleted(listener: (data: any) => void) {
     this.playerCompletedListeners.push(listener);
+    return () => this.removePlayerCompletedListener(listener);
   }
 
   onTimerStarted(listener: (data: any) => void) {
     this.timerStartedListeners.push(listener);
+    return () => this.removeTimerStartedListener(listener);
   }
 
   onAnswerResult(listener: (data: any) => void) {
     this.answerResultListeners.push(listener);
+    return () => this.removeAnswerResultListener(listener);
+  }
+
+  onChatMessage(listener: (data: any) => void) {
+    this.chatMessageListeners.push(listener);
+    return () => this.removeChatMessageListener(listener);
   }
 
   // Método público para emitir eventos
@@ -726,6 +758,10 @@ class WebSocketService {
 
   removeAnswerResultListener(listener: (data: any) => void) {
     this.answerResultListeners = this.answerResultListeners.filter(l => l !== listener);
+  }
+
+  removeChatMessageListener(listener: (data: any) => void) {
+    this.chatMessageListeners = this.chatMessageListeners.filter(l => l !== listener);
   }
 
   // Getters
