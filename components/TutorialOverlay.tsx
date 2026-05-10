@@ -7,8 +7,9 @@ import {
   TouchableOpacity, 
   Dimensions, 
   Animated,
-  SafeAreaView
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTutorial, TUTORIAL_STEPS } from '@/contexts/TutorialContext';
@@ -17,7 +18,8 @@ import { usePathname } from 'expo-router';
 const { width, height } = Dimensions.get('window');
 
 export default function TutorialOverlay() {
-  const { isVisible, currentStepIndex, dynamicSpotlights, nextStep, skipTutorial } = useTutorial();
+  const { isVisible, currentStepIndex, lastStepIndex, dynamicSpotlights, nextStep, skipTutorial } = useTutorial();
+
   const pathname = usePathname();
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -130,8 +132,9 @@ export default function TutorialOverlay() {
 
                 <TouchableOpacity onPress={nextStep} style={styles.nextBtn}>
                   <Text style={[styles.nextText, { color: currentStep.color, fontFamily: 'Digitalt' }]}>
-                    {currentStepIndex === TUTORIAL_STEPS.length - 1 ? '¡LISTO!' : 'SIGUIENTE'}
+                    {currentStepIndex >= lastStepIndex ? '¡LISTO!' : 'SIGUIENTE'}
                   </Text>
+
                 </TouchableOpacity>
               </View>
             </LinearGradient>

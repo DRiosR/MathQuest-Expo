@@ -265,12 +265,15 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   }
 ];
 
+export type TutorialSection = 'initial' | '1vs1' | 'infinite' | 'store' | 'profile';
+
 interface TutorialContextType {
   isVisible: boolean;
   currentStepIndex: number;
+  lastStepIndex: number; // Added to help UI logic
   dynamicSpotlights: Record<string, SpotlightPos>;
   setDynamicSpotlight: (id: string, pos: SpotlightPos) => void;
-  startTutorial: () => void;
+  startTutorial: (section?: TutorialSection) => void;
   nextStep: () => void;
   skipTutorial: () => void;
 }
@@ -280,6 +283,7 @@ const TutorialContext = createContext<TutorialContextType | undefined>(undefined
 export function TutorialProvider({ children }: { children: React.ReactNode }) {
   const [isVisible, setIsVisible] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [lastStepIndex, setLastStepIndex] = useState(TUTORIAL_STEPS.length - 1);
   const [dynamicSpotlights, setDynamicSpotlights] = useState<Record<string, SpotlightPos>>({});
   const { user } = useAuth();
 
@@ -293,8 +297,8 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     const hasSeen = await AsyncStorage.getItem('hasSeenGuidedTour_v28');
     if (hasSeen === null) {
       setTimeout(() => {
-        setIsVisible(true);
-        router.push(TUTORIAL_STEPS[0].targetScreen as any);
+        // El tutorial inicial ahora solo cubre 1vs1 y modo infinito (pasos 0 a 11)
+        startTutorial('initial');
       }, 3000);
     }
   };
@@ -303,20 +307,46 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     setDynamicSpotlights(prev => ({ ...prev, [id]: pos }));
   };
 
-  const startTutorial = () => {
-    setCurrentStepIndex(0);
+  const startTutorial = (section: TutorialSection = '1vs1') => {
+    let start = 0;
+    let end = TUTORIAL_STEPS.length - 1;
+
+    switch (section) {
+      case 'initial':
+        start = 0;
+        end = 11; // 1vs1 + Infinite
+        break;
+      case '1vs1':
+        start = 0;
+        end = 5;
+        break;
+      case 'infinite':
+        start = 6;
+        end = 11;
+        break;
+      case 'store':
+        start = 12;
+        end = 18;
+        break;
+      case 'profile':
+        start = 19;
+        end = 22;
+        break;
+    }
+
+    setCurrentStepIndex(start);
+    setLastStepIndex(end);
     setIsVisible(true);
-    router.push('/(tabs)/play');
+    router.push(TUTORIAL_STEPS[start].targetScreen as any);
   };
 
   const nextStep = () => {
-    if (currentStepIndex < TUTORIAL_STEPS.length - 1) {
+    if (currentStepIndex < lastStepIndex && currentStepIndex < TUTORIAL_STEPS.length - 1) {
       const nextIndex = currentStepIndex + 1;
       const currentStepData = TUTORIAL_STEPS[currentStepIndex];
       const nextStepData = TUTORIAL_STEPS[nextIndex];
       
-      if (nextStepData.targetScreen !== currentStepData.targetScreen) {
-        // Navegar y esperar a que cargue la nueva pantalla antes de subir el index
+      if (nextStepData && nextStepData.targetScreen !== currentStepData.targetScreen) {
         router.push(nextStepData.targetScreen as any);
         setTimeout(() => {
           setCurrentStepIndex(nextIndex);
@@ -342,6 +372,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     <TutorialContext.Provider value={{ 
       isVisible, 
       currentStepIndex, 
+      lastStepIndex,
       dynamicSpotlights, 
       setDynamicSpotlight,
       startTutorial, 

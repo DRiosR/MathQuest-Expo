@@ -8,6 +8,8 @@ import {
   UserIcon,
 } from 'phosphor-react-native';
 import React from 'react';
+import { FontAwesome5 } from '@expo/vector-icons';
+
 import {
   Animated,
   Dimensions,
@@ -37,7 +39,7 @@ export default function StoreScreen() {
   const { fontsLoaded } = useFontContext();
   const { avatar: userAvatar } = useAvatar();
   const { items: allItems, isLoadingItems, coins, setCoins, refreshCoins } = useItemStore();
-  const { setDynamicSpotlight } = useTutorial();
+  const { setDynamicSpotlight, startTutorial } = useTutorial();
 
   const categoryRefs = React.useRef<Record<string, any>>({});
   const coinsRef = React.useRef<View>(null);
@@ -236,12 +238,21 @@ export default function StoreScreen() {
             </View>
             <View style={styles.headerRight}>
               <TouchableOpacity 
+                onPress={() => startTutorial('store')}
+                activeOpacity={0.7}
+                style={styles.helpButton}
+              >
+                <FontAwesome5 name="question-circle" size={24} color="#fff" />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
                 ref={coinsRef}
                 onLayout={() => measureCategory('coins')}
                 onPress={handleDebugAddCoins} 
                 activeOpacity={0.8} 
                 style={styles.coinsPill}
               >
+
                 <Image source={require('@/assets/images/store/MQ-coin.png')} style={styles.coinPng} />
                 <Text style={[styles.coinsText, { fontFamily: 'Digitalt' }]}>{coins}</Text>
               </TouchableOpacity>
@@ -276,7 +287,7 @@ export default function StoreScreen() {
               return (
                 <TouchableOpacity
                   key={cat.key}
-                  ref={(el) => (categoryRefs.current[cat.key] = el)}
+                  ref={(el) => { categoryRefs.current[cat.key] = el; }}
                   onLayout={() => measureCategory(cat.key)}
                   onPress={() => setSelectedCategory(cat.key)}
                   activeOpacity={0.9}
@@ -727,4 +738,13 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     fontSize: 16,
   },
+  helpButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
+

@@ -643,27 +643,39 @@ export default function UserScreen() {
             {/* Section: Replay Tutorial */}
             <FadeInView from="bottom" delay={300} style={styles.settingsCard}>
               <Text style={[styles.settingsSectionTitle, { fontFamily: 'Digitalt' }]}>
-                AYUDA Y SOPORTE
+                GUÍAS Y TUTORIALES
               </Text>
-              <TouchableOpacity 
-                style={styles.replayTutorialButton}
-                onPress={() => {
-                  setIsSettingsOpen(false);
-                  startTutorial();
-                }}
-                activeOpacity={0.8}
-              >
-                <LinearGradient
-                  colors={['#8A56FE', '#6E72FC']}
-                  style={styles.replayTutorialGradient}
-                >
-                  <FontAwesome5 name="magic" size={16} color="#fff" style={{ marginRight: 8 }} />
-                  <Text style={[styles.replayTutorialText, { fontFamily: 'Digitalt' }]}>
-                    VER TUTORIAL DE NUEVO
-                  </Text>
-                </LinearGradient>
-              </TouchableOpacity>
+              
+              <View style={styles.tutorialGrid}>
+                {[
+                  { id: '1vs1', label: 'TUTORIAL 1VS1', icon: 'gamepad' },
+                  { id: 'infinite', label: 'MODO INFINITO', icon: 'infinity' },
+                  { id: 'store', label: 'TIENDA', icon: 'shopping-cart' },
+                  { id: 'profile', label: 'PERFIL', icon: 'user-cog' }
+                ].map((item) => (
+                  <TouchableOpacity 
+                    key={item.id}
+                    style={styles.smallTutorialButton}
+                    onPress={() => {
+                      setIsSettingsOpen(false);
+                      startTutorial(item.id as any);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <LinearGradient
+                      colors={['#8A56FE', '#6E72FC']}
+                      style={styles.replayTutorialGradient}
+                    >
+                      <FontAwesome5 name={item.icon} size={14} color="#fff" style={{ marginRight: 8 }} />
+                      <Text style={[styles.replayTutorialText, { fontFamily: 'Digitalt' }]}>
+                        {item.label}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </FadeInView>
+
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -1134,4 +1146,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     letterSpacing: 1,
   },
+  tutorialGrid: {
+    marginTop: 10,
+    gap: 8,
+  },
+  smallTutorialButton: {
+    height: 44,
+    borderRadius: 14,
+    overflow: 'hidden',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
 });
+
