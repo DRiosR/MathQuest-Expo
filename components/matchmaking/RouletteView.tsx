@@ -84,7 +84,7 @@ export default function RouletteView({
         setIsSpinComplete(true);
         onSpinComplete?.();
       });
-    }, 3000);
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [targetAngle]);

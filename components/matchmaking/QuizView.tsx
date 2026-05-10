@@ -1,7 +1,8 @@
+import { FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View, Vibration } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LayeredAvatar } from '@/components/LayeredAvatar';
 import { Avatar } from '@/types/avatar';
@@ -32,6 +33,7 @@ type Props = {
   onForfeit?: () => void;
   onSendEmote?: (emote: string) => void;
   emoteReceived?: { userId: string; emote: string; timestamp: number } | null;
+  lastAnswerResult?: { correct: boolean; timestamp: number } | null;
 };
 
 // Map mascot names to their static Lottie requires (React Native requires static paths)
@@ -64,12 +66,17 @@ export default function QuizView({
   myUsername, opponentUsername, myTotalScore, opponentTotalScore,
   opponentFinished, finalCountdown,
   onDigit, onClear, onOk, onForfeit,
-  onSendEmote, emoteReceived
+  onSendEmote, emoteReceived, lastAnswerResult
 }: Props) {
   const insets = useSafeAreaInsets();
   const [trackWidth, setTrackWidth] = useState(0);
   const fillWidth = useRef(new Animated.Value(0)).current;
   const waitingFadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Feedback states
+  const [correctFlash, setCorrectFlash] = useState(false);
+  const [incorrectFlash, setIncorrectFlash] = useState(false);
+  const flashOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (trackWidth <= 0) return;
@@ -187,6 +194,30 @@ export default function QuizView({
       }, 3000);
     }
   }, [emoteReceived]);
+
+  // Handle Answer Feedback
+  useEffect(() => {
+    if (lastAnswerResult) {
+      const { correct } = lastAnswerResult;
+      
+      if (correct) {
+        setCorrectFlash(true);
+        setIncorrectFlash(false);
+        Animated.sequence([
+          Animated.timing(flashOpacity, { toValue: 0.3, duration: 50, useNativeDriver: true }),
+          Animated.timing(flashOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+        ]).start(() => setCorrectFlash(false));
+      } else {
+        setIncorrectFlash(true);
+        setCorrectFlash(false);
+        Vibration.vibrate([0, 100, 50, 100]);
+        Animated.sequence([
+          Animated.timing(flashOpacity, { toValue: 0.5, duration: 50, useNativeDriver: true }),
+          Animated.timing(flashOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+        ]).start(() => setIncorrectFlash(false));
+      }
+    }
+  }, [lastAnswerResult]);
 
   return (
     <View style={styles.quizContainer}>
@@ -436,6 +467,29 @@ export default function QuizView({
               </TouchableOpacity>
             ))}
           </ScrollView>
+        </View>
+      )}
+
+      {/* Visual Feedback Overlays */}
+      <Animated.View 
+        pointerEvents="none"
+        style={[
+          styles.flashOverlay, 
+          { 
+            backgroundColor: correctFlash ? '#22c55e' : (incorrectFlash ? '#ef4444' : 'transparent'),
+            opacity: flashOpacity 
+          }
+        ]} 
+      />
+
+      {correctFlash && (
+        <View pointerEvents="none" style={styles.feedbackIconOverlay}>
+          <FontAwesome5 name="check-circle" size={100} color="#22c55e" />
+        </View>
+      )}
+      {incorrectFlash && (
+        <View pointerEvents="none" style={styles.feedbackIconOverlay}>
+          <FontAwesome5 name="times-circle" size={100} color="#ef4444" />
         </View>
       )}
     </View>
@@ -718,6 +772,16 @@ const styles = StyleSheet.create({
     borderTopColor: 'transparent',
     borderBottomColor: 'transparent',
     borderLeftColor: '#FFD45E',
+  },
+  flashOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 9998,
+  },
+  feedbackIconOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
   },
 });
 

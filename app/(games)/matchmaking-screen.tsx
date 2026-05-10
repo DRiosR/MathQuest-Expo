@@ -125,6 +125,7 @@ export default function MatchmakingScreen() {
   const [opponentFinished, setOpponentFinished] = useState<boolean>(false);
   const [finalCountdown, setFinalCountdown] = useState<number | null>(null);
   const [lastEmote, setLastEmote] = useState<{ userId: string; emote: string; timestamp: number } | null>(null);
+  const [lastAnswerResult, setLastAnswerResult] = useState<{ correct: boolean; timestamp: number } | null>(null);
 
   // Initial countdown state
   const [countdown, setCountdown] = useState(3);
@@ -160,10 +161,10 @@ export default function MatchmakingScreen() {
         console.log('⚠️ Ignorando player-found: partida ya finalizada');
         return;
       }
-      
+
       console.log('✅ Player found! Transitioning to MATCH_FOUND');
       setGameState('MATCH_FOUND');
-      
+
       // Fetch rank info for both
       if (myUserId) {
         getUserRankInfo(myUserId).then(setMyRankInfo);
@@ -171,17 +172,17 @@ export default function MatchmakingScreen() {
       if (data.opponent?.userId) {
         getUserRankInfo(data.opponent.userId).then(setOpponentRankInfo);
       }
-      
+
       setOpponent(data.opponent ?? null);
       if (data.selectedCategory) setSelectedCategory(data.selectedCategory);
-      
+
       // Determine role immediately from room users list
       const currentSocketId = websocketService.socketId;
-      const meIndex = data.users?.findIndex(u => 
-        (u.socketId && u.socketId === currentSocketId) || 
+      const meIndex = data.users?.findIndex(u =>
+        (u.socketId && u.socketId === currentSocketId) ||
         (u.id && (u.id === user?.id || u.id === myUserId))
       ) ?? -1;
-      
+
       if (meIndex !== -1) {
         const role = meIndex === 0 ? 'p1' : 'p2';
         setMyRole(role);
@@ -247,16 +248,17 @@ export default function MatchmakingScreen() {
       setOpponentFinished(false);
       setFinalCountdown(null);
       setLastEmote(null);
+      setLastAnswerResult(null);
       setQuestionStartTime(Date.now());
-      
+
       if ((data?.roundNumber || 1) === 1) {
         // Aseguramos que pasamos por MATCH_FOUND para ver los rangos
         if (gameState === 'MATCH_FOUND' || gameState === 'MATCHMAKING') {
           setGameState('MATCH_FOUND');
-          // Esperamos 4 segundos para que se vea la animación de los rangos, iconos y avatares
+          // Esperamos 2.5 segundos para que se vea la animación de los rangos, iconos y avatares
           setTimeout(() => {
             setIsExitingMatchFound(true);
-          }, 4000);
+          }, 2500);
         } else {
           setGameState('ROULETTE');
         }
@@ -354,7 +356,7 @@ export default function MatchmakingScreen() {
         const base = opponentAvatar ? { ...data, opponentAvatar } : data;
         return prev ? { ...prev, ...base } : base;
       });
-      
+
       // Esperar un tiempo para que el usuario vea el resultado de la última ronda
       // antes de pasar a la pantalla final de ELO y trofeos
       setTimeout(() => {
@@ -492,10 +494,10 @@ export default function MatchmakingScreen() {
           setGameState('ROULETTE');
           return 0;
         }
-        
+
         countdownScale.setValue(1);
         countdownOpacity.setValue(1);
-        
+
         Animated.sequence([
           Animated.parallel([
             Animated.timing(countdownScale, { toValue: 3, duration: 900, useNativeDriver: true }),
@@ -512,24 +514,7 @@ export default function MatchmakingScreen() {
 
   useEffect(() => {
     const unsubAns = onAnswerResult((result: any) => {
-      // DETECCIÓN DE EMOTE POR CÓDIGO DE POSICIÓN
-      const senderId = result.userId;
-      const currentSocketId = websocketService.socketId;
-      const isMe = senderId === currentSocketId || senderId === myUserId;
-      
-      // Si recibimos una "respuesta" del rival pero es un código de emote
-      if (!isMe && exercises.length > 0) {
-        const exerciseIndex = exercises.findIndex(ex => ex.id === result.exerciseId);
-        if (exerciseIndex >= 0 && exerciseIndex <= 3) {
-          const EMOTE_MAP = ['happy', 'sad', 'angry', 'gg'];
-          setLastEmote({
-            userId: 'opponent',
-            emote: EMOTE_MAP[exerciseIndex],
-            timestamp: Date.now()
-          });
-          return;
-        }
-      }
+      const isMe = !result.userId || result.userId === myUserId;
 
       if (typeof result?.currentScore === 'number') {
         if (isMe) {
@@ -538,9 +523,15 @@ export default function MatchmakingScreen() {
           setOpponentRoundScore(result.currentScore);
         }
       }
-      
+
       if (isMe) {
         setAnswerText('');
+        if (typeof result?.isCorrect === 'boolean') {
+          setLastAnswerResult({
+            correct: result.isCorrect,
+            timestamp: Date.now()
+          });
+        }
       }
     });
     return () => unsubAns?.();
@@ -570,7 +561,7 @@ export default function MatchmakingScreen() {
   // Quiz helpers
   const handleSendEmote = (emoteId: string) => {
     if (!currentRoom) return;
-    
+
     // Usamos el nuevo sistema de chat del servidor
     sendChatMessage(currentRoom, emoteId, myUserId, myUsername);
 
@@ -647,7 +638,7 @@ export default function MatchmakingScreen() {
     ]);
 
     // 3) Hold while Lottie plays
-    await delay(3000);
+    await delay(1800);
 
     // 4) Fade-down content + move background slightly down
     await runParallel([
@@ -706,7 +697,7 @@ export default function MatchmakingScreen() {
     ]);
 
     // 3) Hold while Lottie plays
-    await delay(3000);
+    await delay(1800);
 
     // 4) Fade-down content + move background slightly down
     await runParallel([
@@ -748,8 +739,8 @@ export default function MatchmakingScreen() {
       'Si abandonas ahora, perderás la partida automáticamente y se te restarán puntos de ELO. ¿Estás seguro?',
       [
         { text: 'NO, SEGUIR JUGANDO', style: 'cancel' },
-        { 
-          text: 'SÍ, ABANDONAR', 
+        {
+          text: 'SÍ, ABANDONAR',
           style: 'destructive',
           onPress: () => {
             if (currentRoom) {
@@ -798,8 +789,8 @@ export default function MatchmakingScreen() {
       case 'MATCH_FOUND':
         return (
           <MatchFoundView
-            me={{ 
-              username: myUsername?.toUpperCase(), 
+            me={{
+              username: myUsername?.toUpperCase(),
               avatarComponent: <LayeredAvatar avatar={avatar} size={80} />,
               rankInfo: myRankInfo
             }}
@@ -876,6 +867,7 @@ export default function MatchmakingScreen() {
               opponentFinished={opponentFinished}
               finalCountdown={finalCountdown}
               emoteReceived={lastEmote}
+              lastAnswerResult={lastAnswerResult}
               onDigit={handleDigit}
               onClear={handleClear}
               onOk={handleOk}
@@ -890,7 +882,7 @@ export default function MatchmakingScreen() {
           const meIsP1 = myRole ? (myRole === 'p1') : (haveIds ? (gameData?.player1Id === socketId || gameData?.player1Id === myUserId) : true);
           const p1Av = (gameData as any)?.player1Avatar || (meIsP1 ? avatar : opponentAvatar) || defaultAvatar;
           const p2Av = (gameData as any)?.player2Avatar || (meIsP1 ? opponentAvatar : avatar) || defaultAvatar;
-          
+
           const p1TotalBefore = roundBeforeTotals.p1;
           const p2TotalBefore = roundBeforeTotals.p2;
 

@@ -2,15 +2,16 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LayeredAvatar } from '@/components/LayeredAvatar';
 import { FadeInView } from '@/components/shared/FadeInView';
+import { defaultAvatar } from '@/constants/avatarAssets';
 import { useAuth } from '@/contexts/AuthContext';
 import { getLeaderboard, LeaderboardEntry } from '@/services/SupabaseService';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function LeaderboardModal() {
   const { user } = useAuth();
@@ -32,30 +33,21 @@ export default function LeaderboardModal() {
   const topThree = useMemo(() => entries.slice(0, 3), [entries]);
   const others = useMemo(() => entries.slice(3), [entries]);
 
-  // Loading screen with playful badge
   if (loading) {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={['#22C6A7', '#7B61FF']} style={StyleSheet.absoluteFill} />
-        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <LinearGradient colors={["#9C58FE", "#6F52FD"]} style={StyleSheet.absoluteFill} />
+        <SafeAreaView style={styles.safeArea}>
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={styles.closeText}>×</Text>
+            <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
+              <FontAwesome5 name="arrow-left" size={20} color="#fff" />
             </TouchableOpacity>
-            <Text style={styles.title}>CLASIFICACIÓN</Text>
-            <View style={{ width: 28 }} />
+            <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>CLASIFICACIÓN</Text>
+            <View style={{ width: 40 }} />
           </View>
           <View style={styles.loadingCenter}>
-            <FadeInView from="bottom" distance={30} duration={700}>
-              <View style={styles.loadingBadge}>
-                <LinearGradient colors={['#FFD45E', '#FFA500']} style={styles.loadingBadgeGradient}>
-                  <FontAwesome5 name="trophy" size={28} color="#fff" />
-                </LinearGradient>
-              </View>
-            </FadeInView>
-            <FadeInView delay={120}>
-              <Text style={styles.loadingTitle}>Cargando clasificación…</Text>
-            </FadeInView>
+            <ActivityIndicator size="large" color="#FFD616" />
+            <Text style={[styles.loadingTitle, { fontFamily: 'Gilroy-Bold' }]}>Cargando Leyendas...</Text>
           </View>
         </SafeAreaView>
       </View>
@@ -64,81 +56,107 @@ export default function LeaderboardModal() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#22C6A7', '#7B61FF']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={["#9C58FE", "#6F52FD"]} style={StyleSheet.absoluteFill} />
+      
+      {/* Decorative background shapes */}
+      <View style={styles.bgCircle1} />
+      <View style={styles.bgCircle2} />
+
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Text style={styles.closeText}>×</Text>
+          <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
+            <FontAwesome5 name="times" size={20} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.title}>RANKING</Text>
-          <View style={{ width: 28 }} />
+          <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>TOP RANKING</Text>
+          <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollInner}>
-          {/* Podium */}
-          <View style={styles.podiumWrap}>
-            <FadeInView from="bottom" delay={50} distance={26}>
-              <PodiumSpot
-                place={2}
-                entry={topThree[1]}
-                highlight={topThree[1]?.id === currentUserId}
-                style={{ alignSelf: 'flex-end' }}
-              />
-            </FadeInView>
-            <FadeInView from="bottom" delay={140} distance={28}>
-              <PodiumSpot
-                place={1}
-                entry={topThree[0]}
-                highlight={topThree[0]?.id === currentUserId}
-                style={{ alignSelf: 'center' }}
-              />
-            </FadeInView>
-            <FadeInView from="bottom" delay={220} distance={30}>
-              <PodiumSpot
-                place={3}
-                entry={topThree[2]}
-                highlight={topThree[2]?.id === currentUserId}
-                style={{ alignSelf: 'flex-start' }}
-              />
-            </FadeInView>
+        <ScrollView 
+          contentContainerStyle={styles.scrollInner}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Podium Section */}
+          <View style={styles.podiumSection}>
+             <View style={styles.podiumContainer}>
+                {/* 2nd Place */}
+                <FadeInView from="bottom" delay={200} distance={40} style={styles.podiumSpotContainer}>
+                  <PodiumSpot
+                    place={2}
+                    entry={topThree[1]}
+                    highlight={topThree[1]?.id === currentUserId}
+                  />
+                </FadeInView>
+
+                {/* 1st Place */}
+                <FadeInView from="bottom" delay={100} distance={50} style={styles.podiumSpotContainer}>
+                  <PodiumSpot
+                    place={1}
+                    entry={topThree[0]}
+                    highlight={topThree[0]?.id === currentUserId}
+                  />
+                </FadeInView>
+
+                {/* 3rd Place */}
+                <FadeInView from="bottom" delay={300} distance={40} style={styles.podiumSpotContainer}>
+                  <PodiumSpot
+                    place={3}
+                    entry={topThree[2]}
+                    highlight={topThree[2]?.id === currentUserId}
+                  />
+                </FadeInView>
+             </View>
           </View>
 
-          {/* Others list */}
-          <View style={styles.listWrap}>
-            {others.map((e, idx) => {
-              const rank = idx + 4; // since others start at #4
-              const isCurrent = e.id === currentUserId;
-              return (
-                <FadeInView key={e.id} from="right" delay={80 + idx * 40} distance={18}>
-                  <View style={[styles.cardRow, isCurrent && styles.cardRowCurrent]}>
-                    {e.avatar ? (
-                      <View style={[styles.cardAvatarWrap, { backgroundColor: '#fff' }]}>
-                        <LayeredAvatar avatar={e.avatar} size={42} />
+          {/* List Section */}
+          <View style={styles.listContainer}>
+            <LinearGradient 
+              colors={['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']} 
+              style={styles.listBackground}
+            >
+              {others.map((e, idx) => {
+                const rank = idx + 4;
+                const isCurrent = e.id === currentUserId;
+                return (
+                  <FadeInView key={e.id} from="bottom" delay={400 + idx * 30} distance={10}>
+                    <View style={[styles.cardRow, isCurrent && styles.cardRowCurrent]}>
+                      <View style={styles.rankNumberContainer}>
+                        <Text style={[styles.rankNumberText, { fontFamily: 'Gilroy-Black' }]}>{rank}</Text>
                       </View>
-                    ) : (
-                      <LinearGradient colors={['#FFFFFF', 'rgba(255,255,255,0.8)']} style={styles.cardAvatarWrap}>
-                        <Text style={[styles.initialText, { color: '#6C55F7' }]}>
-                          {(e.username || 'U').slice(0, 1).toUpperCase()}
+                      
+                      <View style={styles.cardAvatarContainer}>
+                        <View style={styles.avatarMiniBg}>
+                          <LayeredAvatar avatar={e.avatar || defaultAvatar} size={42} />
+                        </View>
+                      </View>
+
+                      <View style={styles.cardInfo}>
+                        <Text style={[styles.usernameText, { fontFamily: 'Gilroy-Bold' }]} numberOfLines={1}>
+                          {e.username}
                         </Text>
-                      </LinearGradient>
-                    )}
-                    <View style={styles.cardTextWrap}>
-                      <Text style={[styles.username, isCurrent && styles.usernameCurrent]}>@{e.username}</Text>
-                      <Text style={styles.pointsSmall}>({e.points})</Text>
+                        <View style={styles.pointsPill}>
+                           <FontAwesome5 name="star" size={10} color="#FFD616" solid />
+                           <Text style={[styles.pointsValueText, { fontFamily: 'Gilroy-SemiBold' }]}>{e.points}</Text>
+                        </View>
+                      </View>
+
+                      {isCurrent && (
+                        <View style={styles.meBadge}>
+                          <Text style={[styles.meBadgeText, { fontFamily: 'Gilroy-Black' }]}>TÚ</Text>
+                        </View>
+                      )}
                     </View>
-                    <View style={[styles.rankPill, isCurrent && styles.rankPillCurrent]}>
-                      <Text style={[styles.rankPillText, isCurrent && styles.rankPillTextCurrent]}>#{rank}</Text>
-                    </View>
-                  </View>
-                </FadeInView>
-              );
-            })}
-            {loading && (
-              <Text style={styles.loadingText}>Cargando clasificación…</Text>
-            )}
-            {!loading && entries.length === 0 && (
-              <Text style={styles.loadingText}>No hay datos de clasificación todavía.</Text>
-            )}
+                    {idx < others.length - 1 && <View style={styles.separator} />}
+                  </FadeInView>
+                );
+              })}
+
+              {!loading && entries.length === 0 && (
+                <View style={styles.emptyContainer}>
+                  <FontAwesome5 name="users-slash" size={40} color="rgba(255,255,255,0.3)" />
+                  <Text style={[styles.emptyText, { fontFamily: 'Gilroy-Medium' }]}>No hay leyendas todavía...</Text>
+                </View>
+              )}
+            </LinearGradient>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -150,36 +168,49 @@ type PodiumSpotProps = {
   place: 1 | 2 | 3;
   entry?: LeaderboardEntry;
   highlight?: boolean;
-  style?: any;
 };
 
-function PodiumSpot({ place, entry, highlight, style }: PodiumSpotProps) {
-  const heights = { 1: 160, 2: 110, 3: 90 } as const;
-  const colors = {
-    1: '#F8F32B', // yellow
-    2: '#D8D8D8', // silver
-    3: '#B38B6D', // bronze-ish
-  } as const;
+function PodiumSpot({ place, entry, highlight }: PodiumSpotProps) {
+  const isFirst = place === 1;
+  const avatarSize = isFirst ? 90 : 70;
+  
+  const placeColors = {
+    1: ['#FFD700', '#F59E0B'], // Gold
+    2: ['#E2E8F0', '#94A3B8'], // Silver
+    3: ['#D97706', '#92400E'], // Bronze
+  };
+
+  const trophyColor = isFirst ? '#FFD616' : (place === 2 ? '#E2E8F0' : '#CD7F32');
+
   return (
-    <View style={[styles.spotWrap, style]}>
-      <View style={styles.spotAvatarShadow}>
-        {entry?.avatar ? (
-          <View style={[styles.initialCircle, styles.spotAvatar, { backgroundColor: '#fff' }]}>
-            <LayeredAvatar avatar={entry.avatar} size={72} />
-          </View>
-        ) : (
-          <LinearGradient colors={['#FFFFFF', '#EDEBFF']} style={[styles.initialCircle, styles.spotAvatar]}>
-            <Text style={[styles.initialText, { color: '#6C55F7', fontSize: 30 }]}>
-              {(entry?.username || 'U').slice(0, 1).toUpperCase()}
-            </Text>
-          </LinearGradient>
-        )}
+    <View style={[styles.spotContainer, isFirst && styles.spotContainerFirst]}>
+      <View style={styles.avatarPodiumWrap}>
+        <View style={[
+          styles.podiumAvatarCircle, 
+          { width: avatarSize + 8, height: avatarSize + 8, borderRadius: (avatarSize + 8) / 2 },
+          highlight && { borderColor: '#FFD616', borderWidth: 3 }
+        ]}>
+          <LayeredAvatar avatar={entry?.avatar || defaultAvatar} size={avatarSize} />
+        </View>
+        <View style={[styles.placeBadge, { backgroundColor: placeColors[place][0] }]}>
+           <Text style={[styles.placeBadgeText, { fontFamily: 'Gilroy-Black' }]}>{place}</Text>
+        </View>
       </View>
-      <Text style={[styles.spotUsername, highlight && styles.usernameCurrent]}>
-        @{entry?.username ?? '—'}
+      
+      <Text style={[styles.podiumUsername, { fontFamily: 'Gilroy-Black' }, highlight && { color: '#FFD616' }]} numberOfLines={1}>
+        {entry?.username || '---'}
       </Text>
-      <Text style={styles.spotPoints}>({entry?.points ?? 0})</Text>
-      <View style={[styles.podiumBlock, { height: heights[place], backgroundColor: colors[place] }]} />
+      
+      <View style={styles.podiumScorePill}>
+        <Text style={[styles.podiumScoreText, { fontFamily: 'Digitalt' }]}>{entry?.points || 0}</Text>
+      </View>
+
+      <LinearGradient 
+        colors={placeColors[place] as any} 
+        style={[styles.podiumBlock, { height: isFirst ? 100 : (place === 2 ? 70 : 50) }]}
+      >
+        <FontAwesome5 name="trophy" size={isFirst ? 24 : 16} color="rgba(255,255,255,0.5)" />
+      </LinearGradient>
     </View>
   );
 }
@@ -187,189 +218,221 @@ function PodiumSpot({ place, entry, highlight, style }: PodiumSpotProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1B1B1B',
+    backgroundColor: '#6F52FD',
+  },
+  bgCircle1: {
+    position: 'absolute',
+    top: -100,
+    right: -100,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  bgCircle2: {
+    position: 'absolute',
+    bottom: -50,
+    left: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   safeArea: {
     flex: 1,
   },
   header: {
-    paddingHorizontal: 16,
+    height: 60,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 6,
+    paddingHorizontal: 16,
   },
   closeBtn: {
-    width: 28,
-    height: 28,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  closeText: {
-    color: '#fff',
-    fontSize: 28,
-    lineHeight: 28,
   },
   title: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: 1.5,
+    fontSize: 22,
+    letterSpacing: 1,
   },
   scrollInner: {
-    paddingBottom: 32,
+    paddingBottom: 40,
   },
-  podiumWrap: {
+  podiumSection: {
+    paddingTop: 20,
+    paddingBottom: 30,
+    alignItems: 'center',
+  },
+  podiumContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    justifyContent: 'space-around',
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 24,
+    justifyContent: 'center',
+    width: width,
+    paddingHorizontal: 10,
   },
-  spotWrap: {
+  podiumSpotContainer: {
+    flex: 1,
     alignItems: 'center',
-    width: width / 3 - 16,
   },
-  spotAvatar: {
+  spotContainer: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  spotContainerFirst: {
+    zIndex: 10,
+    transform: [{ scale: 1.1 }, { translateY: -10 }],
+  },
+  avatarPodiumWrap: {
+    position: 'relative',
     marginBottom: 8,
   },
-  spotAvatarShadow: {
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 10,
-    borderRadius: 40,
-  },
-  initialCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+  podiumAvatarCircle: {
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 10,
   },
-  initialText: {
-    color: '#222',
-    fontSize: 28,
-    fontWeight: '900',
+  placeBadge: {
+    position: 'absolute',
+    bottom: -5,
+    alignSelf: 'center',
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
   },
-  spotUsername: {
+  placeBadgeText: {
     color: '#fff',
-    fontWeight: '800',
-    fontSize: 12,
+    fontSize: 14,
   },
-  spotPoints: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 10,
-    marginTop: 2,
-    marginBottom: 8,
+  podiumUsername: {
+    color: '#fff',
+    fontSize: 13,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  podiumScorePill: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  podiumScoreText: {
+    color: '#FFD616',
+    fontSize: 16,
   },
   podiumBlock: {
-    width: 80,
-    borderRadius: 18,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
+    width: '80%',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    alignItems: 'center',
+    paddingTop: 10,
   },
-  listWrap: {
-    gap: 8,
-    paddingHorizontal: 16,
+  listContainer: {
+    paddingHorizontal: 20,
+  },
+  listBackground: {
+    borderRadius: 30,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 12,
     paddingHorizontal: 10,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.22)',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
   },
   cardRowCurrent: {
-    backgroundColor: 'rgba(255, 212, 94, 0.25)',
+    backgroundColor: 'rgba(255,214,22,0.15)',
+    borderRadius: 20,
   },
-  cardAvatarWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  rankNumberContainer: {
+    width: 35,
+    alignItems: 'center',
+  },
+  rankNumberText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 16,
+  },
+  cardAvatarContainer: {
+    marginRight: 15,
+  },
+  avatarMiniBg: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
   },
-  cardTextWrap: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 6,
+  cardInfo: {
     flex: 1,
   },
-  username: {
+  usernameText: {
     color: '#fff',
-    fontWeight: '800',
+    fontSize: 16,
+    marginBottom: 2,
   },
-  usernameCurrent: {
-    color: '#FFD45E',
+  pointsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
-  pointsSmall: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 12,
-    fontFamily: 'Gilroy-SemiBold',
+  pointsValueText: {
+    color: '#FFD616',
+    fontSize: 14,
   },
-  rankPill: {
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
+  meBadge: {
+    backgroundColor: '#FFD616',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  rankPillCurrent: {
-    backgroundColor: 'rgba(255, 212, 94, 0.25)',
+  meBadgeText: {
+    color: '#000',
+    fontSize: 10,
   },
-  rankPillText: {
-    color: '#fff',
-    fontWeight: '900',
-    fontSize: 12,
-  },
-  rankPillTextCurrent: {
-    color: '#FFD45E',
-  },
-  loadingText: {
-    color: '#fff',
-    textAlign: 'center',
-    paddingVertical: 20,
+  separator: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    marginHorizontal: 10,
   },
   loadingCenter: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 14,
-  },
-  loadingBadge: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 10,
-  },
-  loadingBadgeGradient: {
-    flex: 1,
-    borderRadius: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 20,
   },
   loadingTitle: {
     color: '#fff',
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontSize: 18,
+    opacity: 0.8,
   },
+  emptyContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 15,
+  },
+  emptyText: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 16,
+  }
 });
 
 
