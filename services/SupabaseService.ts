@@ -658,6 +658,40 @@ export async function getUserInventoryProductIds(): Promise<number[]> {
   }
 }
 
+/**
+ * Grants default items (those named '% 01') to a new user.
+ */
+export async function initializeUserInventory(userId: string): Promise<void> {
+  try {
+    // 1. Encontrar los IDs de los items básicos (01)
+    const { data: items } = await supabase
+      .from('tienda')
+      .select('id')
+      .ilike('nombre', '%01');
+
+    if (!items || items.length === 0) return;
+
+    // 2. Insertar en el inventario
+    const inventoryRows = items.map(item => ({
+      usuario_id: userId,
+      producto_id: item.id
+    }));
+
+    const { error } = await supabase
+      .from('inventario')
+      .insert(inventoryRows);
+
+    if (error) {
+      // Ignorar si ya los tiene (error de duplicado)
+      if ((error as any).code !== '23505') throw error;
+    }
+    
+    console.log(`✅ Inventario inicial otorgado a ${userId}`);
+  } catch (error) {
+    console.error('Error inicializando inventario:', error);
+  }
+}
+
 export type PurchaseResult =
   | { status: 'purchased'; coins: number }
   | { status: 'already_owned'; coins: number }

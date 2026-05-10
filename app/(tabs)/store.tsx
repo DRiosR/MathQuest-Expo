@@ -281,7 +281,7 @@ export default function StoreScreen() {
             <View style={styles.avatarPreviewBg}>
               <LayeredAvatar 
                 avatar={previewAvatar}
-                size={170}
+                size={210}
               />
             </View>
           </View>
@@ -644,12 +644,14 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   avatarPreviewBg: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
+    width: 230,
+    height: 230,
+    borderRadius: 115,
     backgroundColor: 'rgba(255,255,255,0.95)',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingTop: 10,
+    paddingLeft: 10, // Mueve el avatar un poco a la derecha
     borderWidth: 6,
     borderColor: 'rgba(255,255,255,0.4)',
     elevation: 20,

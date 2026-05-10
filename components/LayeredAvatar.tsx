@@ -1,7 +1,7 @@
 import { avatarAssets } from '@/constants/avatarAssets';
 import { Avatar } from '@/types/avatar';
 import React, { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Image } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { SvgUri } from 'react-native-svg';
 
@@ -12,7 +12,7 @@ interface LayeredAvatarProps {
 }
 
 const RemoteSvgLayer: React.FC<{ uri: string; size: number }> = ({ uri, size }) => {
-  const [localUri, setLocalUri] = useState<string | null>(uri); // Empezar con la URL de red para carga inmediata
+  const [localUri, setLocalUri] = useState<string | null>(uri); 
 
   useEffect(() => {
     let mounted = true;
@@ -22,8 +22,9 @@ const RemoteSvgLayer: React.FC<{ uri: string; size: number }> = ({ uri, size }) 
         if (!dir) return;
 
         await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
-        const safeName = encodeURIComponent(uri).slice(0, 150); // Nombre más corto para evitar errores de sistema
-        const fileUri = `${dir}${safeName}.svg`;
+        // Usar un hash simple para el nombre del archivo para evitar caracteres inválidos
+        const safeName = uri.split('/').pop() || 'temp';
+        const fileUri = `${dir}${safeName}`;
         
         const info = await FileSystem.getInfoAsync(fileUri);
         if (!info.exists) {
@@ -32,7 +33,7 @@ const RemoteSvgLayer: React.FC<{ uri: string; size: number }> = ({ uri, size }) 
         
         if (mounted) setLocalUri(fileUri);
       } catch (err) {
-        console.warn('Error en cache de SVG:', err);
+        // console.warn('Error en cache de SVG:', err);
       }
     })();
     return () => { mounted = false; };
@@ -50,10 +51,10 @@ const RemoteSvgLayer: React.FC<{ uri: string; size: number }> = ({ uri, size }) 
   );
 };
 
-function isRemoteSvg(value: string | undefined): value is string {
+function isRemoteUrl(value: string | undefined): boolean {
   if (!value) return false;
   const v = String(value);
-  return v.startsWith('http://') || v.startsWith('https://') || v.startsWith('file://') || /\.svg(\?|#|$)/i.test(v) || v.includes('/');
+  return v.startsWith('http://') || v.startsWith('https://') || v.startsWith('file://');
 }
 
 export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
@@ -71,15 +72,23 @@ export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
 
   const getLayerStyle = (value: string | undefined) => {
     if (!value) return {};
-    const styles: any = {};
+    const styles: any = { transform: [] };
     
-    // Ajuste específico para ojos desalineados (eyes_04 y eyes_05)
-    if (value.includes('eyes_04.svg') || value.includes('eyes_05.svg')) {
-      styles.transform = [
-        { translateX: 8 }, // Un poco a la izquierda (de 10 a 8)
-        { translateY: 9 }  // Un poco más abajo (de 7 a 9)
-      ];
+    // Detectar si el asset es del nuevo sistema (store)
+    const isNewSystem = value?.includes('_store') || 
+                        value?.includes('AvatarItems') || 
+                        value?.includes('/prendas/');
+
+    if (isNewSystem) {
+      styles.transform.push({ scale: 0.75 }); 
+      styles.transform.push({ translateY: -12 }); 
+      styles.transform.push({ translateX: 3 });   
+    } else if (value && (value.includes('eyes_04.svg') || value.includes('eyes_05.svg'))) {
+      styles.transform.push({ translateX: 8 });
+      styles.transform.push({ translateY: 9 });
     }
+
+    if (styles.transform.length === 0) delete styles.transform;
     return styles;
   };
 
@@ -87,15 +96,30 @@ export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
     <View style={[styles.container, { width: size, height: size }, style]}>
       {layers.map(([category, value]) => {
         if (!value || value === 'none') return null;
-        const LocalComp = avatarAssets[category][value as any];
+        
+        const LocalAsset = avatarAssets[category][value as any];
+        
+        let content = null;
+        if (LocalAsset) {
+          if (typeof LocalAsset === 'function') {
+            content = <LocalAsset width={size} height={size} />;
+          } else {
+            content = <Image source={LocalAsset} style={{ width: size, height: size }} resizeMode="contain" />;
+          }
+        } else if (isRemoteUrl(value)) {
+          if (value.toLowerCase().includes('.svg')) {
+            content = <RemoteSvgLayer uri={value} size={size} />;
+          } else {
+            content = <Image source={{ uri: value }} style={{ width: size, height: size }} resizeMode="contain" />;
+          }
+        }
+
         return (
           <View 
             key={`${category}-${value}`} 
             style={[styles.layer, getLayerStyle(value)]}
           >
-            {LocalComp
-              ? <LocalComp width={size} height={size} />
-              : (isRemoteSvg(value) ? <RemoteSvgLayer uri={value} size={size} /> : null)}
+            {content}
           </View>
         );
       })}
@@ -115,4 +139,3 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
-

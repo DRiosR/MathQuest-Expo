@@ -1,4 +1,5 @@
 import AuthService, { AuthUser, SignInData, SignUpData } from '@/Core/Services/AuthService/AuthService';
+import { initializeUserInventory } from '@/services/SupabaseService';
 import * as Linking from 'expo-linking';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
@@ -132,6 +133,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       const result = await AuthService.signUp(data);
+      
+      // Si el registro fue exitoso, inicializamos el inventario con items base
+      if (result.user?.id) {
+        await initializeUserInventory(result.user.id);
+      }
+      
       return result;
     } catch (error) {
       return { user: null, error };
