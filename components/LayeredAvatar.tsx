@@ -12,36 +12,42 @@ interface LayeredAvatarProps {
 }
 
 const RemoteSvgLayer: React.FC<{ uri: string; size: number }> = ({ uri, size }) => {
-  const [localUri, setLocalUri] = useState<string | null>(null);
+  const [localUri, setLocalUri] = useState<string | null>(uri); // Empezar con la URL de red para carga inmediata
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        // Prepare cache directory
         const dir = FileSystem.cacheDirectory ? `${FileSystem.cacheDirectory}svgs/` : null;
-        if (!dir) {
-          // Fallback to direct URI usage
-          if (mounted) setLocalUri(uri);
-          return;
-        }
+        if (!dir) return;
+
         await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
-        const safeName = encodeURIComponent(uri).slice(0, 200);
+        const safeName = encodeURIComponent(uri).slice(0, 150); // Nombre más corto para evitar errores de sistema
         const fileUri = `${dir}${safeName}.svg`;
+        
         const info = await FileSystem.getInfoAsync(fileUri);
         if (!info.exists) {
           await FileSystem.downloadAsync(uri, fileUri);
         }
+        
         if (mounted) setLocalUri(fileUri);
-      } catch {
-        if (mounted) setLocalUri(uri); // use network URI as fallback
+      } catch (err) {
+        console.warn('Error en cache de SVG:', err);
       }
     })();
     return () => { mounted = false; };
   }, [uri]);
 
-  if (!localUri) return null;
-  return <SvgUri uri={localUri} width={size} height={size} />;
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <SvgUri 
+        uri={localUri || uri} 
+        width="100%" 
+        height="100%" 
+        preserveAspectRatio="xMidYMid meet"
+      />
+    </View>
+  );
 };
 
 function isRemoteSvg(value: string | undefined): value is string {
@@ -57,11 +63,25 @@ export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
 }) => {
   const layers = useMemo(() => ([
     ['skin', avatar.skin_asset],
-    ['hair', avatar.hair_asset],
     ['eyes', avatar.eyes_asset],
     ['mouth', avatar.mouth_asset],
     ['clothes', avatar.clothes_asset],
+    ['hair', avatar.hair_asset],
   ] as Array<[keyof typeof avatarAssets, string | undefined]>), [avatar]);
+
+  const getLayerStyle = (value: string | undefined) => {
+    if (!value) return {};
+    const styles: any = {};
+    
+    // Ajuste específico para ojos desalineados (eyes_04 y eyes_05)
+    if (value.includes('eyes_04.svg') || value.includes('eyes_05.svg')) {
+      styles.transform = [
+        { translateX: 8 }, // Un poco a la izquierda (de 10 a 8)
+        { translateY: 9 }  // Un poco más abajo (de 7 a 9)
+      ];
+    }
+    return styles;
+  };
 
   return (
     <View style={[styles.container, { width: size, height: size }, style]}>
@@ -69,7 +89,10 @@ export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
         if (!value || value === 'none') return null;
         const LocalComp = avatarAssets[category][value as any];
         return (
-          <View key={`${category}-${value}`} style={styles.layer}>
+          <View 
+            key={`${category}-${value}`} 
+            style={[styles.layer, getLayerStyle(value)]}
+          >
             {LocalComp
               ? <LocalComp width={size} height={size} />
               : (isRemoteSvg(value) ? <RemoteSvgLayer uri={value} size={size} /> : null)}
