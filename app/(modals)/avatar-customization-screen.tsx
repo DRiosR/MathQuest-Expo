@@ -170,14 +170,14 @@ export default function AvatarCustomizationScreen() {
 
   const handleSave = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
+
     Alert.alert(
       'Guardar Cambios',
       '¿Estás seguro de que quieres guardar los cambios en tu avatar?',
       [
         { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Guardar', 
+        {
+          text: 'Guardar',
           onPress: async () => {
             try {
               setIsSaving(true);
@@ -186,11 +186,11 @@ export default function AvatarCustomizationScreen() {
               setOriginalAvatar(draftAvatar);
               setIsSaving(false);
               setShowSuccess(true);
-              
+
               setTimeout(() => {
                 setShowSuccess(false);
                 router.replace('/(tabs)/user');
-              }, 1000);
+              }, 2000);
             } catch (error) {
               setIsSaving(false);
 
@@ -209,9 +209,9 @@ export default function AvatarCustomizationScreen() {
 
   const handleAssetSelect = async (assetKey: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
+
     const updatedAvatar = { ...draftAvatar };
-    
+
     switch (selectedCategory) {
       case 'skin':
         updatedAvatar.skin_asset = assetKey;
@@ -229,7 +229,7 @@ export default function AvatarCustomizationScreen() {
         updatedAvatar.clothes_asset = assetKey;
         break;
     }
-    
+
     // Only update locally; saving happens explicitly
     setDraftAvatar(updatedAvatar);
   };
@@ -315,11 +315,11 @@ export default function AvatarCustomizationScreen() {
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <FontAwesome5 name="chevron-left" size={20} color="#fff" />
           </TouchableOpacity>
-          
+
           <View style={{ flex: 1 }} />
-          
-          <TouchableOpacity 
-            onPress={handleSave} 
+
+          <TouchableOpacity
+            onPress={handleSave}
             style={styles.saveButtonWrapper}
             disabled={!hasUnsavedChanges || isSaving}
           >
@@ -343,15 +343,15 @@ export default function AvatarCustomizationScreen() {
         {/* Avatar Display */}
         <View style={styles.avatarSection}>
           <View style={styles.avatarContainer}>
-            <LayeredAvatar 
+            <LayeredAvatar
               avatar={{
                 skin_asset: resolveToRemoteUrl('skin', draftAvatar.skin_asset) as any,
                 hair_asset: resolveToRemoteUrl('hair', draftAvatar.hair_asset) as any,
                 eyes_asset: resolveToRemoteUrl('eyes', draftAvatar.eyes_asset) as any,
                 mouth_asset: resolveToRemoteUrl('mouth', draftAvatar.mouth_asset) as any,
                 clothes_asset: resolveToRemoteUrl('clothes', draftAvatar.clothes_asset) as any,
-              }} 
-              size={200} 
+              }}
+              size={200}
               style={styles.avatar}
             />
           </View>
@@ -372,7 +372,7 @@ export default function AvatarCustomizationScreen() {
           {(Object.keys(categoryConfig) as AvatarCategory[]).map((category) => {
             const config = categoryConfig[category];
             const isSelected = selectedCategory === category;
-            
+
             return (
               <TouchableOpacity
                 key={category}
@@ -382,10 +382,10 @@ export default function AvatarCustomizationScreen() {
                 ]}
                 onPress={() => handleCategorySelect(category)}
               >
-                <FontAwesome5 
-                  name={config.icon} 
-                  size={20} 
-                  color={isSelected ? '#7c3aed' : '#fff'} 
+                <FontAwesome5
+                  name={config.icon}
+                  size={20}
+                  color={isSelected ? '#7c3aed' : '#fff'}
                 />
               </TouchableOpacity>
             );
@@ -397,8 +397,8 @@ export default function AvatarCustomizationScreen() {
           <Text style={[styles.categoryTitle, { fontFamily: 'Gilroy-Black' }]}>
             {categoryConfig[selectedCategory].displayName}
           </Text>
-          
-          <ScrollView 
+
+          <ScrollView
             style={styles.assetsScrollView}
             showsVerticalScrollIndicator={false}
           >
