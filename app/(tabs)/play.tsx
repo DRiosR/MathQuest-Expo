@@ -209,7 +209,7 @@ export default function PlayScreen() {
         >
           <LinearGradient colors={["#FFD45E", "#FFA500"]} style={styles.fabGradient}>
             <FontAwesome5 name="trophy" size={18} color="#fff" />
-            <Text style={styles.fabText}>Ranking</Text>
+            <Text style={styles.fabText}>Clasificación</Text>
           </LinearGradient>
         </TouchableOpacity>
       </Link>
@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 20,
     bottom: 30,
-    width: 120,
+    width: 150,
     height: 44,
     borderRadius: 22,
     overflow: 'hidden',

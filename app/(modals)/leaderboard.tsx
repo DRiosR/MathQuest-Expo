@@ -67,7 +67,7 @@ export default function LeaderboardModal() {
           <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
             <FontAwesome5 name="times" size={20} color="#fff" />
           </TouchableOpacity>
-          <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>TOP RANKING</Text>
+          <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>CLASIFICACIÓN</Text>
           <View style={{ width: 40 }} />
         </View>
 
