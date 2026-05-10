@@ -38,7 +38,7 @@ export default function PlayScreen() {
 
   const measure = (ref: React.RefObject<any>, id: string, radius: number) => {
     if (ref.current) {
-      ref.current.measure((x, y, w, h, pageX, pageY) => {
+      ref.current.measure((x: number, y: number, w: number, h: number, pageX: number, pageY: number) => {
         setDynamicSpotlight(id, { x: pageX, y: pageY, w, h, radius });
       });
     }
@@ -141,7 +141,7 @@ export default function PlayScreen() {
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
 
         <View style={styles.titleWrap}>
-          <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>COMPETITIVO</Text>
+          <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>DUELOS MATEMÁTICOS</Text>
         </View>
 
         <View style={styles.rankWrap} ref={rankRef} onLayout={() => measure(rankRef, 'my_rank', 25)}>
@@ -178,7 +178,7 @@ export default function PlayScreen() {
         <View style={styles.buttonsWrap}>
           <View ref={competitiveRef} onLayout={() => measure(competitiveRef, 'competitive', 30)}>
             <GameModeButton
-              name="COMPETITIVO!"
+              name="BUSCAR PARTIDA 1vs1"
               route="/(games)/matchmaking-screen"
               gradientColors={["#FF6A6A", "#FF3D3D"]}
               imagePath={require('@/assets/images/competitive/1v1_roulette.png')}

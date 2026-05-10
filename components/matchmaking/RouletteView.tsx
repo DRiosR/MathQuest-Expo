@@ -38,6 +38,13 @@ export default function RouletteView({
   const rotateDeg = useRef(new Animated.Value(0)).current;
   const [landedId, setLandedId] = useState<string | undefined>(selectedCategory?.id);
   const [isSpinComplete, setIsSpinComplete] = useState(false);
+  const [isReady, setIsReady] = useState(!!selectedCategory);
+
+  useEffect(() => {
+    if (selectedCategory) {
+      setIsReady(true);
+    }
+  }, [selectedCategory]);
   const SLICE_COUNT = CLOCKWISE_SLICE_IDS.length;
   const SEGMENT_ANGLE = 360 / SLICE_COUNT;
 
@@ -69,6 +76,8 @@ export default function RouletteView({
   }, [selectedCategory?.id]);
 
   useEffect(() => {
+    if (!isReady) return;
+
     const timer = setTimeout(() => {
       const baseSpins = 5;
       const final = baseSpins * 360 + targetAngle;
@@ -87,7 +96,7 @@ export default function RouletteView({
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [targetAngle]);
+  }, [targetAngle, isReady]);
 
   const rotation = rotateDeg.interpolate({ 
     inputRange: [0, 360], 

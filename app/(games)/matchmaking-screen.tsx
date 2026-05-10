@@ -822,6 +822,7 @@ export default function MatchmakingScreen() {
           return (
             <View style={styles.rouletteStage}>
               <RouletteView
+                key={`roulette-${gameData?.roundNumber || 1}-${selectedCategory?.id || 'default'}`}
                 selectedCategory={selectedCategory}
                 leftPlayer={{
                   userId: myUserId,
