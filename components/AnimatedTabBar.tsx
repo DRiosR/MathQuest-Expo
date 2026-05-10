@@ -33,8 +33,8 @@ function AnimatedTab({
 }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(isFocused ? 1 : 0.6)).current;
-  const labelOpacityAnim = useRef(new Animated.Value(isFocused ? 1 : 0)).current;
-  const labelTranslateYAnim = useRef(new Animated.Value(isFocused ? 0 : 10)).current;
+  const labelOpacityAnim = useRef(new Animated.Value(isFocused ? 1 : 0.6)).current;
+  const labelTranslateYAnim = useRef(new Animated.Value(isFocused ? 0 : 5)).current;
 
   useEffect(() => {
     if (isFocused) {
@@ -86,13 +86,13 @@ function AnimatedTab({
       }).start();
 
       Animated.timing(labelOpacityAnim, {
-        toValue: 0,
+        toValue: 0.6,
         duration: 150,
         useNativeDriver: true,
       }).start();
 
       Animated.spring(labelTranslateYAnim, {
-        toValue: 10,
+        toValue: 5,
         useNativeDriver: true,
         friction: 6,
         tension: 100,
@@ -118,15 +118,13 @@ function AnimatedTab({
         ]}>
         {IconComponent && <IconComponent size={28} weight={weight} color="#FFFFFF" />}
       </Animated.View>
-      {isFocused && (
-        <Animated.View
-          style={{
-            opacity: labelOpacityAnim,
-            transform: [{ translateY: labelTranslateYAnim }],
-          }}>
-          <Text style={styles.label}>{label}</Text>
-        </Animated.View>
-      )}
+      <Animated.View
+        style={{
+          opacity: labelOpacityAnim,
+          transform: [{ translateY: labelTranslateYAnim }],
+        }}>
+        <Text style={styles.label}>{label}</Text>
+      </Animated.View>
     </TouchableOpacity>
   );
 }
