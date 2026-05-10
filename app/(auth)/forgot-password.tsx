@@ -78,16 +78,11 @@ export default function ForgotPasswordScreen() {
         Alert.alert('Error', msg);
       } else {
         setEmailSent(true);
-        Alert.alert(
-          'Email enviado',
-          'Revisa tu bandeja de entrada para restablecer tu contraseña.',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/(auth)/login'),
-            },
-          ]
-        );
+        // Instead of Alert and Login, go to Verify OTP screen
+        router.push({
+          pathname: '/(auth)/verify-otp',
+          params: { email: normalized }
+        });
       }
     } catch (error) {
       setError('Error inesperado. Intenta de nuevo.');

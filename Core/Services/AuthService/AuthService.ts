@@ -201,6 +201,22 @@ class AuthService {
   }
 
   /**
+   * Verify OTP code for various types (recovery, signup, etc.)
+   */
+  async verifyOtp(email: string, token: string, type: 'recovery' | 'signup' = 'recovery'): Promise<{ error: AuthError | null }> {
+    try {
+      const { error } = await this.supabase.auth.verifyOtp({
+        email,
+        token,
+        type,
+      });
+      return { error };
+    } catch (error) {
+      return { error: error as AuthError };
+    }
+  }
+
+  /**
    * Listen to auth state changes
    */
   onAuthStateChange(callback: (user: AuthUser | null) => void) {

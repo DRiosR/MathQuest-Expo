@@ -31,10 +31,23 @@ export default function ResetPasswordScreen() {
 
   // Security check: if user is not in a recovery flow, send them back to login
   React.useEffect(() => {
-    if (!loading && !isRecovering && !success) {
-      console.log('🛡️ Intento de acceso a Reset Password sin sesión de recuperación. Redirigiendo...');
-      router.replace('/(auth)/login');
-    }
+    const checkRecoverySession = async () => {
+      if (loading || success) return;
+
+      // Check local state first
+      if (isRecovering) return;
+
+      // Fallback: Check Supabase session directly to be sure
+      const { data: { session } } = await AuthService.getClient().auth.getSession();
+      
+      // If we are signed in, it might be the recovery session from the OTP/Link
+      if (!session) {
+        console.log('🛡️ Intento de acceso a Reset Password sin sesión. Redirigiendo...');
+        router.replace('/(auth)/login');
+      }
+    };
+
+    checkRecoverySession();
   }, [isRecovering, loading, success]);
 
   const handleResetPassword = async () => {

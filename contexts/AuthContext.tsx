@@ -1,6 +1,7 @@
 import AuthService, { AuthUser, SignInData, SignUpData } from '@/Core/Services/AuthService/AuthService';
 import * as Linking from 'expo-linking';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { Alert } from 'react-native';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -11,6 +12,7 @@ interface AuthContextType {
   signOut: () => Promise<{ error: any }>;
   resetPassword: (email: string, redirectTo?: string) => Promise<{ error: any }>;
   updatePassword: (password: string) => Promise<{ error: any }>;
+  verifyOtp: (email: string, token: string, type?: 'recovery' | 'signup') => Promise<{ error: any }>;
   refreshSession: () => Promise<{ user: AuthUser | null; error: any }>;
   clearAuthData: () => Promise<void>;
   getUserStats: (userId: string) => Promise<{ gamesPlayed: number; wins: number; winRate: number }>;
@@ -61,8 +63,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const { url } = event;
       console.log('🔗 Deep link recibida en AuthContext:', url);
       
-      // Parse the URL to get tokens
-      // Supabase sends tokens after # in the fragment
+      // Parse the URL to get tokens or errors
+      // Supabase sends tokens/errors after # in the fragment
       if (url.includes('#')) {
         const fragment = url.split('#')[1];
         const params = new URLSearchParams(fragment);
@@ -70,6 +72,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const accessToken = params.get('access_token');
         const refreshToken = params.get('refresh_token');
         const type = params.get('type');
+        const errorCode = params.get('error_code');
+        const errorDescription = params.get('error_description');
+        
+        if (errorCode) {
+          console.error(`❌ Error en enlace detectado: ${errorCode} - ${errorDescription}`);
+          let msg = 'El enlace de recuperación es inválido o ha expirado.';
+          if (errorCode === 'otp_expired') msg = 'El enlace ha expirado. Por favor solicita uno nuevo.';
+          
+          Alert.alert('Enlace Inválido', msg);
+          return;
+        }
         
         if (accessToken && refreshToken) {
           console.log(`🔑 Tokens detectados (tipo: ${type}), estableciendo sesión...`);
@@ -79,6 +92,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const { error } = await AuthService.setSession(accessToken, refreshToken);
           if (error) {
             console.error('❌ Error al establecer sesión desde URL:', error.message);
+            Alert.alert('Error de Sesión', 'No se pudo iniciar la sesión de recuperación.');
           } else {
             console.log('✅ Sesión establecida correctamente desde URL');
           }
@@ -94,7 +108,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Listen for auth state changes
     const { data: { subscription } } = AuthService.onAuthStateChange((user) => {
       // We don't want to auto-redirect to tabs if we are in recovery mode
-      // Supabase fires SIGNED_IN or PASSWORD_RECOVERY when a link is clicked
       setUser(user);
       setLoading(false);
     });
@@ -176,6 +189,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const verifyOtp = async (email: string, token: string, type: 'recovery' | 'signup' = 'recovery') => {
+    try {
+      setLoading(true);
+      const result = await AuthService.verifyOtp(email, token, type);
+      if (!result.error) {
+        setIsRecovering(true);
+      }
+      return result;
+    } catch (error) {
+      return { error };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const refreshSession = async () => {
     try {
       setLoading(true);
@@ -220,6 +248,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signOut,
     resetPassword,
     updatePassword,
+    verifyOtp,
     refreshSession,
     clearAuthData,
     getUserStats,

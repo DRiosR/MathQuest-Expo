@@ -11,7 +11,7 @@ interface AuthGuardProps {
 export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
   const { user, loading, isRecovering } = useAuth();
   const { fontsLoaded } = useFontContext();
-  const segments = useSegments();
+  const segments = useSegments() as string[];
 
   useEffect(() => {
     if (loading || !fontsLoaded) return;
@@ -22,16 +22,18 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
       segments.includes('login') || 
       segments.includes('signup') || 
       segments.includes('forgot-password') || 
+      segments.includes('verify-otp') || 
       segments.includes('reset-password');
 
     const isResetPage = segments.includes('reset-password');
+    const isVerifyOtpPage = segments.includes('verify-otp');
 
     if (!user && inAuthGroup) {
       // User is not authenticated but trying to access protected route
       router.replace('/login' as any);
-    } else if (user && isRecovering && !isResetPage) {
-      // User is in recovery mode but NOT on the reset page. Force them there!
-      console.log('🛡️ Usuario en modo recuperación fuera de la pantalla de reset. Forzando regreso...');
+    } else if (user && isRecovering && !isResetPage && !isVerifyOtpPage) {
+      // User is in recovery mode but NOT on a recovery-related page.
+      console.log('🛡️ Usuario en modo recuperación fuera de pantallas permitidas. Redirigiendo a Reset...');
       router.replace('/(auth)/reset-password');
     } else if (user && !isRecovering && !inAuthGroup && !isAuthPage) {
       // User is authenticated normally but on auth screen. Send to tabs.
