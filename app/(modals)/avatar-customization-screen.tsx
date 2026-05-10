@@ -148,7 +148,7 @@ export default function AvatarCustomizationScreen() {
               // Discard local changes
               setDraftAvatar(originalAvatar);
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.back();
+              router.replace('/(tabs)/user');
             },
           },
           {
@@ -162,8 +162,9 @@ export default function AvatarCustomizationScreen() {
       );
     } else {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      router.back();
+      router.replace('/(tabs)/user');
     }
+
   };
 
   const handleSave = async () => {
@@ -183,8 +184,9 @@ export default function AvatarCustomizationScreen() {
               await updateAvatar(draftAvatar);
               // Baseline now matches what we saved
               setOriginalAvatar(draftAvatar);
-              router.back();
+              router.replace('/(tabs)/user');
             } catch (error) {
+
               Alert.alert('Error', 'No se pudieron guardar los cambios. Intenta de nuevo.');
             } finally {
               setIsSaving(false);

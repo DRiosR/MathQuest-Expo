@@ -1,5 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
+import { Avatar } from '@/types/avatar';
+
 import {
   EyeIcon,
   ScissorsIcon,
@@ -56,14 +58,21 @@ export default function StoreScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
+      setPreviewAvatar(userAvatar);
       const timer = setTimeout(() => {
         ['skin', 'hair', 'eyes', 'mouth', 'clothes', 'coins'].forEach(key => measureCategory(key));
       }, 1500);
       return () => clearTimeout(timer);
-    }, [])
+    }, [userAvatar])
   );
 
+  const [previewAvatar, setPreviewAvatar] = React.useState<Avatar>(userAvatar);
   const [showMoneyCalc, setShowMoneyCalc] = React.useState<boolean>(false);
+
+  React.useEffect(() => {
+    setPreviewAvatar(userAvatar);
+  }, [userAvatar]);
+
   const [selectedCategory, setSelectedCategory] = React.useState<
     'skin' | 'hair' | 'eyes' | 'mouth' | 'clothes'
   >('eyes');
@@ -100,7 +109,7 @@ export default function StoreScreen() {
   const CARD_GAP = 10;
   const CARD_SIZE = Math.floor((width - SIDE_PAD * 2 - CARD_GAP * 2) / 3); // 3 items per row, avoid fractional pixels
   const CARD_HEIGHT = CARD_SIZE + 16; // slightly taller than width
-  const TOP_SECTION_HEIGHT = height * 0.32; // reduced ~40% from previous
+  const TOP_SECTION_HEIGHT = height * 0.38;
   const CARD_RADIUS = 24;
   const [ownedProductIds, setOwnedProductIds] = React.useState<number[]>([]);
 
@@ -134,9 +143,16 @@ export default function StoreScreen() {
         id: it.id,
         price: it.price,
         thumbnail: it.storeImage ? { uri: it.storeImage } : undefined,
+        svgUrl: it.svgUrl,
         SvgComp: undefined,
       }));
   }, [allItems, selectedCategory]);
+
+
+  const closeModal = () => {
+    setSelectedItem(null);
+    setPreviewAvatar(userAvatar);
+  };
 
   const handleDebugAddCoins = React.useCallback(async () => {
     try {
@@ -152,7 +168,7 @@ export default function StoreScreen() {
     }
   }, [refreshCoins, setCoins]);
 
-    const renderItem = ({ item, index }: { item: { id: string; SvgComp: any; price: number; thumbnail?: any }, index: number }) => {
+    const renderItem = ({ item, index }: { item: { id: string; SvgComp: any; price: number; thumbnail?: any; svgUrl: string | null }, index: number }) => {
       const CategoryIcon = categories.find(c => c.key === selectedCategory)?.Icon || EyeIcon;
       const SvgIcon = item.SvgComp;
       const imgSource = item.thumbnail;
@@ -170,7 +186,16 @@ export default function StoreScreen() {
               SvgComp: SvgIcon,
               categoryLabel,
             });
+
+            // Update preview avatar
+            if (item.svgUrl) {
+              setPreviewAvatar(prev => ({
+                ...prev,
+                [`${selectedCategory}_asset`]: item.svgUrl
+              }));
+            }
           }}
+
           activeOpacity={0.9}
           style={{
             width: CARD_SIZE,
@@ -227,15 +252,7 @@ export default function StoreScreen() {
         <View style={[styles.topSection, { height: TOP_SECTION_HEIGHT }]}>
           {/* Header: avatar left, coins right */}
           <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              <TouchableOpacity
-                onPress={() => router.push('/avatar-customization-screen')}
-                activeOpacity={0.8}
-                style={styles.avatarCircle}
-              >
-                <LayeredAvatar avatar={userAvatar} size={44} style={styles.layeredAvatar} />
-              </TouchableOpacity>
-            </View>
+            <View style={{ flex: 1 }} />
             <View style={styles.headerRight}>
               <TouchableOpacity 
                 onPress={() => startTutorial('store')}
@@ -259,23 +276,18 @@ export default function StoreScreen() {
             </View>
           </View>
 
-          {/* Lottie mascot overlapping bottom */}
-          <View style={styles.lottieWrap}>
-            <LottieView
-              source={
-                showMoneyCalc
-                  ? require('@/assets/lotties/extras/Calc-money.json')
-                  : require('@/assets/lotties/extras/Calc.json')
-              }
-              autoPlay
-              loop={!showMoneyCalc}
-              onAnimationFinish={() => {
-                if (showMoneyCalc) setShowMoneyCalc(false);
-              }}
-              style={styles.lottie}
-            />
+          {/* User Avatar Preview (Dynamic) */}
+          <View style={styles.avatarPreviewWrap}>
+            <View style={styles.avatarPreviewBg}>
+              <LayeredAvatar 
+                avatar={previewAvatar}
+                size={170}
+              />
+            </View>
           </View>
+
         </View>
+
 
         {/* Bottom sheet area with categories + grid (scrollable) */}
         <View style={[styles.sheet, { paddingHorizontal: SIDE_PAD }]}>
@@ -324,12 +336,12 @@ export default function StoreScreen() {
         visible={!!selectedItem}
         animationType="fade"
         transparent
-        onRequestClose={() => setSelectedItem(null)}
+        onRequestClose={closeModal}
       >
         <View style={styles.modalBackdrop}>
-          <TouchableOpacity style={styles.backdropTouch} activeOpacity={1} onPress={() => setSelectedItem(null)} />
+          <TouchableOpacity style={styles.backdropTouch} activeOpacity={1} onPress={closeModal} />
           <View style={styles.modalCard}>
-            <TouchableOpacity style={styles.modalClose} onPress={() => setSelectedItem(null)}>
+            <TouchableOpacity style={styles.modalClose} onPress={closeModal}>
               <Text style={styles.modalCloseText}>×</Text>
             </TouchableOpacity>
             <Text style={[styles.modalTitle, fontsLoaded ? { fontFamily: 'Digitalt' } : null]}>
@@ -368,11 +380,15 @@ export default function StoreScreen() {
                     setCoins(result.coins);
                     setShowMoneyCalc(true);
                     setOwnedProductIds(prev => (prev.includes(productId) ? prev : [...prev, productId]));
-                    setSelectedItem(null);
+                    // Keep the preview on for a second or close immediately? 
+                    // User said "cuando se deje de seleccionar se quite", so if purchased, maybe it should stay?
+                    // But if it's not saved to context, it will reset on focus anyway.
+                    // For now, let's just close as before.
+                    closeModal();
                   } else if (result.status === 'already_owned') {
                     await (refreshCoins?.());
                     await refreshOwned();
-                    setSelectedItem(null);
+                    closeModal();
                   } else {
                     // insufficient funds, keep modal open; UI already shows disabled state when not enough coins
                   }
@@ -440,10 +456,11 @@ const styles = StyleSheet.create({
   // Modal
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    justifyContent: 'flex-end', // Move modal to bottom to show avatar
     alignItems: 'center',
     padding: 20,
+    paddingBottom: 40,
   },
   backdropTouch: {
     ...StyleSheet.absoluteFillObject,
@@ -617,24 +634,36 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     letterSpacing: 1,
   },
-  lottieWrap: {
+  avatarPreviewWrap: {
     alignItems: 'center',
     justifyContent: 'center',
     position: 'absolute',
-    bottom: -20,
+    bottom: 15,
     left: 0,
     right: 0,
+    zIndex: 10,
   },
-  lottie: {
-    width: 180,
-    height: 140,
+  avatarPreviewBg: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 6,
+    borderColor: 'rgba(255,255,255,0.4)',
+    elevation: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
   },
   sheet: {
     flex: 1,
     backgroundColor: '#8A56FE',
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    paddingTop: 28,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingTop: 20,
     paddingBottom: 8,
     marginTop: 0,
   },
