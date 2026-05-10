@@ -30,6 +30,7 @@ export default function AvatarCustomizationScreen() {
   const [storeItems, setStoreItems] = useState<StoreItemRow[]>([]);
   const [loadingInventory, setLoadingInventory] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [showSuccess, setShowSuccess] = useState<boolean>(false);
 
   // Helpers to reconcile local keys (e.g., "skin01") with remote URLs (e.g., ".../skin_01.svg")
   const extractFilename = (uri: string) => {
@@ -180,16 +181,20 @@ export default function AvatarCustomizationScreen() {
           onPress: async () => {
             try {
               setIsSaving(true);
-              // Persist draft avatar to server and update context
               await updateAvatar(draftAvatar);
               // Baseline now matches what we saved
               setOriginalAvatar(draftAvatar);
-              router.replace('/(tabs)/user');
+              setIsSaving(false);
+              setShowSuccess(true);
+              
+              setTimeout(() => {
+                setShowSuccess(false);
+                router.replace('/(tabs)/user');
+              }, 1000);
             } catch (error) {
+              setIsSaving(false);
 
               Alert.alert('Error', 'No se pudieron guardar los cambios. Intenta de nuevo.');
-            } finally {
-              setIsSaving(false);
             }
           }
         }
@@ -456,6 +461,18 @@ export default function AvatarCustomizationScreen() {
           </ScrollView>
         </View>
       </SafeAreaView>
+
+      {/* Success Message Overlay */}
+      {showSuccess && (
+        <View style={styles.successOverlay}>
+          <FadeInView from="bottom" duration={400} style={styles.successCard}>
+            <View style={styles.successIconCircle}>
+              <FontAwesome5 name="check" size={30} color="#fff" />
+            </View>
+            <Text style={[styles.successText, { fontFamily: 'Digitalt' }]}>¡AVATAR ACTUALIZADO!</Text>
+          </FadeInView>
+        </View>
+      )}
     </View>
   );
 }
@@ -475,6 +492,43 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     height: height,
+  },
+  successOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  successCard: {
+    backgroundColor: '#22C55E',
+    paddingVertical: 30,
+    paddingHorizontal: 40,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 4,
+    borderColor: '#4ADE80',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  successIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 15,
+  },
+  successText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+    letterSpacing: 1,
   },
   safeArea: {
     flex: 1,
