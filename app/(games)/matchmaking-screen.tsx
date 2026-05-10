@@ -359,9 +359,12 @@ export default function MatchmakingScreen() {
 
       // Esperar un tiempo para que el usuario vea el resultado de la última ronda
       // antes de pasar a la pantalla final de ELO y trofeos
+      // Si es abandono (forfeit), salimos mucho más rápido
+      const delayTime = data.forfeit ? 1000 : 2500;
+      
       setTimeout(() => {
         setGameState('MATCH_END');
-      }, 4000); // 4 segundos de cortesía para ver la última ronda
+      }, delayTime); 
     });
     return () => unsubGameEnd?.();
   }, [onGameFinished, opponentAvatar]);

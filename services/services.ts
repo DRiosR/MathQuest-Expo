@@ -110,7 +110,7 @@ class WebSocketService {
     console.log('🔧 Inicializando WebSocket con URL:', WEBSOCKET_URL);
     
     this.socket = io(WEBSOCKET_URL, {
-      timeout: 30000,
+      timeout: 60000,
       reconnectionAttempts: 15,
       reconnectionDelay: 2000,
       reconnectionDelayMax: 10000,
