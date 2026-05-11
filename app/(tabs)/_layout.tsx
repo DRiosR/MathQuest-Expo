@@ -22,7 +22,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="extras"
         options={{
-          title: 'EXTRAS',
+          title: 'INFINITO',
         }}
       />
       <Tabs.Screen

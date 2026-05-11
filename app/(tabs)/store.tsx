@@ -8,6 +8,7 @@ import {
   SmileyIcon,
   TShirtIcon,
   UserIcon,
+  CheckCircle,
 } from 'phosphor-react-native';
 import React from 'react';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -39,7 +40,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 export default function StoreScreen() {
   const { fontsLoaded } = useFontContext();
-  const { avatar: userAvatar } = useAvatar();
+  const { avatar: userAvatar, updateAvatar } = useAvatar();
   const { items: allItems, isLoadingItems, coins, setCoins, refreshCoins } = useItemStore();
   const { setDynamicSpotlight, startTutorial } = useTutorial();
 
@@ -96,6 +97,9 @@ export default function StoreScreen() {
   const rotateValue = React.useRef(new Animated.Value(0)).current;
   const previewScale = React.useRef(new Animated.Value(1)).current;
   const idleAnim = React.useRef(new Animated.Value(0)).current;
+  const [showSuccess, setShowSuccess] = React.useState<boolean>(false);
+  const [purchasedItem, setPurchasedItem] = React.useState<any>(null);
+  const [isEquipping, setIsEquipping] = React.useState<boolean>(false);
 
   // Idle animation (breathing)
   React.useEffect(() => {
@@ -445,10 +449,19 @@ export default function StoreScreen() {
                     setCoins(result.coins);
                     setShowMoneyCalc(true);
                     setOwnedProductIds(prev => (prev.includes(productId) ? prev : [...prev, productId]));
-                    // Keep the preview on for a second or close immediately? 
-                    // User said "cuando se deje de seleccionar se quite", so if purchased, maybe it should stay?
-                    // But if it's not saved to context, it will reset on focus anyway.
-                    // For now, let's just close as before.
+                    
+                    // Prepare data for equipping
+                    setPurchasedItem({
+                      id: productId,
+                      category: selectedCategory,
+                      svgUrl: items.find(it => it.id === selectedItem.id)?.svgUrl,
+                      backUrl: items.find(it => it.id === selectedItem.id)?.backUrl,
+                    });
+
+                    // Show success modal with equip options
+                    setShowSuccess(true);
+                    // Do NOT auto-close anymore, wait for user choice
+
                     closeModal();
                   } else if (result.status === 'already_owned') {
                     await (refreshCoins?.());
@@ -510,6 +523,59 @@ export default function StoreScreen() {
         </View>
       </Modal>
       <TutorialOverlay />
+      
+      {showSuccess && (
+        <FadeInView style={styles.successOverlay} duration={300}>
+          <View style={styles.successCard}>
+             <View style={styles.successIconCircle}>
+                <CheckCircle size={40} color="#fff" weight="fill" />
+             </View>
+             <Text style={[styles.successText, fontsLoaded ? { fontFamily: 'Digitalt' } : null]}>¡COMPRA EXITOSA!</Text>
+             
+             <View style={styles.equipButtonsRow}>
+               <TouchableOpacity 
+                 activeOpacity={0.8}
+                 disabled={isEquipping}
+                 style={[styles.equipButton, styles.equipNowButton]}
+                 onPress={async () => {
+                   if (!purchasedItem) return;
+                   setIsEquipping(true);
+                   try {
+                     const newAvatar = { ...userAvatar };
+                     (newAvatar as any)[`${purchasedItem.category}_asset`] = purchasedItem.svgUrl;
+                     if (purchasedItem.category === 'hair') {
+                       (newAvatar as any)[`${purchasedItem.category}_back_asset`] = purchasedItem.backUrl;
+                     }
+                     await updateAvatar(newAvatar);
+                     setShowSuccess(false);
+                     setPurchasedItem(null);
+                   } catch (err) {
+                     console.error("Error equipping:", err);
+                   } finally {
+                     setIsEquipping(false);
+                   }
+                 }}
+               >
+                 <Text style={styles.equipButtonText}>
+                   {isEquipping ? 'EQUIPANDO...' : 'EQUIPAR AHORA'}
+                 </Text>
+               </TouchableOpacity>
+
+               <TouchableOpacity 
+                 activeOpacity={0.8}
+                 disabled={isEquipping}
+                 style={[styles.equipButton, styles.equipLaterButton]}
+                 onPress={() => {
+                   setShowSuccess(false);
+                   setPurchasedItem(null);
+                 }}
+               >
+                 <Text style={styles.equipButtonText}>DESPUÉS</Text>
+               </TouchableOpacity>
+             </View>
+          </View>
+        </FadeInView>
+      )}
     </View>
   );
 }
@@ -843,6 +909,69 @@ const styles = StyleSheet.create({
   spotlightSweep: {
     ...StyleSheet.absoluteFillObject,
     opacity: 0.3,
+  },
+  successOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  successCard: {
+    backgroundColor: '#22C55E',
+    paddingVertical: 30,
+    paddingHorizontal: 40,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 4,
+    borderColor: '#4ADE80',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  successIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 15,
+  },
+  successText: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    marginBottom: 20,
+  },
+  equipButtonsRow: {
+    flexDirection: 'column',
+    gap: 12,
+    width: '100%',
+    alignItems: 'center',
+  },
+  equipButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    minWidth: 180,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  equipNowButton: {
+    backgroundColor: '#fff',
+  },
+  equipLaterButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  equipButtonText: {
+    color: '#10B981',
+    fontWeight: '900',
+    fontSize: 16,
   },
 });
 
