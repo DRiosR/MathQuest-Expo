@@ -12,6 +12,7 @@ export type StoreItem = {
   svgUrl: string | null;
   // The SVG/PNG URL for back layer (mapped from DB's imagen_atras)
   backUrl: string | null;
+  rarity: string | null;
 };
 
 export function useItemStore() {
@@ -28,6 +29,7 @@ export function useItemStore() {
       storeImage: row.imagen_tienda ?? null,
       svgUrl: row.imagen ?? null,
       backUrl: row.imagen_atras ?? null,
+      rarity: row.calidad ?? 'comun',
     };
   }, []);
 

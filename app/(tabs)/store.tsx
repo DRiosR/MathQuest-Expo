@@ -185,8 +185,19 @@ export default function StoreScreen() {
         svgUrl: it.svgUrl,
         backUrl: it.backUrl,
         SvgComp: undefined,
+        rarity: it.rarity,
       }));
   }, [allItems, selectedCategory]);
+
+  const getRarityColor = (rarity: string | null) => {
+    switch (rarity) {
+      case 'comun': return '#94A3B8';
+      case 'raro': return '#22C55E';
+      case 'epico': return '#9333EA';
+      case 'legendario': return '#F59E0B';
+      default: return '#B35BDC';
+    }
+  };
 
 
   const closeModal = () => {
@@ -208,7 +219,7 @@ export default function StoreScreen() {
     }
   }, [refreshCoins, setCoins]);
 
-    const renderItem = ({ item, index }: { item: { id: string; SvgComp: any; price: number; thumbnail?: any; svgUrl: string | null }, index: number }) => {
+    const renderItem = ({ item, index }: { item: { id: string; SvgComp: any; price: number; thumbnail?: any; svgUrl: string | null; rarity: string | null }, index: number }) => {
       const CategoryIcon = categories.find(c => c.key === selectedCategory)?.Icon || EyeIcon;
       const SvgIcon = item.SvgComp;
       const imgSource = item.thumbnail;
@@ -250,6 +261,24 @@ export default function StoreScreen() {
             overflow: 'hidden',
           }}
         >
+        <View style={[
+          styles.rarityBadge,
+          item.rarity === 'legendario' && styles.rarityBadgeLegendary,
+          item.rarity === 'epico' && styles.rarityBadgeEpic,
+          item.rarity === 'raro' && styles.rarityBadgeRaro,
+          item.rarity === 'comun' && styles.rarityBadgeComun
+        ]}>
+          <Text style={[
+            styles.rarityBadgeText, 
+            fontsLoaded ? { fontFamily: 'Digitalt' } : null,
+            item.rarity === 'legendario' && styles.rarityBadgeTextLegendary,
+            item.rarity === 'epico' && styles.rarityBadgeTextEpic,
+            item.rarity === 'raro' && styles.rarityBadgeTextRaro,
+            item.rarity === 'comun' && styles.rarityBadgeTextComun
+          ]}>
+            {item.rarity?.toUpperCase()}
+          </Text>
+        </View>
         <View pointerEvents="none" style={[styles.cardInnerStroke, { borderRadius: CARD_RADIUS }]} />
         <View style={styles.cardIconWrap}>
           <CategoryIcon size={14} color="#B08AFD" weight="fill" />
@@ -966,6 +995,67 @@ const styles = StyleSheet.create({
     color: '#10B981',
     fontWeight: '900',
     fontSize: 16,
+  },
+  rarityBadge: {
+    position: 'absolute',
+    top: 12,
+    right: -25,
+    width: 100,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    transform: [{ rotate: '45deg' }],
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+    zIndex: 10,
+  },
+  rarityBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  rarityBadgeLegendary: {
+    backgroundColor: '#FFD700',
+    borderWidth: 1,
+    borderColor: '#fff',
+    shadowColor: '#FFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  rarityBadgeTextLegendary: {
+    color: '#000',
+    textShadowColor: 'rgba(255, 255, 255, 0.8)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 4,
+  },
+  rarityBadgeEpic: {
+    backgroundColor: '#D000FF', // Neon Purple
+    borderWidth: 1,
+    borderColor: '#fff',
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 5,
+    elevation: 6,
+  },
+  rarityBadgeTextEpic: {
+    color: '#fff',
+    textShadowColor: 'rgba(255, 255, 255, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 3,
+  },
+  rarityBadgeRaro: {
+    backgroundColor: '#22C55E',
+  },
+  rarityBadgeTextRaro: {
+    color: '#fff',
+  },
+  rarityBadgeComun: {
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  rarityBadgeTextComun: {
+    color: 'rgba(255,255,255,0.7)',
   },
 });
 
