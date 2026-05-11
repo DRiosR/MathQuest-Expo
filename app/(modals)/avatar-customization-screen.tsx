@@ -232,6 +232,7 @@ export default function AvatarCustomizationScreen() {
         break;
       case 'clothes':
         updatedAvatar.clothes_asset = assetKey;
+        updatedAvatar.clothes_back_asset = backUrl;
         break;
     }
 
@@ -361,6 +362,7 @@ export default function AvatarCustomizationScreen() {
                 eyes_asset: resolveToRemoteUrl('eyes', draftAvatar.eyes_asset) as any,
                 mouth_asset: resolveToRemoteUrl('mouth', draftAvatar.mouth_asset) as any,
                 clothes_asset: resolveToRemoteUrl('clothes', draftAvatar.clothes_asset) as any,
+                clothes_back_asset: draftAvatar.clothes_back_asset,
               }}
               size={200}
               style={styles.avatar}
@@ -670,7 +672,8 @@ const styles = StyleSheet.create({
   assetsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
+    gap: 10,
     paddingBottom: 30,
   },
   assetOption: {

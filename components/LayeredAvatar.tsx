@@ -134,6 +134,9 @@ export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
       {/* 1. Hair Back - Unclipped */}
       {renderLayer('hair_back', avatar.hair_back_asset)}
 
+      {/* 1.5 Clothes Back - Unclipped (for capes/jackets) */}
+      {renderLayer('clothes_back', (avatar as any).clothes_back_asset)}
+
       {/* 2. Body Layers - Internally Clipped */}
       <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden', alignItems: 'center', justifyContent: 'flex-end' }}>
         {renderLayer('skin', avatar.skin_asset)}

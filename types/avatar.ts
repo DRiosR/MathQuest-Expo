@@ -5,6 +5,7 @@ export type Avatar = {
     eyes_asset: string; 
     mouth_asset?: string; //can be null
     clothes_asset: string;
+    clothes_back_asset?: string; // layer behind the skin
 };
 
 export type AvatarAssets = {

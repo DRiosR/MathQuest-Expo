@@ -80,7 +80,6 @@ export default function StoreScreen() {
   // Trigger bounce when preview changes manually
   const updatePreview = (newAvatar: any) => {
     setPreviewAvatar(newAvatar);
-    triggerBounce();
   };
 
   const [selectedCategory, setSelectedCategory] = React.useState<
@@ -347,11 +346,6 @@ export default function StoreScreen() {
                   size={AVATAR_IMAGE_SIZE}
                   scale={0.8}
                 />
-                <LinearGradient 
-                  colors={['transparent', 'rgba(255,255,255,0.4)', 'transparent']} 
-                  start={{x:0, y:0}} end={{x:1, y:1}}
-                  style={[styles.spotlightSweep, { borderRadius: AVATAR_CIRCLE_SIZE / 2 }]}
-                />
               </Animated.View>
           </View>
 
@@ -543,7 +537,7 @@ export default function StoreScreen() {
                    try {
                      const newAvatar = { ...userAvatar };
                      (newAvatar as any)[`${purchasedItem.category}_asset`] = purchasedItem.svgUrl;
-                     if (purchasedItem.category === 'hair') {
+                     if (purchasedItem.category === 'hair' || purchasedItem.category === 'clothes') {
                        (newAvatar as any)[`${purchasedItem.category}_back_asset`] = purchasedItem.backUrl;
                      }
                      await updateAvatar(newAvatar);
