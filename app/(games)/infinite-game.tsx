@@ -15,7 +15,8 @@ import {
   TextInput,
   TouchableOpacity,
   Vibration,
-  View
+  View,
+  Easing
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -26,6 +27,7 @@ import { useAvatar } from '@/contexts/AvatarContext';
 import { useFontContext } from '@/contexts/FontsContext';
 import { useOfflineStorage } from '@/contexts/OfflineStorageContext';
 import { TUTORIAL_STEPS, useTutorial } from '@/contexts/TutorialContext';
+import { updateUserStreak } from '@/services/SupabaseService';
 import {
   generateQuestion,
   getDifficultyFromScore,
@@ -34,7 +36,7 @@ import {
 
 const { width, height } = Dimensions.get('window');
 const isSmallScreen = height < 750;
-const scaleFactor = isSmallScreen ? 0.9 : 1.1; // Increased scale factor for better visibility
+const scaleFactor = isSmallScreen ? 0.82 : 1.0; // Adjusted for better fit on all devices
 
 // Mascot animations
 const mascotAnimations = {
@@ -123,14 +125,66 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
   const lastEnsureKeyRef = useRef<string | null>(null);
   const [sectionLayout, setSectionLayout] = useState<Record<string, { y: number; h: number }>>({});
 
+  // Game state
+  const [gameMode, setGameMode] = useState<GameMode | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState('Suma');
+  const [selectedDifficulty, setSelectedDifficulty] = useState(1);
+  const [currentDifficulty, setCurrentDifficulty] = useState(1);
+  const [selectedTime, setSelectedTime] = useState<number | null>(0.5);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [score, setScore] = useState(0);
+  const [wrongAnswers, setWrongAnswers] = useState(0);
+  const [currentQuestion, setCurrentQuestion] = useState<any>(null);
+  const [userAnswer, setUserAnswer] = useState('');
+  const [isGameActive, setIsGameActive] = useState(false);
+  const [gameEnded, setGameEnded] = useState(false);
+  const [questionsAnswered, setQuestionsAnswered] = useState(0);
+  const [answerHistory, setAnswerHistory] = useState<Array<{
+    question: string;
+    userAnswer: string;
+    correctAnswer: number;
+    isCorrect: boolean;
+    timestamp: number;
+  }>>([]);
+  const [correctFlash, setCorrectFlash] = useState(false);
+  const [incorrectFlash, setIncorrectFlash] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  
+  // Leaderboard modal
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showGameOverModal, setShowGameOverModal] = useState(false);
+  
+  // Alias input for game end
+  const [aliasInput, setAliasInput] = useState('');
+  const [isExiting, setIsExiting] = useState(false);
+  const [gameOverStats, setGameOverStats] = useState({ score: 0, questionsAnswered: 0, accuracy: 0 });
+
+  // Countdown state
+  const [countdown, setCountdown] = useState(3);
+  const [isCountingDown, setIsCountingDown] = useState(false);
+  const countdownScale = useRef(new Animated.Value(1)).current;
+  const countdownOpacity = useRef(new Animated.Value(1)).current;
+
+  // Animations
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+  const flashOpacity = useRef(new Animated.Value(0)).current;
+
+  // Timer ref
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Refs to track current score for endGame
+  const scoreRef = useRef(0);
+  const questionsAnsweredRef = useRef(0);
+
   const measureRef = (
     id: string,
-    ref: React.RefObject<View>,
+    ref: React.RefObject<any>,
     radius: number,
     padding: number = 10
   ) => {
     if (!ref.current) return;
-    ref.current.measure((x, y, w, h, pageX, pageY) => {
+    ref.current.measure((x: any, y: any, w: any, h: any, pageX: any, pageY: any) => {
       const pad = Math.max(0, padding);
       const sx = Math.max(pageX - pad, 0);
       const sy = Math.max(pageY - pad, 0);
@@ -147,7 +201,7 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
     });
   };
 
-  const getSectionRef = (id: string): React.RefObject<View> | null => {
+  const getSectionRef = (id: string): React.RefObject<any> | null => {
     switch (id) {
       case 'infinite_operation': return operationSectionRef;
       case 'infinite_time': return timeSectionRef;
@@ -236,56 +290,7 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
     return () => clearTimeout(t);
   }, [isVisible, currentStepIndex, gameMode, scrollViewportH, sectionLayout]);
 
-  // Game state
-  const [gameMode, setGameMode] = useState<GameMode | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState('Suma');
-  const [selectedDifficulty, setSelectedDifficulty] = useState(1);
-  const [currentDifficulty, setCurrentDifficulty] = useState(1);
-  const [selectedTime, setSelectedTime] = useState<number | null>(null);
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [score, setScore] = useState(0);
-  const [wrongAnswers, setWrongAnswers] = useState(0);
-  const [currentQuestion, setCurrentQuestion] = useState<any>(null);
-  const [userAnswer, setUserAnswer] = useState('');
-  const [isGameActive, setIsGameActive] = useState(false);
-  const [gameEnded, setGameEnded] = useState(false);
-  const [questionsAnswered, setQuestionsAnswered] = useState(0);
-  const [answerHistory, setAnswerHistory] = useState<Array<{
-    question: string;
-    userAnswer: string;
-    correctAnswer: number;
-    isCorrect: boolean;
-    timestamp: number;
-  }>>([]);
-  const [correctFlash, setCorrectFlash] = useState(false);
-  const [incorrectFlash, setIncorrectFlash] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  
-  // Leaderboard modal
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const [showGameOverModal, setShowGameOverModal] = useState(false);
-  
-  // Alias input for game end
-  const [aliasInput, setAliasInput] = useState('');
-  const [gameOverStats, setGameOverStats] = useState({ score: 0, questionsAnswered: 0, accuracy: 0 });
 
-  // Countdown state
-  const [countdown, setCountdown] = useState(3);
-  const [isCountingDown, setIsCountingDown] = useState(false);
-  const countdownScale = useRef(new Animated.Value(1)).current;
-  const countdownOpacity = useRef(new Animated.Value(1)).current;
-
-  // Animations
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const shakeAnim = useRef(new Animated.Value(0)).current;
-  const flashOpacity = useRef(new Animated.Value(0)).current;
-
-  // Timer ref
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Refs to track current score for endGame
-  const scoreRef = useRef(0);
-  const questionsAnsweredRef = useRef(0);
 
   useEffect(() => {
     return () => {
@@ -335,11 +340,15 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
     
     setTimeLeft(mode * 60); // Convert minutes to seconds
     setScore(0);
+    scoreRef.current = 0;
     setWrongAnswers(0);
     setQuestionsAnswered(0);
+    questionsAnsweredRef.current = 0;
+    setAnswerHistory([]);
     setUserAnswer('');
     setGameEnded(false);
     setIsGameActive(true);
+    setShowGameOverModal(false);
     
     // Reset visual feedback
     setCorrectFlash(false);
@@ -586,19 +595,25 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
 
   const saveGameScore = async () => {
     if (user && gameMode) {
-      await addHighScore({
-        score: scoreRef.current,
-        mode: gameMode as any,
-        username: user.username || aliasInput || 'Invitado',
-        questionsAnswered: questionsAnsweredRef.current,
-        accuracy: questionsAnsweredRef.current > 0 ? (scoreRef.current / questionsAnsweredRef.current) * 100 : 0,
-        category: selectedCategory,
-        difficulty: selectedDifficulty
-      });
+      try {
+        await addHighScore({
+          score: scoreRef.current,
+          mode: gameMode as any,
+          username: user.username || aliasInput || 'Invitado',
+          questionsAnswered: questionsAnsweredRef.current,
+          accuracy: questionsAnsweredRef.current > 0 ? (scoreRef.current / questionsAnsweredRef.current) * 100 : 0,
+          category: selectedCategory,
+          difficulty: selectedDifficulty
+        });
+        
+        await updateUserStreak();
+      } catch (err) {
+        console.error("Error saving score/streak:", err);
+      }
     }
 
-    // Reset and close modal
-    setShowGameOverModal(false);
+    // Reset for next game
+    // Note: We don't close modal here, we wait for user to press "SALIR" or "REINTENTAR"
   };
 
   const formatTime = (seconds: number) => {
@@ -656,9 +671,9 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
 
           {/* Center title */}
           <View style={styles.titleWrap}>
-            <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>MODO INFINITO</Text>
-            <Text style={[styles.subtitle, { fontFamily: 'Gilroy-Black' }]}>
-              Responde tantas preguntas como puedas antes de que se acabe el tiempo o cometas 3 errores
+            <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>DESAFÍO INFINITO</Text>
+            <Text style={[styles.subtitle, { fontFamily: 'Gilroy-Medium' }]}>
+              ¿Cuántas podrás resolver en {selectedTime ? selectedTime * 60 : 30} segundos?
             </Text>
           </View>
 
@@ -690,7 +705,6 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
             contentContainerStyle={styles.selectionContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* 1. Categorías */}
             <View
               ref={operationSectionRef}
               onLayout={() => setTimeout(() => measureRef('infinite_operation', operationSectionRef, 26, 10), 250)}
@@ -700,19 +714,16 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
                 {CATEGORIES.map((cat) => (
                   <TouchableOpacity
                     key={cat.id}
-                    onPress={() => setSelectedCategory(cat.id)}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedCategory(cat.id);
+                    }}
                     style={styles.categoryCardWrapper}
                   >
-                    <LinearGradient
-                      colors={selectedCategory === cat.id 
-                        ? [cat.colors[0] + '66', cat.colors[1] + '44'] 
-                        : ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']
-                      }
-                      style={[
-                        styles.categoryCard,
-                        selectedCategory === cat.id && { borderColor: cat.colors[0], borderWidth: 2.5 }
-                      ]}
-                    >
+                    <View style={[
+                      styles.categoryCard,
+                      selectedCategory === cat.id && { borderColor: cat.colors[0], backgroundColor: 'rgba(255,255,255,0.15)' }
+                    ]}>
                       <View style={styles.mascotContainer}>
                         {cat.lottie ? (
                           <LottieView
@@ -722,11 +733,15 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
                             style={styles.categoryMascot}
                           />
                         ) : (
-                          <FontAwesome5 name={cat.icon} size={30 * scaleFactor} color={selectedCategory === cat.id ? "#fff" : "#a855f7"} />
+                          <FontAwesome5 name={cat.icon} size={30 * scaleFactor} color={selectedCategory === cat.id ? "#fff" : "#A78BFA"} />
                         )}
                       </View>
-                      <Text style={[styles.categoryName, { fontFamily: 'Gilroy-Black' }]}>{cat.name}</Text>
-                    </LinearGradient>
+                      <Text style={[
+                        styles.categoryName, 
+                        { fontFamily: 'Digitalt' },
+                        selectedCategory === cat.id && { color: '#fff' }
+                      ]}>{cat.name}</Text>
+                    </View>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -794,18 +809,18 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
               }}
             >
               <TouchableOpacity
-                style={[styles.mainStartButton, (!selectedTime) && styles.mainStartButtonDisabled]}
+                style={styles.mainStartButton}
                 onPress={() => selectedTime && startGame(selectedTime)}
-                disabled={!selectedTime}
+                activeOpacity={0.8}
               >
                 <LinearGradient
-                  colors={['#FFA65A', '#FF5EA3']}
+                  colors={['#22C55E', '#16A34A']}
                   style={styles.mainStartButtonGradient}
                 >
                   <Text style={[styles.mainStartButtonText, { fontFamily: 'Digitalt' }]}>
-                  {selectedTime ? '¡EMPEZAR DESAFÍO!' : 'ELIGE TIEMPO PARA JUGAR'}
+                    ¡COMENZAR!
                   </Text>
-                  <FontAwesome5 name="play" size={18} color="#fff" />
+                  <FontAwesome5 name="rocket" size={20} color="#fff" />
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -995,12 +1010,20 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
                           styles.numpadButton,
                           isDisabledNegative && { opacity: 0.3 }
                         ]}
-                        onPress={() => !isDisabledNegative && handleNumpadPress(val)}
+                        onPress={() => {
+                          if (!isDisabledNegative) {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            handleNumpadPress(val);
+                          }
+                        }}
                         disabled={isDisabledNegative}
                       >
-                        <Text style={[styles.numpadButtonText, { fontFamily: 'Digitalt' }]}>
-                          {val}
-                        </Text>
+                        <View style={styles.numpadButtonInner}>
+                          <Text style={[styles.numpadButtonText, { fontFamily: 'Digitalt' }]}>
+                            {val}
+                          </Text>
+                        </View>
+                        <View style={styles.numpadButtonShadow} />
                       </TouchableOpacity>
                     );
                   })}
@@ -1069,6 +1092,7 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
                 </Text>
               </View>
             </View>
+            
 
             <View style={styles.gameOverButtons}>
               
@@ -1235,40 +1259,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  gameMainWrapper: {
-    flex: 1,
-    paddingHorizontal: 15,
-  },
-  gameQuestionSection: {
-    flex: 0.4, // 40% del espacio para mascota + pregunta
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  gameAnswerSection: {
-    flex: 0.15, // 15% del espacio para la respuesta
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  gameControlsSection: {
-    flex: 0.45, // 45% del espacio para teclado y botón
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-  },
   title: {
     color: '#fff',
-    fontSize: 32,
-    fontWeight: 'bold',
-    letterSpacing: 1.5,
+    fontSize: 34,
+    letterSpacing: 2,
     textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 4 },
+    textShadowRadius: 6,
   },
   subtitle: {
-    color: '#fff',
+    color: 'rgba(255,255,255,0.9)',
     fontSize: 16,
-    fontWeight: 'normal',
-    letterSpacing: 0.5,
     textAlign: 'center',
-    opacity: 0.9,
-    marginTop: 8,
+    marginTop: 10,
+    paddingHorizontal: 20,
+    lineHeight: 22,
   },
   topBar: {
     paddingHorizontal: 20,
@@ -1302,7 +1308,7 @@ const styles = StyleSheet.create({
   },
   countdownText: {
     color: '#FFD616',
-    fontSize: 150,
+    fontSize: 120 * scaleFactor,
     fontWeight: 'bold',
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: { width: 4, height: 4 },
@@ -1346,29 +1352,26 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    borderRadius: 20,
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 20 * scaleFactor,
+    paddingVertical: isSmallScreen ? 10 : 14,
+    paddingHorizontal: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   statBox: {
     alignItems: 'center',
   },
   statLabel: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-    opacity: 0.8,
+    color: '#E0E7FF',
+    fontSize: 10,
+    letterSpacing: 1.5,
+    marginBottom: 4,
   },
   statValue: {
     color: '#fff',
-    fontSize: 20, // Reducido ligeramente
-    fontWeight: 'bold',
+    fontSize: 22,
     letterSpacing: 1,
-    marginTop: 2,
   },
   questionAreaWrapper: {
     alignItems: 'center',
@@ -1381,15 +1384,40 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: 10,
     position: 'absolute',
-    top: isSmallScreen ? 35 : 45, // Más integradas en el rectángulo
+    top: isSmallScreen ? 20 : 35, // More integrated into the card for all screens
     left: 0,
     right: 0,
     zIndex: 10,
   },
   mascotWrapper: {
-    width: (width / 4 - 15) * scaleFactor, 
-    height: 70 * scaleFactor, 
+    width: (width / 5) * scaleFactor, 
+    height: 60 * scaleFactor, 
     marginHorizontal: 1,
+  },
+  gameMainWrapper: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'space-between',
+    paddingBottom: 15 * scaleFactor,
+  },
+  gameQuestionSection: {
+    flex: 1.1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 10,
+  },
+  gameAnswerSection: {
+    flex: 0.5,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gameControlsSection: {
+    flex: 1.8,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   mascotAnimation: {
     width: '100%',
@@ -1400,12 +1428,12 @@ const styles = StyleSheet.create({
     paddingTop: isSmallScreen ? 15 : 25, // Menos espacio arriba para que las mascotas toquen la tarjeta
   },
   questionBox: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 15,
-    paddingVertical: 12 * scaleFactor, 
-    paddingHorizontal: 20 * scaleFactor,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 32,
+    paddingVertical: 24 * scaleFactor, 
+    paddingHorizontal: 32 * scaleFactor,
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 4,
     borderColor: 'rgba(255,255,255,0.2)',
   },
   categoryText: {
@@ -1424,18 +1452,22 @@ const styles = StyleSheet.create({
   },
   answerDisplay: {
     backgroundColor: '#fff',
-    borderRadius: 25,
+    borderRadius: 22 * scaleFactor,
     paddingVertical: 8 * scaleFactor,
     paddingHorizontal: 30 * scaleFactor,
-    width: '80%',
+    width: '85%',
     alignItems: 'center',
-    marginVertical: 5 * scaleFactor,
+    marginVertical: 10 * scaleFactor,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
   answerText: {
-    color: '#1f2937',
-    fontSize: 32 * scaleFactor,
-    fontWeight: 'bold',
-    letterSpacing: 2,
+    color: '#1E1B4B',
+    fontSize: 38 * scaleFactor,
+    letterSpacing: 3,
   },
   answerTextEmpty: {
     color: '#9ca3af',
@@ -1451,27 +1483,49 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     marginBottom: 10,
-    gap: 12,
+    gap: 10,
   },
   numpadButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 15,
     width: width * 0.22,
-    height: 40 * scaleFactor, 
+    height: 50 * scaleFactor,
+    position: 'relative',
+  },
+  numpadButtonInner: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 18,
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    zIndex: 2,
+  },
+  numpadButtonShadow: {
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: 18,
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+    bottom: -4,
+    left: 0,
+    zIndex: 1,
   },
   numpadButtonText: {
     color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
   },
   submitButton: {
     width: '85%',
-    height: 50 * scaleFactor,
-    borderRadius: 25,
+    height: 54 * scaleFactor,
+    borderRadius: 18,
     overflow: 'hidden',
-    marginTop: 10 * scaleFactor,
+    marginTop: 20 * scaleFactor,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   submitButtonDisabled: {
     opacity: 0.5,
@@ -1483,9 +1537,8 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    letterSpacing: 1,
+    fontSize: 22,
+    letterSpacing: 2,
   },
   // Leaderboard Button Styles
   leaderboardButton: {
@@ -1718,8 +1771,8 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   selectionContent: {
-    paddingBottom: 40,
-    paddingHorizontal: 20,
+    paddingBottom: 30,
+    paddingHorizontal: 16,
   },
   selectionTitle: {
     color: '#fff',
@@ -1741,8 +1794,8 @@ const styles = StyleSheet.create({
   },
   categoryCard: {
     width: '100%',
-    borderRadius: 24 * scaleFactor,
-    padding: 12 * scaleFactor,
+    borderRadius: 20 * scaleFactor,
+    padding: 10 * scaleFactor,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.05)',

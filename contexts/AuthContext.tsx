@@ -150,19 +150,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signUp = async (data: SignUpData) => {
     try {
-      setLoading(true);
+      // Usamos una carga local o simplemente evitamos que el loading global
+      // afecte al AuthGuard de forma agresiva
       const result = await AuthService.signUp(data);
       
       // Si el registro fue exitoso, inicializamos el inventario con items base
       if (result.user?.id) {
         await initializeUserInventory(result.user.id);
+        setUser(result.user); // Establecemos el usuario localmente
       }
       
       return result;
     } catch (error) {
+      console.error('Error in signUp context:', error);
       return { user: null, error };
     } finally {
-      setLoading(false);
+      // No tocamos setLoading(false) aquí si no es necesario,
+      // el AuthGuard ya lo maneja por el estado del usuario.
     }
   };
 

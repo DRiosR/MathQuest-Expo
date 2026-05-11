@@ -1,12 +1,9 @@
 // contexts/FontContext.tsx
 import { useFonts } from 'expo-font';
-import * as SplashScreen from 'expo-splash-screen';
 import React, { createContext, useContext, useEffect } from 'react';
 
 const FontContext = createContext({ fontsLoaded: false });
 
-// Prevent the splash screen from auto-hiding
-SplashScreen.preventAutoHideAsync();
 
 export function FontProvider({ children }: { children: React.ReactNode }) {
   const [fontsLoaded] = useFonts({
@@ -16,9 +13,7 @@ export function FontProvider({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
-    if (fontsLoaded) {
-      SplashScreen.hideAsync();
-    }
+    // Fonts are loaded, the root layout will handle splash screen hiding
   }, [fontsLoaded]);
 
   if (!fontsLoaded) return null;

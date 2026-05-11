@@ -11,6 +11,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import LottieView from 'lottie-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, LogBox } from 'react-native';
+import StreakWarningModal from '@/components/StreakWarningModal';
 
 // Ignorar errores ruidosos que no son fatales (como el refresh token de Supabase al iniciar)
 LogBox.ignoreLogs([
@@ -61,6 +62,7 @@ export default function RootLayout() {
                 <TutorialProvider>
                   <>
                     <Slot />
+                    <StreakWarningModal />
                     {showSplash && (
                       <Animated.View style={[StyleSheet.absoluteFill, styles.splashOverlay, { opacity: splashOpacity }]}>
                         <LottieView

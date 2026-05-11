@@ -8,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +18,7 @@ import { AuthInput } from '@/components/ui/AuthInput';
 import { LogoHeader } from '@/components/ui/LogoHeader';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFontContext } from '@/contexts/FontsContext';
+import AuthService from '@/Core/Services/AuthService/AuthService';
 
   export default function SignUpScreen() {
   const { fontsLoaded } = useFontContext();
@@ -38,7 +40,6 @@ import { useFontContext } from '@/contexts/FontsContext';
     password: '',
     confirmPassword: '',
   });
-  
   const [errors, setErrors] = useState<{
     username?: string;
     email?: string;
@@ -46,6 +47,9 @@ import { useFontContext } from '@/contexts/FontsContext';
     confirmPassword?: string;
     general?: string;
   }>({});
+  
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [checkingUsername, setCheckingUsername] = useState(false);
 
   const validateForm = () => {
     const newErrors: typeof errors = {};
@@ -91,8 +95,26 @@ import { useFontContext } from '@/contexts/FontsContext';
       });
 
       if (error) {
-        setErrors({ general: error.message });
-        Alert.alert('Error', error.message);
+        console.log('Signup error detected:', error);
+        // Manejar errores específicos de Supabase
+        const errorMessage = error.message?.toLowerCase() || '';
+        
+        if (errorMessage.includes('already registered') || errorMessage.includes('already in use')) {
+          setErrors({ email: 'Este correo ya está en uso. Prueba con otro.' });
+        } else if (errorMessage.includes('username_key') || errorMessage.includes('username') || errorMessage.includes('database error')) {
+          // El error de "Database error saving new user" suele ser por nombre de usuario repetido
+          setErrors({ username: 'Este nombre de usuario ya está tomado o hay un problema con los datos.' });
+          
+          // Buscar sugerencias disponibles de todos modos
+          try {
+            const list = await AuthService.getUsernameSuggestions(formData.username);
+            setSuggestions(list);
+          } catch (e) {
+            console.error('Error fetching suggestions:', e);
+          }
+        } else {
+          setErrors({ general: 'Hubo un problema al crear tu cuenta. Revisa que el correo y usuario sean nuevos.' });
+        }
       } else if (user) {
         Alert.alert(
           '¡Cuenta creada!',
@@ -105,9 +127,8 @@ import { useFontContext } from '@/contexts/FontsContext';
           ]
         );
       }
-    } catch (error) {
+    } catch (error: any) {
       setErrors({ general: 'Error inesperado. Intenta de nuevo.' });
-      Alert.alert('Error', 'Error inesperado. Intenta de nuevo.');
     }
   };
 
@@ -161,6 +182,31 @@ import { useFontContext } from '@/contexts/FontsContext';
                 autoCorrect={false}
                 error={errors.username}
               />
+
+              {suggestions.length > 0 && errors.username && (
+                <View style={styles.suggestionsContainer}>
+                  <Text style={[styles.suggestionLabel, { fontFamily: 'Gilroy-Black' }]}>
+                    ¿Qué tal alguno de estos?
+                  </Text>
+                  <View style={styles.suggestionsList}>
+                    {suggestions.map((s, idx) => (
+                      <TouchableOpacity 
+                        key={idx} 
+                        style={styles.suggestionChip}
+                        onPress={() => {
+                          setFormData({ ...formData, username: s });
+                          setErrors({ ...errors, username: undefined });
+                          setSuggestions([]);
+                        }}
+                      >
+                        <Text style={[styles.suggestionText, { fontFamily: 'Digitalt' }]}>
+                          {s}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
 
               <AuthInput
                 icon="user"
@@ -311,5 +357,32 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     marginBottom: 20,
+  },
+  suggestionsContainer: {
+    marginTop: -10,
+    marginBottom: 20,
+    paddingHorizontal: 10,
+  },
+  suggestionLabel: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 12,
+    marginBottom: 8,
+  },
+  suggestionsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  suggestionChip: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  suggestionText: {
+    color: '#fff',
+    fontSize: 14,
   },
 });

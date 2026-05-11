@@ -20,6 +20,8 @@ export type UserStats = {
   losses: number;
   globalPoints: number;
   recentMatch: MatchRow | null;
+  streakCount: number;
+  lastStreakDate: string | null;
 };
 
 const supabase = AuthService.getClient();
@@ -34,6 +36,7 @@ export type AvatarRow = {
   eyes_asset: string;
   mouth_asset: string | null;
   clothes_asset: string;
+  clothes_back_asset: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -48,7 +51,7 @@ export async function getCurrentUserAvatar(): Promise<Avatar | null> {
     if (!userId) return null;
     const { data, error } = await supabase
       .from('avatars')
-      .select('profile_id, skin_asset, hair_asset, hair_back_asset, eyes_asset, mouth_asset, clothes_asset')
+      .select('profile_id, skin_asset, hair_asset, hair_back_asset, eyes_asset, mouth_asset, clothes_asset, clothes_back_asset')
       .eq('profile_id', userId)
       .maybeSingle();
     if (error) throw error;
@@ -60,6 +63,7 @@ export async function getCurrentUserAvatar(): Promise<Avatar | null> {
       eyes_asset: data.eyes_asset as string,
       mouth_asset: (data.mouth_asset as string | null) ?? undefined,
       clothes_asset: data.clothes_asset as string,
+      clothes_back_asset: (data.clothes_back_asset as string | null) ?? undefined,
     };
   } catch (e) {
     console.error('Error fetching current user avatar:', e);
@@ -94,6 +98,7 @@ export async function upsertCurrentUserAvatar(avatar: Avatar): Promise<Avatar | 
           eyes_asset: avatar.eyes_asset,
           mouth_asset: avatar.mouth_asset ?? null,
           clothes_asset: avatar.clothes_asset,
+          clothes_back_asset: avatar.clothes_back_asset ?? null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', existing.id);
@@ -109,6 +114,7 @@ export async function upsertCurrentUserAvatar(avatar: Avatar): Promise<Avatar | 
           eyes_asset: avatar.eyes_asset,
           mouth_asset: avatar.mouth_asset ?? null,
           clothes_asset: avatar.clothes_asset,
+          clothes_back_asset: avatar.clothes_back_asset ?? null,
         });
       if (insertError) throw insertError;
     }
@@ -126,7 +132,7 @@ export async function getUserAvatar(profileId: string): Promise<Avatar | null> {
   try {
     const { data, error } = await supabase
       .from('avatars')
-      .select('profile_id, skin_asset, hair_asset, hair_back_asset, eyes_asset, mouth_asset, clothes_asset')
+      .select('profile_id, skin_asset, hair_asset, hair_back_asset, eyes_asset, mouth_asset, clothes_asset, clothes_back_asset')
       .eq('profile_id', profileId)
       .maybeSingle();
     if (error) throw error;
@@ -138,6 +144,7 @@ export async function getUserAvatar(profileId: string): Promise<Avatar | null> {
       eyes_asset: data.eyes_asset as string,
       mouth_asset: (data.mouth_asset as string | null) ?? undefined,
       clothes_asset: data.clothes_asset as string,
+      clothes_back_asset: (data.clothes_back_asset as string | null) ?? undefined,
     };
   } catch (e) {
     console.error('Error fetching user avatar:', e);
@@ -154,7 +161,7 @@ export async function getAvatarsForProfileIds(profileIds: string[]): Promise<Rec
   try {
     const { data, error } = await supabase
       .from('avatars')
-      .select('profile_id, skin_asset, hair_asset, hair_back_asset, eyes_asset, mouth_asset, clothes_asset')
+      .select('profile_id, skin_asset, hair_asset, hair_back_asset, eyes_asset, mouth_asset, clothes_asset, clothes_back_asset')
       .in('profile_id', uniqueIds);
     if (error) throw error;
     const result: Record<string, Avatar> = {};
@@ -166,6 +173,7 @@ export async function getAvatarsForProfileIds(profileIds: string[]): Promise<Rec
         eyes_asset: row.eyes_asset as string,
         mouth_asset: (row.mouth_asset as string | null) ?? undefined,
         clothes_asset: row.clothes_asset as string,
+        clothes_back_asset: (row.clothes_back_asset as string | null) ?? undefined,
       };
     });
     return result;
@@ -179,13 +187,39 @@ export async function getAvatarsForProfileIds(profileIds: string[]): Promise<Rec
 export async function getUserStats(userId: string): Promise<UserStats | null> {
   try {
     // Puntos globales del perfil
+    /**
+     * NOTE: If you get an error saying 'column streak_count does not exist', 
+     * run this SQL in your Supabase SQL Editor:
+     * 
+     * ALTER TABLE profiles 
+     * ADD COLUMN IF NOT EXISTS streak_count INTEGER DEFAULT 0,
+     * ADD COLUMN IF NOT EXISTS last_streak_date DATE;
+     */
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('points')
+      .select('points, streak_count, last_streak_date')
       .eq('id', userId)
       .maybeSingle();
 
-    if (profileError) throw profileError;
+    if (profileError) {
+      // If columns don't exist, fallback to just points
+      if ((profileError as any).code === '42703') {
+        const { data: p2, error: e2 } = await supabase
+          .from('profiles')
+          .select('points')
+          .eq('id', userId)
+          .maybeSingle();
+        if (e2) throw e2;
+        return {
+          totalMatches: 0, wins: 0, losses: 0,
+          globalPoints: p2?.points || 0,
+          recentMatch: null,
+          streakCount: 0,
+          lastStreakDate: null
+        };
+      }
+      throw profileError;
+    }
     if (!profile) return null;
 
     // Partidas finalizadas del usuario, ordenadas por fecha
@@ -203,17 +237,116 @@ export async function getUserStats(userId: string): Promise<UserStats | null> {
     const losses = totalMatches - wins;
     const recentMatch: MatchRow | null = matches && matches.length > 0 ? matches[0] as MatchRow : null;
 
+    // PROACTIVE RESET FOR PRODUCTION (24h window)
+    let currentStreak = (profile as any)?.streak_count || 0;
+    const lastDateStr = (profile as any)?.last_streak_date;
+    if (currentStreak > 0 && lastDateStr) {
+      const now = new Date();
+      const lastDate = new Date(lastDateStr);
+      const diffSeconds = (now.getTime() - lastDate.getTime()) / 1000;
+      if (diffSeconds > 86400) { // More than 24 hours
+        await supabase.from('profiles').update({ streak_count: 0 }).eq('id', userId);
+        currentStreak = 0;
+      }
+    }
+
     return {
       totalMatches,
       wins,
       losses,
       globalPoints: profile?.points || 0,
       recentMatch,
+      streakCount: currentStreak,
+      lastStreakDate: (profile as any)?.last_streak_date || null,
     };
   } catch (error) {
     console.error('Error fetching user stats:', error);
     return null;
   }
+}
+
+/**
+ * Updates the user's daily streak.
+ * Logic:
+ * - If last_streak_date was yesterday: increment streak_count.
+ * - If last_streak_date was today: do nothing.
+ * - Otherwise: reset streak_count to 1.
+ */
+export async function updateUserStreak(): Promise<{ streak: number, previousStreak: number, updated: boolean }> {
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData?.user?.id ?? null;
+    if (!userId) return { streak: 0, previousStreak: 0, updated: false };
+
+    // Fetch current streak info
+    const { data: profile, error: fetchError } = await supabase
+      .from('profiles')
+      .select('streak_count, last_streak_date')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (fetchError) {
+      // Handle missing columns gracefully
+      if ((fetchError as any).code === '42703') {
+        console.warn('Columns streak_count or last_streak_date do not exist in profiles table. Please add them using SQL.');
+        return { streak: 0, previousStreak: 0, updated: false };
+      }
+      throw fetchError;
+    }
+    const now = new Date();
+    const nowStr = now.toISOString();
+    const lastDateStr = (profile as any)?.last_streak_date;
+    const currentStreak = (profile as any)?.streak_count || 0;
+
+    let newStreak = currentStreak;
+    
+    if (!lastDateStr) {
+      newStreak = 1;
+    } else {
+      const lastDate = new Date(lastDateStr);
+      const diffSeconds = (now.getTime() - lastDate.getTime()) / 1000;
+      
+      if (diffSeconds > 86400) {
+        // Expired -> Start over
+        newStreak = 1;
+      } else if (diffSeconds >= 75600) {
+        // Warning period (last 3 hours) -> Increment!
+        newStreak = currentStreak + 1;
+      } else {
+        // Still active -> Just reset the timer (keep current count)
+        newStreak = currentStreak;
+      }
+    }
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({
+        streak_count: newStreak,
+        last_streak_date: nowStr,
+      })
+      .eq('id', userId);
+
+    return { streak: newStreak, previousStreak: currentStreak, updated: true };
+  } catch (error) {
+    console.error('Error updating user streak:', error);
+    return { streak: 0, previousStreak: 0, updated: false };
+  }
+}
+
+/**
+ * Checks if the user is in danger of losing their streak (less than 3 hours left in the day).
+ */
+export function getStreakWarning(lastStreakDate: string | null): boolean {
+  if (!lastStreakDate) return true; // No ha jugado hoy
+  
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  
+  if (lastStreakDate === todayStr) return false; // Ya cumplió hoy
+  
+  // Si no ha jugado hoy, revisamos la hora
+  const hour = today.getHours();
+  return hour >= 21; // 9 PM o después (quedan 3 horas para medianoche)
 }
 
 // Lista todas las partidas del usuario (por defecto finalizadas) ordenadas por fecha descendente
@@ -497,16 +630,18 @@ export async function getLeaderboard(limit: number = 50): Promise<LeaderboardEnt
       if (userIds.length === 0) return map;
       const { data: avRows, error: avError } = await supabase
         .from('avatars')
-        .select('profile_id, skin_asset, hair_asset, eyes_asset, mouth_asset, clothes_asset')
+        .select('profile_id, skin_asset, hair_asset, hair_back_asset, eyes_asset, mouth_asset, clothes_asset, clothes_back_asset')
         .in('profile_id', userIds);
       if (avError) return map;
       (avRows || []).forEach((row: any) => {
         map.set(row.profile_id, {
           skin_asset: row.skin_asset as string,
           hair_asset: (row.hair_asset as string | null) ?? undefined,
+          hair_back_asset: (row.hair_back_asset as string | null) ?? undefined,
           eyes_asset: row.eyes_asset as string,
           mouth_asset: (row.mouth_asset as string | null) ?? undefined,
           clothes_asset: row.clothes_asset as string,
+          clothes_back_asset: (row.clothes_back_asset as string | null) ?? undefined,
         });
       });
       return map;
@@ -786,4 +921,59 @@ export async function purchaseStoreItem(productId: number, price: number): Promi
   }
 
   return { status: 'purchased', coins: newCoins };
+}
+
+/**
+ * Returns a list of dates (YYYY-MM-DD) when the user was active.
+ * Queries both high_scores and matches tables.
+ */
+export async function getUserActivityDates(userId: string): Promise<string[]> {
+  try {
+    const dates = new Set<string>();
+
+    // 1. Get current streak info from profiles
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('streak_count, last_streak_date')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!profileError && profile) {
+      const count = (profile as any).streak_count || 0;
+      const lastDateStr = (profile as any).last_streak_date;
+
+      if (count > 0 && lastDateStr) {
+        // Handle both simple YYYY-MM-DD and ISO timestamps
+        const baseDateStr = lastDateStr.includes('T') ? lastDateStr : `${lastDateStr}T12:00:00`;
+        const lastDate = new Date(baseDateStr);
+        for (let i = 0; i < count; i++) {
+          const d = new Date(lastDate);
+          d.setDate(d.getDate() - i);
+          dates.add(d.toISOString().split('T')[0]);
+        }
+      }
+    }
+
+    // Get match dates
+    const { data: matchesData, error: matchesError } = await supabase
+      .from('matches')
+      .select('created_at')
+      .or(`player1_id.eq.${userId},player2_id.eq.${userId}`);
+
+    if (matchesError) throw matchesError;
+
+
+
+
+    (matchesData || []).forEach(row => {
+      if (row.created_at) {
+        dates.add(row.created_at.split('T')[0]);
+      }
+    });
+
+    return Array.from(dates).sort();
+  } catch (error) {
+    console.error('Error fetching activity dates:', error);
+    return [];
+  }
 }

@@ -75,25 +75,8 @@ export default function ExtrasScreen() {
   return (
     <View style={styles.container}>
       {/* Reuse Infinite Game screen UI */}
-      <InfiniteGameScreen onPlayedToday={loadStreak} />
+      <InfiniteGameScreen onPlayedToday={() => {}} />
 
-      {/* Overlay streak button on top-right */}
-      <SafeAreaView pointerEvents="box-none" style={styles.overlaySafeArea}>
-        <View style={styles.topRightOverlay}>
-          <TouchableOpacity 
-            ref={streakRef}
-            onLayout={measureStreak}
-            style={styles.streakButton} 
-            onPress={() => setShowStreak(true)} 
-            activeOpacity={0.8}
-          >
-            <Fire size={18} color="#FF7A00" weight="fill" />
-            <Text style={[styles.streakText, { fontFamily: 'Digitalt' }]}>{streak}</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-
-      <StreakModal visible={showStreak} onClose={() => setShowStreak(false)} />
       <TutorialOverlay />
     </View>
   );

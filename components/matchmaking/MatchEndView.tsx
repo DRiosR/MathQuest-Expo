@@ -1,5 +1,6 @@
+import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
-import { incrementCurrentUserCoins } from '@/services/SupabaseService';
+import { incrementCurrentUserCoins, updateUserStreak } from '@/services/SupabaseService';
 import { LinearGradient } from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -54,6 +55,10 @@ export default function MatchEndView({
   const [confettiVisible, setConfettiVisible] = useState<boolean>(didWin);
   const [coinsLottieVisible, setCoinsLottieVisible] = useState<boolean>(false);
   const [coinsAwarded, setCoinsAwarded] = useState<number>(0);
+  const [streakActivated, setStreakActivated] = useState<boolean>(false);
+  const [streakInfo, setStreakInfo] = useState({ current: 0, previous: 0 });
+  const streakAnim = useRef(new Animated.Value(0)).current; 
+  const streakPopupAnim = useRef(new Animated.Value(0)).current; 
   const hasAwardedCoinsRef = useRef<boolean>(false);
 
   // Interpolate bar width between the min and max of before/current
@@ -158,25 +163,55 @@ export default function MatchEndView({
     const base = Math.floor((myScore || 0) / 10);
     const coinsToAdd = base > 0 ? (didWin ? base * 3 : base) : 0;
 
-    if (coinsToAdd <= 0) return;
-
-    setCoinsAwarded(coinsToAdd);
-
-    // Show coin lottie after a delay (after ELO animation completes)
-    const coinsDelay = setTimeout(() => {
-      setCoinsLottieVisible(true);
-      // Solo persistir monedas si hay usuario autenticado (evita "No authenticated user")
-      if (!user?.id) return;
+    // 1. Always attempt to update streak if authenticated
+    if (user?.id) {
       (async () => {
         try {
-          await incrementCurrentUserCoins(coinsToAdd);
-        } catch {
-          // ignore errors; user coins can be refreshed elsewhere
+          const result = await updateUserStreak();
+          if (result.updated) {
+            setStreakInfo({ current: result.streak, previous: result.previousStreak });
+            setStreakActivated(true);
+            
+            // Start the entrance animation after a slight delay
+            setTimeout(() => {
+              Animated.spring(streakPopupAnim, {
+                toValue: 1,
+                useNativeDriver: true,
+                tension: 50,
+                friction: 7
+              }).start(() => {
+                // After a short delay, do the number roll
+                setTimeout(() => {
+                  Animated.timing(streakAnim, {
+                    toValue: 1,
+                    duration: 1000,
+                    easing: Easing.inOut(Easing.back(1.5)),
+                    useNativeDriver: true
+                  }).start();
+                }, 500);
+              });
+            }, 1000);
+          }
+        } catch (err) {
+          console.error("Error updating streak:", err);
         }
       })();
-    }, 3200); // Show after ELO animation
+    }
 
-    return () => clearTimeout(coinsDelay);
+    // 2. Award coins only if score warrants it
+    if (coinsToAdd > 0) {
+      setCoinsAwarded(coinsToAdd);
+      const coinsDelay = setTimeout(() => {
+        setCoinsLottieVisible(true);
+        if (user?.id) {
+          incrementCurrentUserCoins(coinsToAdd).catch(err => 
+            console.error("Error incrementing coins:", err)
+          );
+        }
+      }, 3200); 
+
+      return () => clearTimeout(coinsDelay);
+    }
   }, [didWin, player1TotalScore, player2TotalScore, user?.id]);
 
   return (
@@ -301,6 +336,7 @@ export default function MatchEndView({
             </FadeInView>
           ) : null}
         </View>
+        
 
         <FadeInView delay={3800} duration={300} from="bottom">
           <Pressable onPress={onExit} style={({ pressed }) => [styles.exitButton, pressed && { opacity: 0.9 }]}>
@@ -393,4 +429,64 @@ const styles = StyleSheet.create({
   exitButton: { height: 56, borderRadius: 28, overflow: 'hidden' },
   exitButtonGradient: { height: '100%', width: 180, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   exitText: { color: '#FFFFF3', fontSize: 18, fontWeight: '900' },
+  streakBadgeWrapper: {
+    marginTop: 5,
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF7ED',
+    borderWidth: 3,
+    borderColor: '#FFD6A5',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 24,
+    elevation: 8,
+    shadowColor: '#FF9500',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    width: '100%',
+  },
+  streakIconContainer: {
+    width: 45,
+    height: 45,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  streakTextCol: {
+    flex: 1,
+  },
+  streakActivatedTitle: {
+    color: '#FF9500',
+    fontSize: 12,
+    letterSpacing: 1,
+    marginBottom: 0,
+  },
+  streakCounterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  streakNumberClipper: {
+    height: 30,
+    width: 35,
+    overflow: 'hidden',
+    justifyContent: 'center',
+  },
+  streakNumberText: {
+    color: '#1E1B4B',
+    fontSize: 24,
+    textAlign: 'center',
+    width: '100%',
+  },
+  streakDaysText: {
+    color: '#6366f1',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
 });

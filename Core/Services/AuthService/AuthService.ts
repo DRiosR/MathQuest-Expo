@@ -298,24 +298,52 @@ class AuthService {
   /**
    * Refresh the current session
    */
-  async refreshSession(): Promise<{ user: AuthUser | null; error: any }> {
+  /**
+   * Check if a username is available
+   */
+  async checkUsernameAvailability(username: string): Promise<boolean> {
     try {
-      const { data, error } = await this.supabase.auth.refreshSession();
-      
-      if (error || !data.session?.user) {
-        return { user: null, error };
-      }
+      const { data, error } = await this.supabase
+        .from('profiles')
+        .select('username')
+        .eq('username', username.trim())
+        .maybeSingle();
 
-      const authUser: AuthUser = {
-        id: data.session.user.id,
-        email: data.session.user.email || '',
-        username: data.session.user.user_metadata?.username,
-        avatar_url: data.session.user.user_metadata?.avatar_url,
-      };
-
-      return { user: authUser, error: null };
+      if (error) return false;
+      return !data;
     } catch (error) {
-      return { user: null, error };
+      return false;
+    }
+  }
+
+  /**
+   * Get available username suggestions based on a taken username
+   */
+  async getUsernameSuggestions(baseUsername: string): Promise<string[]> {
+    try {
+      const suggestions: string[] = [];
+      const cleanBase = baseUsername.trim().toLowerCase();
+      
+      const candidates = [
+        `${cleanBase}${Math.floor(Math.random() * 99)}`,
+        `${cleanBase}${Math.floor(Math.random() * 999)}`,
+        `${cleanBase}_${Math.floor(Math.random() * 9)}`,
+        `${cleanBase}${new Date().getFullYear().toString().slice(-2)}`,
+        `${cleanBase}mq`,
+      ];
+
+      // Check which variations are available in one go
+      const { data, error } = await this.supabase
+        .from('profiles')
+        .select('username')
+        .in('username', candidates);
+
+      if (error) return [];
+
+      const takenUsernames = data?.map(d => d.username.toLowerCase()) || [];
+      return candidates.filter(v => !takenUsernames.includes(v.toLowerCase())).slice(0, 3);
+    } catch (error) {
+      return [];
     }
   }
 }

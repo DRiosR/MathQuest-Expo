@@ -56,7 +56,11 @@ export default function TutorialOverlay() {
   const requiresMeasuredSpotlight =
     currentStep.id === 'infinite_time' ||
     currentStep.id === 'infinite_difficulty' ||
-    currentStep.id === 'infinite_start';
+    currentStep.id === 'infinite_start' ||
+    currentStep.id === 'profile_streak' ||
+    currentStep.id === 'profile_matches' ||
+    currentStep.id === 'profile_avatar' ||
+    currentStep.id === 'profile_settings';
 
   const effectiveSpotlight = requiresMeasuredSpotlight
     ? (dynamicSpotlights[currentStep.id] || null)

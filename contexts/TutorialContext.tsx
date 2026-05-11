@@ -139,16 +139,6 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     targetScreen: '/(tabs)/extras',
     defaultSpotlight: null
   },
-  {
-    id: 'infinite_streak',
-    title: 'TU RACHA DIARIA',
-    description: 'Juega una partida aquí cada día para aumentar tu racha. ¡No dejes que se apague el fuego!',
-    icon: 'fire',
-    color: '#FF7A00',
-    area: 'middle',
-    targetScreen: '/(tabs)/extras',
-    defaultSpotlight: { x: width - 80, y: 50, w: 70, h: 50, radius: 15 }
-  },
 
   // --- SECCIÓN 3: TIENDA (Pestaña Store) ---
   {
@@ -254,6 +244,16 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     defaultSpotlight: { x: width / 2 - 60, y: 150, w: 120, h: 120, radius: 60 }
   },
   {
+    id: 'profile_streak',
+    title: 'RACHA DIARIA',
+    description: '¡Mantén vivo el fuego! Al jugar una partida se activa tu racha. Tienes que jugar a diario para mantenerla y que no se apague.',
+    icon: 'fire',
+    color: '#FF9500',
+    area: 'bottom',
+    targetScreen: '/(tabs)/user',
+    defaultSpotlight: null
+  },
+  {
     id: 'profile_matches',
     title: 'PARTIDAS RECIENTES',
     description: 'Consulta aquí el historial de tus últimos duelos, tus victorias y tus derrotas contra otros jugadores.',
@@ -292,14 +292,17 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
   }, [user?.email]);
 
   const checkFirstTime = async () => {
-    if (!user?.email) return;
+    if (!user?.id) return;
 
-    const hasSeen = await AsyncStorage.getItem('hasSeenGuidedTour_v28');
+    // Vinculamos la marca al ID del usuario para que sea por cuenta
+    const storageKey = `hasSeenInitialTour_v32_${user.id}`;
+    const hasSeen = await AsyncStorage.getItem(storageKey);
+    
     if (hasSeen === null) {
+      console.log(`[Tutorial] Iniciando bienvenida para usuario nuevo: ${user.id}`);
       setTimeout(() => {
-        // El tutorial inicial ahora solo cubre 1vs1 y modo infinito (pasos 0 a 11)
         startTutorial('initial');
-      }, 3000);
+      }, 2000);
     }
   };
 
@@ -314,7 +317,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     switch (section) {
       case 'initial':
         start = 0;
-        end = 11; // 1vs1 + Infinite
+        end = 10; // 1vs1 + Infinite
         break;
       case '1vs1':
         start = 0;
@@ -322,14 +325,14 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
         break;
       case 'infinite':
         start = 6;
-        end = 11;
+        end = 10;
         break;
       case 'store':
-        start = 12;
-        end = 18;
+        start = 11;
+        end = 17;
         break;
       case 'profile':
-        start = 19;
+        start = 18;
         end = 22;
         break;
     }
@@ -364,7 +367,10 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
   };
 
   const finish = async () => {
-    await AsyncStorage.setItem('hasSeenGuidedTour_v28', 'true');
+    if (user?.id) {
+      const storageKey = `hasSeenInitialTour_v32_${user.id}`;
+      await AsyncStorage.setItem(storageKey, 'true');
+    }
     setIsVisible(false);
   };
 
