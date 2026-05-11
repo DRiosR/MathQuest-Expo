@@ -326,26 +326,29 @@ export default function StoreScreen() {
 
           {/* User Avatar Preview (Dynamic) */}
           <View style={styles.avatarPreviewWrap}>
-            <Animated.View style={[
-              styles.avatarPreviewBg,
-              {
-                transform: [
-                  { scale: previewScale },
-                  { translateY: idleAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) }
-                ]
-              }
-            ]}>
-              <LayeredAvatar 
-                avatar={previewAvatar}
-                size={AVATAR_IMAGE_SIZE}
-                scale={0.8}
-              />
-              <LinearGradient 
-                colors={['transparent', 'rgba(255,255,255,0.4)', 'transparent']} 
-                start={{x:0, y:0}} end={{x:1, y:1}}
-                style={styles.spotlightSweep}
-              />
-            </Animated.View>
+              <Animated.View style={[
+                styles.avatarPreviewBg,
+                {
+                  width: AVATAR_CIRCLE_SIZE,
+                  height: AVATAR_CIRCLE_SIZE,
+                  borderRadius: AVATAR_CIRCLE_SIZE / 2,
+                  transform: [
+                    { scale: previewScale },
+                    { translateY: idleAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) }
+                  ]
+                }
+              ]}>
+                <LayeredAvatar 
+                  avatar={previewAvatar}
+                  size={AVATAR_IMAGE_SIZE}
+                  scale={0.8}
+                />
+                <LinearGradient 
+                  colors={['transparent', 'rgba(255,255,255,0.4)', 'transparent']} 
+                  start={{x:0, y:0}} end={{x:1, y:1}}
+                  style={[styles.spotlightSweep, { borderRadius: AVATAR_CIRCLE_SIZE / 2 }]}
+                />
+              </Animated.View>
           </View>
 
         </View>
@@ -709,9 +712,6 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   avatarPreviewBg: {
-    width: AVATAR_CIRCLE_SIZE,
-    height: AVATAR_CIRCLE_SIZE,
-    borderRadius: AVATAR_CIRCLE_SIZE / 2,
     backgroundColor: 'rgba(255,255,255,0.95)',
     alignItems: 'center',
     justifyContent: 'flex-end',
@@ -842,7 +842,6 @@ const styles = StyleSheet.create({
   },
   spotlightSweep: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: AVATAR_CIRCLE_SIZE / 2,
     opacity: 0.3,
   },
 });
