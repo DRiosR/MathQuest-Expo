@@ -18,6 +18,18 @@ type Props = {
 export default function MatchmakingView({ username, avatarComponent, onCancel, position, isExiting = false, onExitComplete }: Props) {
   const lottieRef = useRef<LottieView>(null);
   const [dots, setDots] = useState('.');
+  const [seconds, setSeconds] = useState(0);
+  const [tipIndex, setTipIndex] = useState(0);
+
+  const TIPS = [
+    "¡En modo Infinito puedes practicar sin límites!",
+    "Nunca compartas tu contraseña con nadie.",
+    "¡Gana trofeos para subir en el Ranking mundial!",
+    "Personaliza tu avatar en la tienda con tus monedas.",
+    "¡La práctica diaria mejora tu agilidad mental!",
+    "Si te quedas sin tiempo, ¡puedes comprar vidas!",
+    "Invita a tus amigos y compite por ser el mejor."
+  ];
 
   // Animated values for exit transition
   const headerOpacity = useRef(new Animated.Value(1)).current;
@@ -39,6 +51,22 @@ export default function MatchmakingView({ username, avatarComponent, onCancel, p
 
     return () => clearInterval(interval);
   }, []);
+
+  // Timer y rotación de consejos
+  useEffect(() => {
+    const timer = setInterval(() => setSeconds(s => s + 1), 1000);
+    const tipTimer = setInterval(() => setTipIndex(i => (i + 1) % TIPS.length), 5000);
+    return () => {
+      clearInterval(timer);
+      clearInterval(tipTimer);
+    };
+  }, []);
+
+  const formatTime = (s: number) => {
+    const mins = Math.floor(s / 60);
+    const secs = s % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // Trigger exit animation when instructed by parent
   useEffect(() => {
@@ -73,6 +101,12 @@ export default function MatchmakingView({ username, avatarComponent, onCancel, p
       </View>
 
       <Animated.View style={[styles.lottieWrap, { opacity: lottieOpacity, transform: [{ translateY: lottieTranslateY }] }]}>
+        <View style={styles.searchTimeContainer}>
+          <Text style={[styles.searchTimeText, { fontFamily: 'Digitalt' }]}>
+            TIEMPO: {formatTime(seconds)}
+          </Text>
+        </View>
+
         <LottieView
           ref={lottieRef}
           autoPlay
@@ -80,6 +114,13 @@ export default function MatchmakingView({ username, avatarComponent, onCancel, p
           source={require('@/assets/lotties/extras/lupa.json')}
           style={styles.lottie}
         />
+
+        <View style={styles.tipsContainer}>
+          <Text style={[styles.tipLabel, { fontFamily: 'Gilroy-Black' }]}>TIP PRO:</Text>
+          <Text style={[styles.tipText, { fontFamily: 'Digitalt' }]}>
+            {TIPS[tipIndex]}
+          </Text>
+        </View>
       </Animated.View>
 
       <Animated.View style={[styles.footer, { opacity: footerOpacity, transform: [{ translateY: footerTranslateY }] }]}>
@@ -97,11 +138,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 24, paddingTop: 16, justifyContent: 'space-between' },
   headerWrap: { marginTop: 8, alignItems: 'center' },
   title: { color: '#FFFFFF', fontSize: 34, fontWeight: '900', letterSpacing: 1.5, textAlign: 'center' },
-  meWrap: { alignItems: 'center', gap: 12, marginTop: 40 },
+  meWrap: { alignItems: 'center', gap: 12, marginTop: 20 },
   avatarCircle: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
     backgroundColor: 'rgba(255,255,255,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -129,6 +170,37 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cancelText: { color: '#FFFFFF', fontSize: 18, fontWeight: '900' },
+  searchTimeContainer: {
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 10,
+  },
+  searchTimeText: {
+    color: '#FFD616',
+    fontSize: 16,
+    letterSpacing: 1,
+  },
+  tipsContainer: {
+    marginTop: 20,
+    paddingHorizontal: 30,
+    alignItems: 'center',
+    minHeight: 60,
+  },
+  tipLabel: {
+    color: '#FFD616',
+    fontSize: 12,
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  tipText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 18,
+    opacity: 0.9,
+  },
 });
 
 

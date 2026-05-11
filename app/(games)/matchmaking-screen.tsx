@@ -12,6 +12,7 @@ import QuizView from '@/components/matchmaking/QuizView';
 import RouletteView from '@/components/matchmaking/RouletteView';
 import RoundResultView from '@/components/matchmaking/RoundResultView';
 import { defaultAvatar } from '@/constants/avatarAssets';
+import AnimatedMathBackground from '@/components/ui/AnimatedMathBackground';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAvatar } from '@/contexts/AvatarContext';
 import { useFontContext } from '@/contexts/FontsContext';
@@ -124,6 +125,10 @@ export default function MatchmakingScreen() {
   const [hasCompletedRound, setHasCompletedRound] = useState<boolean>(false);
   const [opponentFinished, setOpponentFinished] = useState<boolean>(false);
   const [finalCountdown, setFinalCountdown] = useState<number | null>(null);
+  
+  // Inactividad: 3 minutos
+  const INACTIVITY_LIMIT = 3 * 60 * 1000;
+  const lastActivityTime = useRef(Date.now());
   const [lastEmote, setLastEmote] = useState<{ userId: string; emote: string; timestamp: number } | null>(null);
   const [lastAnswerResult, setLastAnswerResult] = useState<{ correct: boolean; timestamp: number } | null>(null);
 
@@ -515,8 +520,33 @@ export default function MatchmakingScreen() {
     return () => clearInterval(timer);
   }, [isInitialCountdown]);
 
+  // Timer de inactividad de 3 minutos
+  useEffect(() => {
+    if (gameState !== 'QUIZ') return;
+    
+    lastActivityTime.current = Date.now();
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - lastActivityTime.current;
+      if (elapsed >= INACTIVITY_LIMIT) {
+        clearInterval(interval);
+        console.log('⏰ Inactividad detectada (3 min). Terminando partida...');
+        Alert.alert(
+          'PARTIDA ANULADA',
+          'La partida ha terminado por inactividad. Se restarán puntos de ELO a ambos jugadores.',
+          [{ text: 'ENTENDIDO', onPress: handleExitMatchEnd }]
+        );
+        if (currentRoom) {
+          forfeitGame(currentRoom);
+        }
+      }
+    }, 5000); // Revisar cada 5 segundos
+    
+    return () => clearInterval(interval);
+  }, [gameState, currentRoom]);
+
   useEffect(() => {
     const unsubAns = onAnswerResult((result: any) => {
+      lastActivityTime.current = Date.now(); // Reset de inactividad
       const isMe = !result.userId || result.userId === myUserId;
 
       if (typeof result?.currentScore === 'number') {
@@ -778,7 +808,7 @@ export default function MatchmakingScreen() {
         return (
           <MatchmakingView
             username={myUsername?.toUpperCase()}
-            avatarComponent={<LayeredAvatar avatar={avatar} size={230} />}
+            avatarComponent={<LayeredAvatar avatar={avatar} size={180} />}
             onCancel={handleCancel}
             position={queuePosition}
             isExiting={isExitingMatchmaking}
@@ -959,6 +989,7 @@ export default function MatchmakingScreen() {
             )}
           </View>
         )}
+        <AnimatedMathBackground />
         {renderContent()}
 
 
@@ -1072,11 +1103,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarCircle: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+  },
   transitionCircle: {
     position: 'absolute',
-    width: 160,
-    height: 160,
-    borderRadius: 80,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     bottom: '15%',
   },
   centerPulse: {

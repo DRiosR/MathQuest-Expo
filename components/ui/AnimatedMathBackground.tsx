@@ -109,7 +109,7 @@ const FloatingSymbol: React.FC<FloatingItemProps> = (it) => {
         style={[
           {
             fontSize: it.size,
-            color: 'rgba(255,255,255,0.45)',
+            color: 'rgba(255,255,255,0.15)',
             textShadowColor: 'rgba(0,0,0,0.1)',
             textShadowOffset: { width: 0, height: 2 },
             textShadowRadius: 3,
@@ -136,8 +136,8 @@ export const AnimatedMathBackground: React.FC = () => {
       baseRotate: randomInt(-25, 25),
       direction: Math.random() > 0.5 ? 1 : -1 as 1 | -1,
       durationMs: randomInt(8000, 18000),
-      opacityStart: Math.random() * 0.2 + 0.1,
-      opacityEnd: Math.random() * 0.3 + 0.5,
+      opacityStart: Math.random() * 0.05 + 0.05,
+      opacityEnd: Math.random() * 0.1 + 0.15,
       blurIntensity: randomInt(3, 12),
     }));
   }, []);

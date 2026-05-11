@@ -84,7 +84,7 @@ export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
 
     if (isNewSystem) {
       styles.transform.push({ scale: 1.1 }); 
-      styles.transform.push({ translateY: 15 }); 
+      styles.transform.push({ translateY: 5 }); 
     } else if (value && (value.includes('eyes_04.svg') || value.includes('eyes_05.svg'))) {
       styles.transform.push({ translateX: 8 });
       styles.transform.push({ translateY: 9 });

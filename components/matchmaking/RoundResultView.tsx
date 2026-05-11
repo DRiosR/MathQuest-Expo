@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { LayeredAvatar } from '@/components/LayeredAvatar';
 import { Avatar } from '@/types/avatar';
+import { defaultAvatar } from '@/constants/avatarAssets';
 
 type PlayerResult = {
   id?: string;
@@ -102,7 +103,7 @@ export default function RoundResultView({
       <Animated.View style={[styles.avatarScoreRow, { opacity: totalsOpacity }]}>
         <View style={styles.playerResultBlock}>
           <View style={styles.avatarCircleSmall}>
-            <LayeredAvatar avatar={leftPlayer.avatar} size={130} />
+            <LayeredAvatar avatar={leftPlayer.avatar || defaultAvatar} size={130} />
           </View>
           <Text style={[styles.playerName, { fontFamily: 'Digitalt' }]}>{leftName}</Text>
           <Text style={[styles.playerPoints, { fontFamily: 'Digitalt' }]}>{displayLeftTotal}</Text>
@@ -112,7 +113,7 @@ export default function RoundResultView({
 
         <View style={styles.playerResultBlock}>
           <View style={styles.avatarCircleSmall}>
-            <LayeredAvatar avatar={rightPlayer.avatar} size={130} />
+            <LayeredAvatar avatar={rightPlayer.avatar || defaultAvatar} size={130} />
           </View>
           <Text style={[styles.playerName, { fontFamily: 'Digitalt' }]}>{rightName}</Text>
           <Text style={[styles.playerPoints, { fontFamily: 'Digitalt' }]}>{displayRightTotal}</Text>
