@@ -15,7 +15,7 @@ async function updateUserAvatars() {
 
     for (const av of avatars) {
       let updates = {};
-      const fields = ['skin_asset', 'hair_asset', 'eyes_asset', 'mouth_asset', 'clothes_asset'];
+      const fields = ['skin_asset', 'hair_asset', 'hair_back_asset', 'eyes_asset', 'mouth_asset', 'clothes_asset'];
 
       fields.forEach(field => {
         const val = av[field];

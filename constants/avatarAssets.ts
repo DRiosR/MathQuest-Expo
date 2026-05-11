@@ -69,6 +69,7 @@ const clothesAssets = {
 export const avatarAssets: AvatarAssets = {
   skin: skinAssets,
   hair: hairAssets,
+  hair_back: {},
   eyes: eyesAssets,
   mouth: mouthAssets,
   clothes: clothesAssets,
@@ -78,6 +79,7 @@ export const avatarAssets: AvatarAssets = {
 export const assetKeys = {
   skin: Object.keys(skinAssets),
   hair: Object.keys(hairAssets),
+  hair_back: [],
   eyes: Object.keys(eyesAssets),
   mouth: Object.keys(mouthAssets),
   clothes: Object.keys(clothesAssets),
@@ -85,11 +87,12 @@ export const assetKeys = {
 
 // Default avatar configuration
 export const defaultAvatar = {
-  skin_asset: 'skin01',
-  hair_asset: 'none',
-  eyes_asset: 'eyes01',
-  mouth_asset: 'none',
-  clothes_asset: 'clothes01',
+  skin_asset: 'https://fdfmtjjeylzznldkrqwl.supabase.co/storage/v1/object/public/cosmeticos_avatar/skin/skin_01.png',
+  hair_asset: 'https://fdfmtjjeylzznldkrqwl.supabase.co/storage/v1/object/public/cosmeticos_avatar/cabello/mujer/cabello_M_01/delante_m_01.png',
+  hair_back_asset: 'https://fdfmtjjeylzznldkrqwl.supabase.co/storage/v1/object/public/cosmeticos_avatar/cabello/mujer/cabello_M_01/atras_m_01.png',
+  eyes_asset: 'https://fdfmtjjeylzznldkrqwl.supabase.co/storage/v1/object/public/cosmeticos_avatar/ojos/ojos_01.png',
+  mouth_asset: 'https://fdfmtjjeylzznldkrqwl.supabase.co/storage/v1/object/public/cosmeticos_avatar/boca/boca_01.png',
+  clothes_asset: 'https://fdfmtjjeylzznldkrqwl.supabase.co/storage/v1/object/public/cosmeticos_avatar/camisa/camisa_01.png',
 };
 
 // Category display names and icons

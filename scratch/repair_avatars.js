@@ -15,7 +15,7 @@ async function repairAvatars() {
 
     for (const av of avatars) {
       let updates = {};
-      const fields = ['skin_asset', 'hair_asset', 'eyes_asset', 'mouth_asset', 'clothes_asset'];
+      const fields = ['skin_asset', 'hair_asset', 'hair_back_asset', 'eyes_asset', 'mouth_asset', 'clothes_asset'];
 
       fields.forEach(field => {
         let val = av[field];

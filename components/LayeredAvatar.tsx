@@ -63,6 +63,7 @@ export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
   style,
 }) => {
   const layers = useMemo(() => ([
+    ['hair_back', avatar.hair_back_asset],
     ['skin', avatar.skin_asset],
     ['eyes', avatar.eyes_asset],
     ['mouth', avatar.mouth_asset],
@@ -77,12 +78,13 @@ export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
     // Detectar si el asset es del nuevo sistema (store)
     const isNewSystem = value?.includes('_store') || 
                         value?.includes('AvatarItems') || 
+                        value?.includes('cosmeticos_avatar') ||
+                        value?.includes('tienda_avatar') ||
                         value?.includes('/prendas/');
 
     if (isNewSystem) {
-      styles.transform.push({ scale: 0.75 }); 
-      styles.transform.push({ translateY: -12 }); 
-      styles.transform.push({ translateX: 3 });   
+      styles.transform.push({ scale: 1.1 }); 
+      styles.transform.push({ translateY: 15 }); 
     } else if (value && (value.includes('eyes_04.svg') || value.includes('eyes_05.svg'))) {
       styles.transform.push({ translateX: 8 });
       styles.transform.push({ translateY: 9 });

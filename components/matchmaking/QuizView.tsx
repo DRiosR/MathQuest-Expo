@@ -46,7 +46,7 @@ const MASCOT_IDLE_SOURCES: Record<string, any> = {
 };
 
 function getMascotIdleSource(mascotName?: string) {
-  return (mascotName && MASCOT_IDLE_SOURCES[mascotName]) || require('@/assets/lotties/extras/Time-15.json');
+  return (mascotName && MASCOT_IDLE_SOURCES[mascotName]) || null;
 }
 
 const CHAT_LOTTIE_SOURCES: Record<string, any> = {
@@ -57,7 +57,7 @@ const CHAT_LOTTIE_SOURCES: Record<string, any> = {
 };
 
 function getChatLottieSource(id: string) {
-  return CHAT_LOTTIE_SOURCES[id] || require('@/assets/lotties/extras/Time-15.json');
+  return CHAT_LOTTIE_SOURCES[id] || null;
 }
 
 export default function QuizView({ 
@@ -241,8 +241,10 @@ export default function QuizView({
         <View style={styles.topInfoRow}>
           {/* My Info */}
           <View style={styles.playerInfoBlock}>
-            <View style={styles.avatarCircleSmall}>
-              <LayeredAvatar avatar={myAvatar || defaultAvatar} size={40} />
+            <View style={styles.avatarWrapperWithEmote}>
+              <View style={styles.avatarCircleSmall}>
+                <LayeredAvatar avatar={myAvatar || defaultAvatar} size={60} />
+              </View>
               {/* Burbuja de emote propia */}
               {activeEmotes['me'] && (
                 <Animated.View 
@@ -250,7 +252,7 @@ export default function QuizView({
                     styles.emoteBubble, 
                     { 
                       opacity: activeEmotes['me'].opacity, 
-                      left: 40,
+                      left: 60,
                       transform: [
                         { scale: activeEmotes['me'].scale },
                         { translateY: activeEmotes['me'].translateY }
@@ -260,12 +262,14 @@ export default function QuizView({
                 >
                   <View style={styles.bubbleArrowLeft} />
                   <View style={styles.circularBubbleContent}>
-                    <LottieView
-                      source={getChatLottieSource(activeEmotes['me'].emote)}
-                      autoPlay
-                      loop
-                      style={styles.mascotEmojiLarge}
-                    />
+                    {getChatLottieSource(activeEmotes['me'].emote) && (
+                      <LottieView
+                        source={getChatLottieSource(activeEmotes['me'].emote)}
+                        autoPlay
+                        loop
+                        style={styles.mascotEmojiLarge}
+                      />
+                    )}
                   </View>
                 </Animated.View>
               )}
@@ -282,8 +286,10 @@ export default function QuizView({
 
           {/* Opponent Info */}
           <View style={[styles.playerInfoBlock, { flexDirection: 'row-reverse' }]}>
-            <View style={styles.avatarCircleSmall}>
-              <LayeredAvatar avatar={opponentAvatar || defaultAvatar} size={40} />
+            <View style={styles.avatarWrapperWithEmote}>
+              <View style={styles.avatarCircleSmall}>
+                <LayeredAvatar avatar={opponentAvatar || defaultAvatar} size={60} />
+              </View>
               {/* Burbuja de emote oponente */}
               {activeEmotes['opponent'] && (
                 <Animated.View 
@@ -291,7 +297,7 @@ export default function QuizView({
                     styles.emoteBubble, 
                     { 
                       opacity: activeEmotes['opponent'].opacity, 
-                      right: 40,
+                      right: 60,
                       transform: [
                         { scale: activeEmotes['opponent'].scale },
                         { translateY: activeEmotes['opponent'].translateY }
@@ -301,12 +307,14 @@ export default function QuizView({
                 >
                   <View style={styles.bubbleArrowRight} />
                   <View style={styles.circularBubbleContent}>
-                    <LottieView
-                      source={getChatLottieSource(activeEmotes['opponent'].emote)}
-                      autoPlay
-                      loop
-                      style={styles.mascotEmojiLarge}
-                    />
+                    {getChatLottieSource(activeEmotes['opponent'].emote) && (
+                      <LottieView
+                        source={getChatLottieSource(activeEmotes['opponent'].emote)}
+                        autoPlay
+                        loop
+                        style={styles.mascotEmojiLarge}
+                      />
+                    )}
                   </View>
                 </Animated.View>
               )}
@@ -356,12 +364,14 @@ export default function QuizView({
 
       {/* Mascot above question */}
       <View style={styles.mascotContainer} pointerEvents="none">
-        <LottieView
-          source={getMascotIdleSource(category?.emoji)}
-          autoPlay
-          loop
-          style={styles.mascotLottie}
-        />
+        {getMascotIdleSource(category?.emoji) && (
+          <LottieView
+            source={getMascotIdleSource(category?.emoji)}
+            autoPlay
+            loop
+            style={styles.mascotLottie}
+          />
+        )}
       </View>
 
       {/* Question */}
@@ -416,12 +426,14 @@ export default function QuizView({
             colors={['rgba(0,0,0,0.85)', 'rgba(0,0,0,0.95)']}
             style={StyleSheet.absoluteFill}
           />
-          <LottieView
-            source={getMascotIdleSource(category?.emoji)}
-            autoPlay
-            loop
-            style={styles.waitingMascotLottie}
-          />
+          {getMascotIdleSource(category?.emoji) && (
+            <LottieView
+              source={getMascotIdleSource(category?.emoji)}
+              autoPlay
+              loop
+              style={styles.waitingMascotLottie}
+            />
+          )}
           <Text style={[styles.waitingTitle, { fontFamily: 'Digitalt' }]}>¡TERMINASTE!</Text>
           <Text style={[styles.waitingSubtitle, { fontFamily: 'Digitalt' }]}>Esperando a que el rival finalice...</Text>
           
@@ -512,15 +524,23 @@ const styles = StyleSheet.create({
     gap: 8,
     flex: 1,
   },
-  avatarCircleSmall: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  avatarWrapperWithEmote: {
+    position: 'relative',
+    width: 65,
+    height: 65,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  avatarCircleSmall: {
+    width: 65,
+    height: 65,
+    borderRadius: 32.5,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.5)',
+    overflow: 'hidden',
   },
   textInfo: {
     justifyContent: 'center',

@@ -60,7 +60,7 @@ const MASCOT_IDLE_SOURCES: Record<string, any> = {
 };
 
 function getMascotIdleSource(mascotName?: string) {
-  return (mascotName && MASCOT_IDLE_SOURCES[mascotName]) || require('@/assets/lotties/extras/Time-15.json');
+  return (mascotName && MASCOT_IDLE_SOURCES[mascotName]) || null;
 }
 
 export default function MatchmakingScreen() {
@@ -778,7 +778,7 @@ export default function MatchmakingScreen() {
         return (
           <MatchmakingView
             username={myUsername?.toUpperCase()}
-            avatarComponent={<LayeredAvatar avatar={avatar} size={92} />}
+            avatarComponent={<LayeredAvatar avatar={avatar} size={230} />}
             onCancel={handleCancel}
             position={queuePosition}
             isExiting={isExitingMatchmaking}
@@ -794,12 +794,12 @@ export default function MatchmakingScreen() {
           <MatchFoundView
             me={{
               username: myUsername?.toUpperCase(),
-              avatarComponent: <LayeredAvatar avatar={avatar} size={80} />,
+              avatarComponent: <LayeredAvatar avatar={avatar} size={190} />,
               rankInfo: myRankInfo
             }}
             opponent={{
               username: (opponent?.username || 'OPONENTE').toUpperCase(),
-              avatarComponent: <LayeredAvatar avatar={opponentAvatar || defaultAvatar} size={80} />,
+              avatarComponent: <LayeredAvatar avatar={opponentAvatar || defaultAvatar} size={190} />,
               rankInfo: opponentRankInfo
             }}
             isExiting={isExitingMatchFound}
@@ -827,13 +827,13 @@ export default function MatchmakingScreen() {
                 leftPlayer={{
                   userId: myUserId,
                   username: myUsername,
-                  avatarComponent: <LayeredAvatar avatar={meIsP1 ? p1Av : p2Av} size={56} />,
+                  avatarComponent: <LayeredAvatar avatar={meIsP1 ? p1Av : p2Av} size={140} />,
                   totalScore: meIsP1 ? p1Total : p2Total
                 }}
                 rightPlayer={{
                   userId: opponent?.userId || '',
                   username: opponent?.username || 'Oponente',
-                  avatarComponent: <LayeredAvatar avatar={meIsP1 ? p2Av : p1Av} size={56} />,
+                  avatarComponent: <LayeredAvatar avatar={meIsP1 ? p2Av : p1Av} size={140} />,
                   totalScore: meIsP1 ? p2Total : p1Total
                 }}
                 onSpinComplete={() => {
@@ -1012,14 +1012,16 @@ export default function MatchmakingScreen() {
 
             {/* Lottie animation in center */}
             <Animated.View style={{ opacity: contentOpacity, transform: [{ translateY: contentTranslateY }] }}>
-              <LottieView
-                source={isTransitioningFromQuiz
-                  ? require('@/assets/lotties/extras/Confetti_quick.json')
-                  : getMascotIdleSource(selectedCategory?.emoji)}
-                autoPlay
-                loop={isTransitioningFromQuiz ? false : true}
-                style={styles.centerLottie}
-              />
+              {getMascotIdleSource(selectedCategory?.emoji) || isTransitioningFromQuiz ? (
+                <LottieView
+                  source={isTransitioningFromQuiz
+                    ? require('@/assets/lotties/extras/Confetti_quick.json')
+                    : getMascotIdleSource(selectedCategory?.emoji)}
+                  autoPlay
+                  loop={isTransitioningFromQuiz ? false : true}
+                  style={styles.centerLottie}
+                />
+              ) : null}
             </Animated.View>
           </Animated.View>
         )}

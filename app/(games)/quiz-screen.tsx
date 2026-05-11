@@ -340,7 +340,7 @@ export default function QuizScreen() {
         
         <View style={styles.resultScores}>
           <View style={styles.playerResult}>
-            <LayeredAvatar avatar={userAvatar} size={50} />
+            <LayeredAvatar avatar={userAvatar} size={200} />
             <Text style={[styles.playerName, { fontFamily: 'Digitalt' }]}>{user?.username || 'Tú'}</Text>
             <Text style={[styles.scoreText, { fontFamily: 'Digitalt' }]}>{myDisplayScore}</Text>
             <Text style={[styles.detailText, { fontFamily: 'Digitalt' }]}>
@@ -351,7 +351,7 @@ export default function QuizScreen() {
           <Text style={[styles.vsText, { fontFamily: 'Digitalt' }]}>VS</Text>
           
           <View style={styles.playerResult}>
-            <LayeredAvatar avatar={opponentFromLive?.avatar || matchOpponent?.avatar || userAvatar} size={50} />
+            <LayeredAvatar avatar={opponentFromLive?.avatar || matchOpponent?.avatar || userAvatar} size={200} />
             <Text style={[styles.playerName, { fontFamily: 'Digitalt' }]}>
               {opponentFromLive?.username || matchOpponent?.username || 'Oponente'}
             </Text>
@@ -399,7 +399,7 @@ export default function QuizScreen() {
         
         <View style={styles.finalScores}>
           <View style={styles.finalPlayerScore}>
-            <LayeredAvatar avatar={userAvatar} size={60} />
+            <LayeredAvatar avatar={userAvatar} size={250} />
             <Text style={[styles.finalPlayerName, { fontFamily: 'Digitalt' }]}>{user?.username || 'Tú'}</Text>
             <Text style={[styles.finalScore, { fontFamily: 'Digitalt' }]}>
               {userScore}
@@ -460,7 +460,7 @@ export default function QuizScreen() {
                 <View style={styles.avatarEmojiContainer}>
                   <LayeredAvatar 
                     avatar={userAvatar}
-                    size={35}
+                    size={100}
                   />
                 </View>
                 <View style={styles.playerInfo}>
@@ -482,7 +482,7 @@ export default function QuizScreen() {
                 <View style={styles.avatarEmojiContainer}>
                   <LayeredAvatar 
                     avatar={matchOpponent?.avatar || userAvatar}
-                    size={35}
+                    size={100}
                   />
                 </View>
                 <View style={styles.playerInfo}>
@@ -701,9 +701,9 @@ const styles = StyleSheet.create({
     lineHeight: 40,
   },
   avatarEmojiContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 105,
+    height: 105,
+    borderRadius: 52,
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',

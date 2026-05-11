@@ -102,7 +102,7 @@ export default function RoundResultView({
       <Animated.View style={[styles.avatarScoreRow, { opacity: totalsOpacity }]}>
         <View style={styles.playerResultBlock}>
           <View style={styles.avatarCircleSmall}>
-            <LayeredAvatar avatar={leftPlayer.avatar} size={60} />
+            <LayeredAvatar avatar={leftPlayer.avatar} size={130} />
           </View>
           <Text style={[styles.playerName, { fontFamily: 'Digitalt' }]}>{leftName}</Text>
           <Text style={[styles.playerPoints, { fontFamily: 'Digitalt' }]}>{displayLeftTotal}</Text>
@@ -112,7 +112,7 @@ export default function RoundResultView({
 
         <View style={styles.playerResultBlock}>
           <View style={styles.avatarCircleSmall}>
-            <LayeredAvatar avatar={rightPlayer.avatar} size={60} />
+            <LayeredAvatar avatar={rightPlayer.avatar} size={130} />
           </View>
           <Text style={[styles.playerName, { fontFamily: 'Digitalt' }]}>{rightName}</Text>
           <Text style={[styles.playerPoints, { fontFamily: 'Digitalt' }]}>{displayRightTotal}</Text>
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   resultTitle: { color: '#FFFFFF', fontSize: 32, marginBottom: 40, fontWeight: '900' },
   avatarScoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 40 },
   playerResultBlock: { alignItems: 'center', flex: 1 },
-  avatarCircleSmall: { width: 70, height: 70, borderRadius: 35, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  avatarCircleSmall: { width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   playerName: { color: '#FFFFFF', fontSize: 16, opacity: 0.8, marginBottom: 4 },
   playerPoints: { color: '#FFD616', fontSize: 36, fontWeight: '900' },
   vsDivider: { color: '#FFFFFF', fontSize: 24, opacity: 0.5, marginHorizontal: 10 },

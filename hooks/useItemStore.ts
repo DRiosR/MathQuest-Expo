@@ -8,8 +8,10 @@ export type StoreItem = {
   price: number;
   // The PNG image to be used in store cards (mapped from DB's imagen_tienda)
   storeImage: string | null;
-  // The SVG URL to be used for avatar preview (mapped from DB's imagen)
+  // The SVG/PNG URL for avatar preview (mapped from DB's imagen)
   svgUrl: string | null;
+  // The SVG/PNG URL for back layer (mapped from DB's imagen_atras)
+  backUrl: string | null;
 };
 
 export function useItemStore() {
@@ -25,6 +27,7 @@ export function useItemStore() {
       price: Number(row.precio ?? 0),
       storeImage: row.imagen_tienda ?? null,
       svgUrl: row.imagen ?? null,
+      backUrl: row.imagen_atras ?? null,
     };
   }, []);
 

@@ -30,6 +30,7 @@ export type AvatarRow = {
   profile_id: string;
   skin_asset: string;
   hair_asset: string | null;
+  hair_back_asset: string | null;
   eyes_asset: string;
   mouth_asset: string | null;
   clothes_asset: string;
@@ -47,7 +48,7 @@ export async function getCurrentUserAvatar(): Promise<Avatar | null> {
     if (!userId) return null;
     const { data, error } = await supabase
       .from('avatars')
-      .select('profile_id, skin_asset, hair_asset, eyes_asset, mouth_asset, clothes_asset')
+      .select('profile_id, skin_asset, hair_asset, hair_back_asset, eyes_asset, mouth_asset, clothes_asset')
       .eq('profile_id', userId)
       .maybeSingle();
     if (error) throw error;
@@ -55,6 +56,7 @@ export async function getCurrentUserAvatar(): Promise<Avatar | null> {
     return {
       skin_asset: data.skin_asset as string,
       hair_asset: (data.hair_asset as string | null) ?? undefined,
+      hair_back_asset: (data.hair_back_asset as string | null) ?? undefined,
       eyes_asset: data.eyes_asset as string,
       mouth_asset: (data.mouth_asset as string | null) ?? undefined,
       clothes_asset: data.clothes_asset as string,
@@ -88,6 +90,7 @@ export async function upsertCurrentUserAvatar(avatar: Avatar): Promise<Avatar | 
         .update({
           skin_asset: avatar.skin_asset,
           hair_asset: avatar.hair_asset ?? null,
+          hair_back_asset: avatar.hair_back_asset ?? null,
           eyes_asset: avatar.eyes_asset,
           mouth_asset: avatar.mouth_asset ?? null,
           clothes_asset: avatar.clothes_asset,
@@ -102,6 +105,7 @@ export async function upsertCurrentUserAvatar(avatar: Avatar): Promise<Avatar | 
           profile_id: userId,
           skin_asset: avatar.skin_asset,
           hair_asset: avatar.hair_asset ?? null,
+          hair_back_asset: avatar.hair_back_asset ?? null,
           eyes_asset: avatar.eyes_asset,
           mouth_asset: avatar.mouth_asset ?? null,
           clothes_asset: avatar.clothes_asset,
@@ -122,7 +126,7 @@ export async function getUserAvatar(profileId: string): Promise<Avatar | null> {
   try {
     const { data, error } = await supabase
       .from('avatars')
-      .select('profile_id, skin_asset, hair_asset, eyes_asset, mouth_asset, clothes_asset')
+      .select('profile_id, skin_asset, hair_asset, hair_back_asset, eyes_asset, mouth_asset, clothes_asset')
       .eq('profile_id', profileId)
       .maybeSingle();
     if (error) throw error;
@@ -130,6 +134,7 @@ export async function getUserAvatar(profileId: string): Promise<Avatar | null> {
     return {
       skin_asset: data.skin_asset as string,
       hair_asset: (data.hair_asset as string | null) ?? undefined,
+      hair_back_asset: (data.hair_back_asset as string | null) ?? undefined,
       eyes_asset: data.eyes_asset as string,
       mouth_asset: (data.mouth_asset as string | null) ?? undefined,
       clothes_asset: data.clothes_asset as string,
@@ -149,7 +154,7 @@ export async function getAvatarsForProfileIds(profileIds: string[]): Promise<Rec
   try {
     const { data, error } = await supabase
       .from('avatars')
-      .select('profile_id, skin_asset, hair_asset, eyes_asset, mouth_asset, clothes_asset')
+      .select('profile_id, skin_asset, hair_asset, hair_back_asset, eyes_asset, mouth_asset, clothes_asset')
       .in('profile_id', uniqueIds);
     if (error) throw error;
     const result: Record<string, Avatar> = {};
@@ -157,6 +162,7 @@ export async function getAvatarsForProfileIds(profileIds: string[]): Promise<Rec
       result[row.profile_id] = {
         skin_asset: row.skin_asset as string,
         hair_asset: (row.hair_asset as string | null) ?? undefined,
+        hair_back_asset: (row.hair_back_asset as string | null) ?? undefined,
         eyes_asset: row.eyes_asset as string,
         mouth_asset: (row.mouth_asset as string | null) ?? undefined,
         clothes_asset: row.clothes_asset as string,
@@ -177,9 +183,10 @@ export async function getUserStats(userId: string): Promise<UserStats | null> {
       .from('profiles')
       .select('points')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
     if (profileError) throw profileError;
+    if (!profile) return null;
 
     // Partidas finalizadas del usuario, ordenadas por fecha
     const { data: matches, error: matchesError } = await supabase
@@ -528,6 +535,7 @@ export type StoreItemRow = {
   calidad?: string | null;
   precio: number;
   imagen?: string | null;
+  imagen_atras?: string | null; // For assets with back part (like some hair)
   imagen_tienda?: string | null; // PNG to be used as "store_image"
 };
 
@@ -538,7 +546,7 @@ export async function getStoreItems(category?: string): Promise<StoreItemRow[]> 
   try {
     let query = supabase
       .from('tienda')
-      .select('id, nombre, categoria, calidad, precio, imagen, imagen_tienda');
+      .select('id, nombre, categoria, calidad, precio, imagen, imagen_atras, imagen_tienda');
     if (category) {
       query = query.eq('categoria', category);
     }

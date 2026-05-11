@@ -211,6 +211,10 @@ export default function AvatarCustomizationScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     const updatedAvatar = { ...draftAvatar };
+    
+    // Find if this asset has a back part
+    const selectedOption = ownedOptionsForSelectedCategory.find(o => o.svgUrl === assetKey);
+    const backUrl = selectedOption?.backUrl || undefined;
 
     switch (selectedCategory) {
       case 'skin':
@@ -218,6 +222,7 @@ export default function AvatarCustomizationScreen() {
         break;
       case 'hair':
         updatedAvatar.hair_asset = assetKey;
+        updatedAvatar.hair_back_asset = backUrl;
         break;
       case 'eyes':
         updatedAvatar.eyes_asset = assetKey;
@@ -256,7 +261,7 @@ export default function AvatarCustomizationScreen() {
     };
   }, []);
 
-  type OwnedOption = { id: number; svgUrl: string; storeImage: string | null };
+  type OwnedOption = { id: number; svgUrl: string; backUrl: string | null; storeImage: string | null };
   const ownedOptionsForSelectedCategory: OwnedOption[] = useMemo(() => {
     const ownedSet = new Set(ownedProductIds.map(Number));
     const rows = storeItems.filter(
@@ -265,13 +270,18 @@ export default function AvatarCustomizationScreen() {
     const mapped = rows.map((r) => {
       const svgUrl = String(r.imagen || '').trim();
       if (!svgUrl) return null;
-      return { id: Number(r.id), svgUrl, storeImage: r.imagen_tienda ?? null } as OwnedOption;
+      return { 
+        id: Number(r.id), 
+        svgUrl, 
+        backUrl: r.imagen_atras ?? null, 
+        storeImage: r.imagen_tienda ?? null 
+      } as OwnedOption;
     }).filter(Boolean) as OwnedOption[];
 
     // Prepend a "none" option for categories that support it
     if (avatarAssets[selectedCategory] && Object.prototype.hasOwnProperty.call(avatarAssets[selectedCategory], 'none')) {
       if (!mapped.some(o => o.svgUrl === 'none')) {
-        mapped.unshift({ id: -1, svgUrl: 'none', storeImage: null });
+        mapped.unshift({ id: -1, svgUrl: 'none', backUrl: null, storeImage: null });
       }
     }
     return mapped;
@@ -347,6 +357,7 @@ export default function AvatarCustomizationScreen() {
               avatar={{
                 skin_asset: resolveToRemoteUrl('skin', draftAvatar.skin_asset) as any,
                 hair_asset: resolveToRemoteUrl('hair', draftAvatar.hair_asset) as any,
+                hair_back_asset: draftAvatar.hair_back_asset, // This is already a URL or undefined
                 eyes_asset: resolveToRemoteUrl('eyes', draftAvatar.eyes_asset) as any,
                 mouth_asset: resolveToRemoteUrl('mouth', draftAvatar.mouth_asset) as any,
                 clothes_asset: resolveToRemoteUrl('clothes', draftAvatar.clothes_asset) as any,

@@ -144,6 +144,7 @@ export default function StoreScreen() {
         price: it.price,
         thumbnail: it.storeImage ? { uri: it.storeImage } : undefined,
         svgUrl: it.svgUrl,
+        backUrl: it.backUrl,
         SvgComp: undefined,
       }));
   }, [allItems, selectedCategory]);
@@ -191,7 +192,8 @@ export default function StoreScreen() {
             if (item.svgUrl) {
               setPreviewAvatar(prev => ({
                 ...prev,
-                [`${selectedCategory}_asset`]: item.svgUrl
+                [`${selectedCategory}_asset`]: item.svgUrl,
+                [`${selectedCategory}_back_asset`]: (item as any).backUrl || undefined
               }));
             }
           }}
@@ -204,7 +206,7 @@ export default function StoreScreen() {
             marginBottom: CARD_GAP,
             backgroundColor: '#B35BDC',
             borderRadius: CARD_RADIUS,
-            padding: 10,
+            padding: 4, // Reducido para dar más espacio al arte
             justifyContent: 'flex-end',
             overflow: 'hidden',
           }}
@@ -213,13 +215,23 @@ export default function StoreScreen() {
         <View style={styles.cardIconWrap}>
           <CategoryIcon size={14} color="#B08AFD" weight="fill" />
         </View>
+
         <View style={styles.cardArt}>
           {imgSource ? (
-            <Image source={imgSource} style={styles.thumbnailImage} />
-          ) : SvgIcon ? (
-            <SvgIcon width={72} height={72} />
+            <Image 
+              source={imgSource} 
+              style={[
+                styles.thumbnailImage, 
+                selectedCategory === 'eyes' || selectedCategory === 'mouth' ? { width: 125, height: 125, transform: [{scale: 1.2}] } :
+                selectedCategory === 'skin' ? { width: 85, height: 85 } : 
+                { width: 105, height: 105 }
+              ]} 
+            />
+          ) : SvgComp ? (
+            <SvgComp width={80} height={80} />
           ) : null}
         </View>
+
         <View style={styles.priceRow}>
           <Image source={require('@/assets/images/store/MQ-coin.png')} style={styles.coinPng} />
           <Text style={[styles.priceText, fontsLoaded ? { fontFamily: 'Digitalt' } : null]}>
@@ -651,7 +663,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: 10,
-    paddingLeft: 10, // Mueve el avatar un poco a la derecha
     borderWidth: 6,
     borderColor: 'rgba(255,255,255,0.4)',
     elevation: 20,
@@ -713,8 +724,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 0,
-    marginBottom: 8,
+    marginTop: 5,
+    marginBottom: 5,
   },
   priceRow: {
     flexDirection: 'row',
@@ -734,8 +745,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   thumbnailImage: {
-    width: 72,
-    height: 72,
+    width: 105, // Aumentado significativamente
+    height: 105,
     resizeMode: 'contain',
   },
   purchasingOverlay: {

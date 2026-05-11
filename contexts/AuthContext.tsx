@@ -39,7 +39,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         if (hasSession) {
           const currentUser = await AuthService.getCurrentUser();
-          setUser(currentUser);
+          
+          if (currentUser) {
+            // VERIFICACIÓN CRÍTICA: ¿Existe el perfil en la tabla 'profiles'?
+            // Si el usuario fue borrado pero la sesión sigue activa, debemos forzar el logout
+            const { data: profile } = await AuthService.getClient()
+              .from('profiles')
+              .select('id')
+              .eq('id', currentUser.id)
+              .maybeSingle();
+
+            if (!profile) {
+              console.log('⚠️ Perfil no encontrado en la base de datos. Cerrando sesión...');
+              await AuthService.signOut();
+              setUser(null);
+            } else {
+              setUser(currentUser);
+            }
+          } else {
+            setUser(null);
+          }
         } else {
           setUser(null);
         }
