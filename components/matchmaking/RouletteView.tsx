@@ -183,8 +183,7 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     backgroundColor: 'rgba(255,255,255,0.5)',
     alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
+    justifyContent: 'flex-end',
   },
   avatarCircleHighlight: {
     borderWidth: 3,

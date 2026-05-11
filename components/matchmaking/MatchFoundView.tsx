@@ -160,7 +160,7 @@ export default function MatchFoundView({ me, opponent, isExiting = false, onExit
       </View>
 
       <View style={styles.vsOverlay}>
-        <FadeInView delay={800} duration={400} from="none" scale={0.2}>
+        <FadeInView delay={800} duration={400} from="none">
           <View style={styles.vsContainer}>
              <LinearGradient colors={['#FFD616', '#F59E0B']} style={styles.vsCircle}>
                 <Text style={[styles.vsText, { fontFamily: 'Digitalt' }]}>VS</Text>
@@ -216,10 +216,10 @@ const styles = StyleSheet.create({
     borderRadius: 85,
     backgroundColor: 'rgba(255,255,255,0.5)',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     borderWidth: 4,
     borderColor: 'rgba(255,255,255,0.4)',
-    overflow: 'hidden',
+
     elevation: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },

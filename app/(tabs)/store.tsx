@@ -70,8 +70,17 @@ export default function StoreScreen() {
   const [showMoneyCalc, setShowMoneyCalc] = React.useState<boolean>(false);
 
   React.useEffect(() => {
-    setPreviewAvatar(userAvatar);
+    if (userAvatar) {
+      setPreviewAvatar(userAvatar);
+      triggerBounce();
+    }
   }, [userAvatar]);
+
+  // Trigger bounce when preview changes manually
+  const updatePreview = (newAvatar: any) => {
+    setPreviewAvatar(newAvatar);
+    triggerBounce();
+  };
 
   const [selectedCategory, setSelectedCategory] = React.useState<
     'skin' | 'hair' | 'eyes' | 'mouth' | 'clothes'
@@ -85,6 +94,28 @@ export default function StoreScreen() {
   } | null>(null);
   const [isPurchasing, setIsPurchasing] = React.useState<boolean>(false);
   const rotateValue = React.useRef(new Animated.Value(0)).current;
+  const previewScale = React.useRef(new Animated.Value(1)).current;
+  const idleAnim = React.useRef(new Animated.Value(0)).current;
+
+  // Idle animation (breathing)
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(idleAnim, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(idleAnim, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
+  const triggerBounce = () => {
+    previewScale.setValue(0.9);
+    Animated.spring(previewScale, {
+      toValue: 1,
+      friction: 3,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  };
 
   React.useEffect(() => {
     if (isPurchasing) {
@@ -107,9 +138,14 @@ export default function StoreScreen() {
   const { width, height } = Dimensions.get('window');
   const SIDE_PAD = 14;
   const CARD_GAP = 10;
-  const CARD_SIZE = Math.floor((width - SIDE_PAD * 2 - CARD_GAP * 2) / 3); // 3 items per row, avoid fractional pixels
-  const CARD_HEIGHT = CARD_SIZE + 16; // slightly taller than width
-  const TOP_SECTION_HEIGHT = height * 0.38;
+  const CARD_SIZE = Math.floor((width - SIDE_PAD * 2 - CARD_GAP * 2) / 3); 
+  const CARD_HEIGHT = CARD_SIZE + 16; 
+  
+  // Responsive Avatar Sizing
+  const TOP_SECTION_HEIGHT = height * 0.40;
+  const AVATAR_CIRCLE_SIZE = Math.min(width * 0.6, height * 0.28);
+  const AVATAR_IMAGE_SIZE = AVATAR_CIRCLE_SIZE * 0.9;
+
   const CARD_RADIUS = 24;
   const [ownedProductIds, setOwnedProductIds] = React.useState<number[]>([]);
 
@@ -190,11 +226,11 @@ export default function StoreScreen() {
 
             // Update preview avatar
             if (item.svgUrl) {
-              setPreviewAvatar(prev => ({
-                ...prev,
+              updatePreview({
+                ...previewAvatar,
                 [`${selectedCategory}_asset`]: item.svgUrl,
                 [`${selectedCategory}_back_asset`]: (item as any).backUrl || undefined
-              }));
+              });
             }
           }}
 
@@ -227,8 +263,8 @@ export default function StoreScreen() {
                 { width: 105, height: 105 }
               ]} 
             />
-          ) : SvgComp ? (
-            <SvgComp width={80} height={80} />
+          ) : item.SvgComp ? (
+            <item.SvgComp width={80} height={80} />
           ) : null}
         </View>
 
@@ -290,12 +326,26 @@ export default function StoreScreen() {
 
           {/* User Avatar Preview (Dynamic) */}
           <View style={styles.avatarPreviewWrap}>
-            <View style={styles.avatarPreviewBg}>
+            <Animated.View style={[
+              styles.avatarPreviewBg,
+              {
+                transform: [
+                  { scale: previewScale },
+                  { translateY: idleAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) }
+                ]
+              }
+            ]}>
               <LayeredAvatar 
                 avatar={previewAvatar}
-                size={210}
+                size={AVATAR_IMAGE_SIZE}
+                scale={0.8}
               />
-            </View>
+              <LinearGradient 
+                colors={['transparent', 'rgba(255,255,255,0.4)', 'transparent']} 
+                start={{x:0, y:0}} end={{x:1, y:1}}
+                style={styles.spotlightSweep}
+              />
+            </Animated.View>
           </View>
 
         </View>
@@ -469,17 +519,17 @@ const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'transparent',
-    justifyContent: 'flex-end', // Move modal to bottom to show avatar
+    justifyContent: 'flex-end', 
     alignItems: 'center',
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 80,
   },
   backdropTouch: {
     ...StyleSheet.absoluteFillObject,
   },
   modalCard: {
-    width: '90%',
-    maxWidth: 360,
+    width: '95%',
+    maxWidth: 400,
     backgroundColor: '#A955F7',
     borderRadius: 22,
     paddingHorizontal: 18,
@@ -491,14 +541,17 @@ const styles = StyleSheet.create({
   },
   modalClose: {
     position: 'absolute',
-    left: 12,
-    top: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    right: 12,
+    top: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: '#EF4444',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    zIndex: 10,
   },
   modalCloseText: {
     color: '#fff',
@@ -508,7 +561,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 20,
     letterSpacing: 1,
     marginTop: 4,
     marginBottom: 8,
@@ -526,7 +579,7 @@ const styles = StyleSheet.create({
   },
   modalPrice: {
     color: '#fff',
-    fontSize: 36,
+    fontSize: 48,
     fontWeight: 'bold',
   },
   modalArt: {
@@ -542,10 +595,10 @@ const styles = StyleSheet.create({
   buyButton: {
     marginTop: 6,
     backgroundColor: '#22C55E',
-    paddingVertical: 12,
-    paddingHorizontal: 22,
-    borderRadius: 16,
-    minWidth: 180,
+    paddingVertical: 16,
+    paddingHorizontal: 28,
+    borderRadius: 18,
+    minWidth: 220,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -560,7 +613,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '900',
     letterSpacing: 1,
-    fontSize: 16,
+    fontSize: 20,
   },
   cardInnerStroke: {
     position: 'absolute',
@@ -656,13 +709,12 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   avatarPreviewBg: {
-    width: 230,
-    height: 230,
-    borderRadius: 115,
+    width: AVATAR_CIRCLE_SIZE,
+    height: AVATAR_CIRCLE_SIZE,
+    borderRadius: AVATAR_CIRCLE_SIZE / 2,
     backgroundColor: 'rgba(255,255,255,0.95)',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 10,
+    justifyContent: 'flex-end',
     borderWidth: 6,
     borderColor: 'rgba(255,255,255,0.4)',
     elevation: 20,
@@ -787,6 +839,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  spotlightSweep: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: AVATAR_CIRCLE_SIZE / 2,
+    opacity: 0.3,
   },
 });
 

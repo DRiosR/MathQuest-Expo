@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
     borderRadius: 110,
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     elevation: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },

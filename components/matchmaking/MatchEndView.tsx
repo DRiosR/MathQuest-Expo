@@ -5,6 +5,8 @@ import LottieView from 'lottie-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { FadeInView } from '../shared/FadeInView';
+import { LayeredAvatar } from '@/components/LayeredAvatar';
+import { defaultAvatar } from '@/constants/avatarAssets';
 
 
 type Props = {
@@ -14,11 +16,24 @@ type Props = {
   player1TotalScore: number;
   player2TotalScore: number;
   pointsDelta: number;
-  eloInfo?: { currentElo: number; beforeElo: number }; // Optional: pass current user points/ELO to animate progress
+  player1Avatar?: any;
+  player2Avatar?: any;
+  eloInfo?: { currentElo: number; beforeElo: number };
   onExit: () => void;
 };
 
-export default function MatchEndView({ didWin, player1Username, player2Username, player1TotalScore, player2TotalScore, pointsDelta, eloInfo, onExit }: Props) {
+export default function MatchEndView({ 
+  didWin, 
+  player1Username, 
+  player2Username, 
+  player1TotalScore, 
+  player2TotalScore, 
+  pointsDelta, 
+  eloInfo, 
+  player1Avatar,
+  player2Avatar,
+  onExit 
+}: Props) {
   const { user } = useAuth();
   const currentUsername = (user?.username ?? '').trim().toLowerCase();
   const isPlayer1CurrentUser = (player1Username ?? '').trim().toLowerCase() === currentUsername && currentUsername.length > 0;
@@ -216,48 +231,58 @@ export default function MatchEndView({ didWin, player1Username, player2Username,
         </View>
 
         <View style={styles.scoresBox}>
-          <View style={styles.scoreRow}>
-            <Text
-              style={[
-                styles.userText,
-                { fontFamily: 'Gilroy-Black' },
-                isPlayer1CurrentUser && styles.userTextHighlight,
-              ]}
-              numberOfLines={1}
-            >
-              @{player1Username?.toUpperCase() || 'P1'}
-            </Text>
-            <Text 
-              style={[
-                styles.scoreText, 
-                { fontFamily: 'Digitalt' },
-                isPlayer1CurrentUser && styles.scoreTextHighlight,
-              ]}
-            >
-              {player1TotalScore ?? 0}
-            </Text>
-          </View>
-          <View style={styles.scoreRow}>
-            <Text
-              style={[
-                styles.userText,
-                { fontFamily: 'Gilroy-Black' },
-                isPlayer2CurrentUser && styles.userTextHighlight,
-              ]}
-              numberOfLines={1}
-            >
-              @{player2Username?.toUpperCase() || 'P2'}
-            </Text>
-            <Text 
-              style={[
-                styles.scoreText, 
-                { fontFamily: 'Digitalt' },
-                isPlayer2CurrentUser && styles.scoreTextHighlight,
-              ]}
-            >
-              {player2TotalScore ?? 0}
-            </Text>
-          </View>
+            <View style={styles.scoreRowAvatar}>
+              <View style={styles.avatarCircleSmall}>
+                <LayeredAvatar avatar={player1Avatar || defaultAvatar} size={45} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[
+                    styles.userText,
+                    { fontFamily: 'Gilroy-Black' },
+                    isPlayer1CurrentUser && styles.userTextHighlight,
+                  ]}
+                  numberOfLines={1}
+                >
+                  @{player1Username?.toUpperCase() || 'P1'}
+                </Text>
+                <Text 
+                  style={[
+                    styles.scoreText, 
+                    { fontFamily: 'Digitalt' },
+                    isPlayer1CurrentUser && styles.scoreTextHighlight,
+                  ]}
+                >
+                  {player1TotalScore ?? 0}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.scoreRowAvatar}>
+              <View style={styles.avatarCircleSmall}>
+                <LayeredAvatar avatar={player2Avatar || defaultAvatar} size={45} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[
+                    styles.userText,
+                    { fontFamily: 'Gilroy-Black' },
+                    isPlayer2CurrentUser && styles.userTextHighlight,
+                  ]}
+                  numberOfLines={1}
+                >
+                  @{player2Username?.toUpperCase() || 'P2'}
+                </Text>
+                <Text 
+                  style={[
+                    styles.scoreText, 
+                    { fontFamily: 'Digitalt' },
+                    isPlayer2CurrentUser && styles.scoreTextHighlight,
+                  ]}
+                >
+                  {player2TotalScore ?? 0}
+                </Text>
+              </View>
+            </View>
         </View>
 
         {/* Always reserve space for coins */}
@@ -350,6 +375,21 @@ const styles = StyleSheet.create({
   userTextHighlight: { color: '#FFD616' },
   scoreText: { color: '#FFFFFF', fontSize: 22, fontWeight: '900' },
   scoreTextHighlight: { color: '#FFD616' },
+  scoreRowAvatar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  avatarCircleSmall: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
   exitButton: { height: 56, borderRadius: 28, overflow: 'hidden' },
   exitButtonGradient: { height: '100%', width: 180, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   exitText: { color: '#FFFFF3', fontSize: 18, fontWeight: '900' },

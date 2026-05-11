@@ -243,7 +243,7 @@ export default function QuizView({
           <View style={styles.playerInfoBlock}>
             <View style={styles.avatarWrapperWithEmote}>
               <View style={styles.avatarCircleSmall}>
-                <LayeredAvatar avatar={myAvatar || defaultAvatar} size={60} />
+                <LayeredAvatar avatar={myAvatar || defaultAvatar} size={70} />
               </View>
               {/* Burbuja de emote propia */}
               {activeEmotes['me'] && (
@@ -288,7 +288,7 @@ export default function QuizView({
           <View style={[styles.playerInfoBlock, { flexDirection: 'row-reverse' }]}>
             <View style={styles.avatarWrapperWithEmote}>
               <View style={styles.avatarCircleSmall}>
-                <LayeredAvatar avatar={opponentAvatar || defaultAvatar} size={60} />
+                <LayeredAvatar avatar={opponentAvatar || defaultAvatar} size={70} />
               </View>
               {/* Burbuja de emote oponente */}
               {activeEmotes['opponent'] && (
@@ -532,15 +532,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarCircleSmall: {
-    width: 65,
-    height: 65,
-    borderRadius: 32.5,
+    width: 74,
+    height: 74,
+    borderRadius: 37,
     backgroundColor: 'rgba(255,255,255,0.5)',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.5)',
-    overflow: 'hidden',
   },
   textInfo: {
     justifyContent: 'center',

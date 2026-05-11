@@ -950,18 +950,27 @@ export default function MatchmakingScreen() {
           );
         }
       case 'MATCH_END':
-        return (
-          <MatchEndView
-            didWin={gameData?.winner ? gameData?.winner === socketId : false}
-            player1Username={gameData?.player1Username || 'P1'}
-            player2Username={gameData?.player2Username || 'P2'}
-            player1TotalScore={gameData?.player1TotalScore ?? 0}
-            player2TotalScore={gameData?.player2TotalScore ?? 0}
-            pointsDelta={(gameData?.winner === socketId ? gameData?.globalPointsUpdate?.winner : gameData?.globalPointsUpdate?.loser) ?? 0}
-            eloInfo={eloInfo || undefined}
-            onExit={handleExitMatchEnd}
-          />
-        );
+        {
+          const haveIds = Boolean(gameData?.player1Id && gameData?.player2Id);
+          const meIsP1 = myRole ? (myRole === 'p1') : (haveIds ? (gameData?.player1Id === socketId || gameData?.player1Id === myUserId) : true);
+          const p1Av = (gameData as any)?.player1Avatar || (meIsP1 ? avatar : opponentAvatar) || defaultAvatar;
+          const p2Av = (gameData as any)?.player2Avatar || (meIsP1 ? opponentAvatar : avatar) || defaultAvatar;
+
+          return (
+            <MatchEndView
+              didWin={gameData?.winner ? gameData?.winner === socketId : false}
+              player1Username={gameData?.player1Username || 'P1'}
+              player2Username={gameData?.player2Username || 'P2'}
+              player1TotalScore={gameData?.player1TotalScore ?? 0}
+              player2TotalScore={gameData?.player2TotalScore ?? 0}
+              player1Avatar={p1Av}
+              player2Avatar={p2Av}
+              pointsDelta={(gameData?.winner === socketId ? gameData?.globalPointsUpdate?.winner : gameData?.globalPointsUpdate?.loser) ?? 0}
+              eloInfo={eloInfo || undefined}
+              onExit={handleExitMatchEnd}
+            />
+          );
+        }
       default:
         return <View />;
     }

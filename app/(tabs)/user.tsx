@@ -358,15 +358,17 @@ export default function UserScreen() {
               <TouchableOpacity 
                 ref={avatarRef}
                 onLayout={() => measureUser(avatarRef, 'profile_avatar', 60)}
-                style={styles.avatarCircle}
                 onPress={handleCustomizeAvatar}
                 activeOpacity={0.8}
+                style={styles.avatarContainer}
               >
-                <LayeredAvatar 
-                  avatar={userAvatar}
-                  size={110}
-                  style={styles.layeredAvatar}
-                />
+                <View style={styles.avatarCircle}>
+                  <LayeredAvatar 
+                    avatar={userAvatar}
+                    size={130}
+                    style={styles.layeredAvatar}
+                  />
+                </View>
                 <View style={styles.customizeOverlay}>
                   <PencilSimpleIcon size={16} color="#fff" weight="bold" />
                 </View>
@@ -735,12 +737,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   avatarCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
     backgroundColor: '#fff',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     borderWidth: 4,
     borderColor: '#fff',
     elevation: 15,
