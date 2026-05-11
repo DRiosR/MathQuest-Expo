@@ -4,7 +4,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LayeredAvatar } from '@/components/LayeredAvatar';
@@ -17,6 +17,8 @@ import { getStoreItems, getUserInventoryProductIds, StoreItemRow } from '@/servi
 import { Avatar, AvatarCategory } from '@/types/avatar';
 
 const { width, height } = Dimensions.get('window');
+const isSmallDevice = height < 750;
+const isVerySmallDevice = height < 650;
 
 export default function AvatarCustomizationScreen() {
   const { fontsLoaded } = useFontContext();
@@ -31,6 +33,25 @@ export default function AvatarCustomizationScreen() {
   const [loadingInventory, setLoadingInventory] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [showSuccess, setShowSuccess] = useState<boolean>(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText: string;
+    cancelText: string;
+    icon: string;
+    confirmColor: string[];
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    confirmText: '',
+    cancelText: '',
+    icon: 'exclamation-circle',
+    confirmColor: ['#22C55E', '#16A34A'],
+  });
 
   // Helpers to reconcile local keys (e.g., "skin01") with remote URLs (e.g., ".../skin_01.svg")
   const extractFilename = (uri: string) => {
@@ -138,68 +159,62 @@ export default function AvatarCustomizationScreen() {
 
   const handleBack = () => {
     if (hasChanges()) {
-      Alert.alert(
-        'Cambios no guardados',
-        '¿Quieres guardar los cambios en tu avatar?',
-        [
-          {
-            text: 'No guardar',
-            style: 'destructive',
-            onPress: () => {
-              // Discard local changes
-              setDraftAvatar(originalAvatar);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.replace('/(tabs)/user');
-            },
-          },
-          {
-            text: 'Guardar',
-            onPress: () => {
-              // Persist draft and then exit
-              handleSave();
-            },
-          },
-        ]
-      );
+      setConfirmModal({
+        visible: true,
+        title: '¡ESPERA!',
+        message: '¿Quieres guardar los cambios antes de salir?',
+        confirmText: 'GUARDAR',
+        cancelText: 'SALIR SIN GUARDAR',
+        icon: 'save',
+        confirmColor: ['#22C55E', '#16A34A'],
+        onConfirm: () => {
+          setConfirmModal(prev => ({ ...prev, visible: false }));
+          handleSave();
+        }
+      });
     } else {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       router.replace('/(tabs)/user');
     }
+  };
 
+  const discardChangesAndExit = () => {
+    setConfirmModal(prev => ({ ...prev, visible: false }));
+    setDraftAvatar(originalAvatar);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.replace('/(tabs)/user');
   };
 
   const handleSave = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    Alert.alert(
-      'Guardar Cambios',
-      '¿Estás seguro de que quieres guardar los cambios en tu avatar?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Guardar',
-          onPress: async () => {
-            try {
-              setIsSaving(true);
-              await updateAvatar(draftAvatar);
-              // Baseline now matches what we saved
-              setOriginalAvatar(draftAvatar);
-              setIsSaving(false);
-              setShowSuccess(true);
+    setConfirmModal({
+      visible: true,
+      title: '¿GUARDAR?',
+      message: '¿Estás seguro de que quieres guardar tu nuevo look?',
+      confirmText: 'SÍ, GUARDAR',
+      cancelText: 'CANCELAR',
+      icon: 'check-circle',
+      confirmColor: ['#8A56FE', '#7C3AED'],
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, visible: false }));
+        try {
+          setIsSaving(true);
+          await updateAvatar(draftAvatar);
+          setOriginalAvatar(draftAvatar);
+          setIsSaving(false);
+          setShowSuccess(true);
 
-              setTimeout(() => {
-                setShowSuccess(false);
-                router.replace('/(tabs)/user');
-              }, 2000);
-            } catch (error) {
-              setIsSaving(false);
-
-              Alert.alert('Error', 'No se pudieron guardar los cambios. Intenta de nuevo.');
-            }
-          }
+          setTimeout(() => {
+            setShowSuccess(false);
+            router.replace('/(tabs)/user');
+          }, 2000);
+        } catch (error) {
+          setIsSaving(false);
+          // Show error modal?
         }
-      ]
-    );
+      }
+    });
   };
 
   const handleCategorySelect = (category: AvatarCategory) => {
@@ -262,7 +277,7 @@ export default function AvatarCustomizationScreen() {
     };
   }, []);
 
-  type OwnedOption = { id: number; svgUrl: string; backUrl: string | null; storeImage: string | null };
+  type OwnedOption = { id: number; svgUrl: string; backUrl: string | null; storeImage: string | null; rarity: string | null };
   const ownedOptionsForSelectedCategory: OwnedOption[] = useMemo(() => {
     const ownedSet = new Set(ownedProductIds.map(Number));
     const rows = storeItems.filter(
@@ -275,14 +290,15 @@ export default function AvatarCustomizationScreen() {
         id: Number(r.id), 
         svgUrl, 
         backUrl: r.imagen_atras ?? null, 
-        storeImage: r.imagen_tienda ?? null 
+        storeImage: r.imagen_tienda ?? null,
+        rarity: r.calidad ?? 'comun'
       } as OwnedOption;
     }).filter(Boolean) as OwnedOption[];
 
     // Prepend a "none" option for categories that support it
     if (avatarAssets[selectedCategory] && Object.prototype.hasOwnProperty.call(avatarAssets[selectedCategory], 'none')) {
       if (!mapped.some(o => o.svgUrl === 'none')) {
-        mapped.unshift({ id: -1, svgUrl: 'none', backUrl: null, storeImage: null });
+        mapped.unshift({ id: -1, svgUrl: 'none', backUrl: null, storeImage: null, rarity: 'comun' });
       }
     }
     return mapped;
@@ -316,154 +332,180 @@ export default function AvatarCustomizationScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#7c3aed', '#a855f7']}
+        colors={['#1DC7FF', '#7c3aed']}
         style={styles.gradientBackground}
       />
 
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <FontAwesome5 name="chevron-left" size={20} color="#fff" />
+          <TouchableOpacity onPress={handleBack} style={styles.backButton} activeOpacity={0.7}>
+            <FontAwesome5 name="chevron-left" size={18} color="#fff" />
           </TouchableOpacity>
 
-          <View style={{ flex: 1 }} />
+          <Text style={[styles.headerTitle, { fontFamily: 'Digitalt' }]}>MI AVATAR</Text>
 
           <TouchableOpacity
             onPress={handleSave}
             style={styles.saveButtonWrapper}
             disabled={!hasUnsavedChanges || isSaving}
+            activeOpacity={0.8}
           >
-            {isSaving ? (
-              <View style={[styles.saveButton, styles.saveButtonDisabled]}>
-                <ActivityIndicator size="small" color="#7c3aed" />
-                <Text style={styles.saveButtonText}>Guardando…</Text>
-              </View>
-            ) : hasUnsavedChanges ? (
-              <View style={[styles.saveButton, styles.saveButtonActive]}>
-                <Text style={styles.saveButtonText}>Guardar</Text>
-              </View>
-            ) : (
-              <View style={[styles.saveButton, styles.saveButtonDisabled]}>
-                <Text style={styles.saveButtonText}>Guardar</Text>
-              </View>
-            )}
+            <LinearGradient
+              colors={hasUnsavedChanges && !isSaving ? ['#22C55E', '#16A34A'] : ['#94A3B8', '#64748B']}
+              style={styles.saveButton}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={[styles.saveButtonText, { fontFamily: 'Digitalt' }]}>LISTO</Text>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
         </View>
 
-        {/* Avatar Display */}
+        {/* Avatar Display Section */}
         <View style={styles.avatarSection}>
-          <View style={styles.avatarContainer}>
-            <LayeredAvatar
-              avatar={{
-                skin_asset: resolveToRemoteUrl('skin', draftAvatar.skin_asset) as any,
-                hair_asset: resolveToRemoteUrl('hair', draftAvatar.hair_asset) as any,
-                hair_back_asset: draftAvatar.hair_back_asset, // This is already a URL or undefined
-                eyes_asset: resolveToRemoteUrl('eyes', draftAvatar.eyes_asset) as any,
-                mouth_asset: resolveToRemoteUrl('mouth', draftAvatar.mouth_asset) as any,
-                clothes_asset: resolveToRemoteUrl('clothes', draftAvatar.clothes_asset) as any,
-                clothes_back_asset: draftAvatar.clothes_back_asset,
-              }}
-              size={200}
-              style={styles.avatar}
-            />
+          <View style={styles.avatarAndPlatform}>
+            {/* Spotlight Platform */}
+            <View style={styles.platformShadow} />
+            <LinearGradient colors={['#fff', '#E0F2FE']} style={styles.platform}>
+              <View style={styles.platformInner} />
+            </LinearGradient>
+            
+            <View style={styles.avatarWrapper}>
+              <LayeredAvatar
+                avatar={{
+                  skin_asset: resolveToRemoteUrl('skin', draftAvatar.skin_asset) as any,
+                  hair_asset: resolveToRemoteUrl('hair', draftAvatar.hair_asset) as any,
+                  hair_back_asset: draftAvatar.hair_back_asset,
+                  eyes_asset: resolveToRemoteUrl('eyes', draftAvatar.eyes_asset) as any,
+                  mouth_asset: resolveToRemoteUrl('mouth', draftAvatar.mouth_asset) as any,
+                  clothes_asset: resolveToRemoteUrl('clothes', draftAvatar.clothes_asset) as any,
+                  clothes_back_asset: draftAvatar.clothes_back_asset,
+                }}
+                size={isVerySmallDevice ? 130 : isSmallDevice ? 160 : 220}
+                style={styles.avatar}
+              />
+            </View>
           </View>
         </View>
 
-        {/* Title and Username below Avatar */}
-        <View style={styles.titleSection}>
-          <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>
-            AVATAR!
-          </Text>
-          <Text style={[styles.usernameText, { fontFamily: 'Digitalt' }]}>
-            {user?.username ? user.username : 'Usuario'}
-          </Text>
+        {/* Category Navigation Pill */}
+        <View style={styles.categoryPillContainer}>
+          <View style={styles.categoryPill}>
+            {(Object.keys(categoryConfig) as AvatarCategory[]).map((category) => {
+              const config = categoryConfig[category];
+              const isSelected = selectedCategory === category;
+
+              return (
+                <TouchableOpacity
+                  key={category}
+                  style={[
+                    styles.categoryItem,
+                    isSelected && styles.categoryItemSelected
+                  ]}
+                  onPress={() => handleCategorySelect(category)}
+                  activeOpacity={0.9}
+                >
+                  <FontAwesome5
+                    name={config.icon}
+                    size={18}
+                    color={isSelected ? '#fff' : '#A78BFA'}
+                  />
+                  {isSelected && (
+                    <FadeInView duration={200} style={styles.activeDot}>
+                      <View />
+                    </FadeInView>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
-        {/* Category Navigation */}
-        <View style={styles.categoryNavigation}>
-          {(Object.keys(categoryConfig) as AvatarCategory[]).map((category) => {
-            const config = categoryConfig[category];
-            const isSelected = selectedCategory === category;
-
-            return (
-              <TouchableOpacity
-                key={category}
-                style={[
-                  styles.categoryButton,
-                  isSelected && styles.categoryButtonSelected
-                ]}
-                onPress={() => handleCategorySelect(category)}
-              >
-                <FontAwesome5
-                  name={config.icon}
-                  size={20}
-                  color={isSelected ? '#7c3aed' : '#fff'}
-                />
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Asset Selection Grid */}
+        {/* Selection Sheet */}
         <View style={styles.selectionSection}>
-          <Text style={[styles.categoryTitle, { fontFamily: 'Gilroy-Black' }]}>
-            {categoryConfig[selectedCategory].displayName}
-          </Text>
+           <LinearGradient colors={['#8A56FE', '#7C3AED']} style={styles.sheetGradient} />
+           
+           <View style={styles.sheetHeader}>
+              <View style={styles.sheetHandle} />
+              <Text style={[styles.categoryTitle, { fontFamily: 'Digitalt' }]}>
+                {categoryConfig[selectedCategory].displayName.toUpperCase()}
+              </Text>
+           </View>
 
           <ScrollView
             style={styles.assetsScrollView}
             showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
           >
             {loadingInventory ? (
-              <View style={{ paddingVertical: 20, width: '100%', alignItems: 'center' }}>
-                <Text style={{ color: '#6b7280' }}>Cargando inventario…</Text>
+              <View style={styles.emptyState}>
+                <ActivityIndicator size="large" color="#fff" />
+                <Text style={[styles.emptyText, { fontFamily: 'Digitalt' }]}>CARGANDO...</Text>
               </View>
             ) : ownedOptionsForSelectedCategory.length === 0 ? (
-              <FadeInView from="bottom" delay={100} duration={450} style={{ width: '100%' }}>
-                <View style={{ paddingVertical: 20, width: '100%', alignItems: 'center' }}>
-                  <Text style={{ color: '#6b7280' }}>No tienes ítems de esta categoría</Text>
-                </View>
-              </FadeInView>
+              <View style={styles.emptyState}>
+                <Text style={[styles.emptyText, { fontFamily: 'Digitalt' }]}>VACÍO</Text>
+              </View>
             ) : (
-              <FadeInView from="bottom" delay={100} duration={450} style={styles.assetsGrid}>
+              <FadeInView from="bottom" delay={100} duration={400} style={styles.assetsGrid}>
                 {ownedOptionsForSelectedCategory.map((opt) => {
                   const isNone = opt.svgUrl === 'none';
                   const currentKey = getCurrentAssetKey() || '';
                   const currentNorm = normalizeValueForCategory(currentKey, selectedCategory);
                   const optionNorm = isNone ? 'none' : normalizeValueForCategory(opt.svgUrl, selectedCategory);
                   const isSelected = currentNorm === optionNorm;
+                  
                   return (
                     <TouchableOpacity
                       key={`${selectedCategory}-${opt.id}-${opt.svgUrl}`}
+                      activeOpacity={0.9}
                       style={[
-                        styles.assetOption,
-                        isSelected && styles.assetOptionSelected
+                        styles.assetCard,
+                        isSelected && styles.assetCardSelected
                       ]}
                       onPress={() => handleAssetSelect(opt.svgUrl)}
                     >
-                      <View style={styles.assetPreview}>
+                      {/* Rarity Ribbon */}
+                      {!isNone && (
+                        <View style={[
+                          styles.rarityRibbon,
+                          opt.rarity === 'legendario' && styles.rarityRibbonLegendary,
+                          opt.rarity === 'epico' && styles.rarityRibbonEpic,
+                          opt.rarity === 'raro' && styles.rarityRibbonRaro,
+                          opt.rarity === 'comun' && styles.rarityRibbonComun
+                        ]}>
+                          <Text style={[
+                            styles.rarityRibbonText, 
+                            { fontFamily: 'Digitalt' },
+                            opt.rarity === 'legendario' && styles.rarityTextLegendary,
+                          ]}>
+                            {opt.rarity?.toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+
+                      <View style={styles.cardInner}>
                         {isNone ? (
-                          <View style={styles.noneOption}>
-                            <FontAwesome5 name="times" size={24} color="#9ca3af" />
-                            <Text style={styles.noneText}>None</Text>
+                          <View style={styles.noneWrapper}>
+                            <FontAwesome5 name="ban" size={32} color="rgba(255,255,255,0.4)" />
+                            <Text style={[styles.noneText, { fontFamily: 'Digitalt' }]}>QUITAR</Text>
                           </View>
-                        ) : opt.storeImage ? (
+                        ) : (
                           <ExpoImage
-                            source={{ uri: opt.storeImage }}
-                            style={{ width: 100, height: 100 }}
+                            source={{ uri: opt.storeImage || opt.svgUrl }}
+                            style={styles.assetImage}
                             contentFit="contain"
                             cachePolicy="disk"
                           />
-                        ) : (
-                          <View style={[styles.noneOption, { width: 100, height: 100 }]}>
-                            <Text style={styles.noneText}>Sin vista previa</Text>
-                          </View>
                         )}
                       </View>
+
                       {isSelected && (
-                        <View style={styles.selectedIndicator}>
-                          <FontAwesome5 name="check" size={12} color="#fff" />
+                        <View style={styles.selectionCheck}>
+                          <FontAwesome5 name="check" size={10} color="#fff" />
                         </View>
                       )}
                     </TouchableOpacity>
@@ -475,6 +517,56 @@ export default function AvatarCustomizationScreen() {
         </View>
       </SafeAreaView>
 
+      {/* Custom Confirmation Modal */}
+      <Modal
+        visible={confirmModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmModal(prev => ({ ...prev, visible: false }))}
+      >
+        <View style={styles.modalOverlay}>
+          <FadeInView from="bottom" duration={300} style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View style={[styles.modalIconCircle, { backgroundColor: confirmModal.confirmColor[0] }]}>
+                <FontAwesome5 name={confirmModal.icon} size={30} color="#fff" />
+              </View>
+              <Text style={[styles.modalTitle, { fontFamily: 'Digitalt' }]}>{confirmModal.title}</Text>
+            </View>
+            
+            <Text style={[styles.modalMessage, { fontFamily: 'Gilroy-Medium' }]}>{confirmModal.message}</Text>
+            
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                onPress={confirmModal.onConfirm}
+                activeOpacity={0.8}
+                style={styles.modalActionWrapper}
+              >
+                <LinearGradient
+                  colors={confirmModal.confirmColor as [string, string]}
+                  style={styles.modalActionButton}
+                >
+                  <Text style={[styles.modalActionText, { fontFamily: 'Digitalt' }]}>{confirmModal.confirmText}</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                onPress={() => {
+                  if (confirmModal.title === '¡ESPERA!') {
+                    discardChangesAndExit();
+                  } else {
+                    setConfirmModal(prev => ({ ...prev, visible: false }));
+                  }
+                }}
+                activeOpacity={0.6}
+                style={styles.modalCancelButton}
+              >
+                <Text style={[styles.modalCancelText, { fontFamily: 'Digitalt' }]}>{confirmModal.cancelText}</Text>
+              </TouchableOpacity>
+            </View>
+          </FadeInView>
+        </View>
+      </Modal>
+
       {/* Success Message Overlay */}
       {showSuccess && (
         <View style={styles.successOverlay}>
@@ -482,7 +574,7 @@ export default function AvatarCustomizationScreen() {
             <View style={styles.successIconCircle}>
               <FontAwesome5 name="check" size={30} color="#fff" />
             </View>
-            <Text style={[styles.successText, { fontFamily: 'Digitalt' }]}>¡AVATAR ACTUALIZADO!</Text>
+            <Text style={[styles.successText, { fontFamily: 'Digitalt' }]}>¡LISTO!</Text>
           </FadeInView>
         </View>
       )}
@@ -494,18 +586,293 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   gradientBackground: {
     position: 'absolute',
     left: 0,
     right: 0,
     top: 0,
-    height: height,
+    bottom: 0,
   },
+  safeArea: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: isVerySmallDevice ? 5 : 10,
+  },
+  backButton: {
+    width: isVerySmallDevice ? 34 : 38,
+    height: isVerySmallDevice ? 34 : 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  headerTitle: {
+    color: '#fff',
+    fontSize: isVerySmallDevice ? 18 : 22,
+    letterSpacing: 2,
+    textShadowColor: 'rgba(0,0,0,0.2)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  saveButtonWrapper: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+  },
+  saveButton: {
+    paddingHorizontal: isVerySmallDevice ? 12 : 20,
+    paddingVertical: isVerySmallDevice ? 6 : 10,
+    minWidth: isVerySmallDevice ? 70 : 90,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: isVerySmallDevice ? 14 : 18,
+    letterSpacing: 1,
+  },
+
+  // Avatar Section
+  avatarSection: {
+    height: isVerySmallDevice ? height * 0.20 : isSmallDevice ? height * 0.26 : height * 0.35,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    position: 'relative',
+    paddingBottom: isVerySmallDevice ? 10 : isSmallDevice ? 15 : 20,
+  },
+  avatarAndPlatform: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  platform: {
+    position: 'absolute',
+    bottom: 0,
+    width: isVerySmallDevice ? 150 : isSmallDevice ? 180 : 240,
+    height: isVerySmallDevice ? 30 : isSmallDevice ? 40 : 60,
+    borderRadius: 120,
+    transform: [{ scaleY: 0.3 }],
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.8)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  platformInner: {
+    width: '90%',
+    height: '90%',
+    borderRadius: 120,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+  },
+  platformShadow: {
+    position: 'absolute',
+    bottom: -3,
+    width: isVerySmallDevice ? 170 : isSmallDevice ? 200 : 260,
+    height: isVerySmallDevice ? 40 : isSmallDevice ? 50 : 70,
+    borderRadius: 130,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    transform: [{ scaleY: 0.3 }],
+  },
+  avatarWrapper: {
+    zIndex: 10,
+    marginBottom: isVerySmallDevice ? 10 : 15, // Space between avatar feet and bottom of platform
+  },
+  avatar: {
+    // Styles applied to LayeredAvatar
+  },
+
+  // Category Pill
+  categoryPillContainer: {
+    alignItems: 'center',
+    marginVertical: isVerySmallDevice ? 5 : isSmallDevice ? 8 : 15,
+    zIndex: 20,
+  },
+  categoryPill: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 30,
+    padding: isVerySmallDevice ? 3 : isSmallDevice ? 4 : 6,
+    gap: isVerySmallDevice ? 2 : isSmallDevice ? 4 : 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  categoryItem: {
+    width: isVerySmallDevice ? 38 : isSmallDevice ? 42 : 48,
+    height: isVerySmallDevice ? 38 : isSmallDevice ? 42 : 48,
+    borderRadius: isVerySmallDevice ? 19 : isSmallDevice ? 21 : 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  categoryItemSelected: {
+    backgroundColor: '#7C3AED',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+  },
+  activeDot: {
+    position: 'absolute',
+    bottom: 6,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#fff',
+  },
+
+  // Selection Sheet
+  selectionSection: {
+    flex: 1,
+    borderTopLeftRadius: isSmallDevice ? 32 : 40,
+    borderTopRightRadius: isSmallDevice ? 32 : 40,
+    overflow: 'hidden',
+    backgroundColor: '#7C3AED',
+    elevation: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+  },
+  sheetGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 100,
+    opacity: 0.5,
+  },
+  sheetHeader: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 2,
+    marginBottom: 10,
+  },
+  categoryTitle: {
+    color: '#fff',
+    fontSize: 20,
+    letterSpacing: 2,
+    opacity: 0.9,
+  },
+  assetsScrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    paddingTop: 10,
+  },
+  assetsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    gap: 12,
+  },
+  
+  // Asset Cards
+  assetCard: {
+    width: (width - 40 - 24) / 3,
+    aspectRatio: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
+    padding: 8,
+    position: 'relative',
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  assetCardSelected: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderColor: '#fff',
+    transform: [{ scale: 1.05 }],
+  },
+  cardInner: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  assetImage: {
+    width: '100%',
+    height: '100%',
+  },
+  noneWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  noneText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 10,
+  },
+  selectionCheck: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#22C55E',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 20,
+    borderWidth: 1.5,
+    borderColor: '#fff',
+  },
+
+  // Rarity Ribbon
+  rarityRibbon: {
+    position: 'absolute',
+    top: 10,
+    right: -25,
+    width: 100,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    transform: [{ rotate: '45deg' }],
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 2,
+    zIndex: 10,
+  },
+  rarityRibbonText: {
+    color: '#fff',
+    fontSize: 8,
+  },
+  rarityRibbonLegendary: {
+    backgroundColor: '#FFD700',
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  rarityTextLegendary: {
+    color: '#000',
+  },
+  rarityRibbonEpic: {
+    backgroundColor: '#D000FF',
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  rarityRibbonRaro: {
+    backgroundColor: '#22C55E',
+  },
+  rarityRibbonComun: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+
+  // Success Overlay
   successOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -515,217 +882,126 @@ const styles = StyleSheet.create({
   },
   successCard: {
     backgroundColor: '#22C55E',
-    paddingVertical: 30,
+    paddingVertical: 25,
     paddingHorizontal: 40,
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 4,
     borderColor: '#4ADE80',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 10,
+    elevation: 15,
   },
   successIconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 15,
-  },
-  successText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 20,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    flex: 1,
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-    textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  saveButtonWrapper: {
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  saveButton: {
-    height: 40,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
-  },
-  saveButtonDisabled: {
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-  },
-  saveButtonActive: {
-    backgroundColor: '#fff',
-  },
-  saveButtonText: {
-    color: '#7c3aed',
-    fontWeight: 'bold',
-  },
-  saveButtonTextOnGradient: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  saveGradient: {
-    borderRadius: 20,
-  },
-  avatarSection: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  avatarContainer: {
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    elevation: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
-  },
-  avatar: {
-    borderRadius: 100,
-  },
-  titleSection: {
-    alignItems: 'center',
-    paddingBottom: 10,
-  },
-  categoryNavigation: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingHorizontal: 30,
-    paddingVertical: 20,
-    gap: 15,
-  },
-  usernameText: {
-    color: '#fff',
-    marginTop: 6,
-    fontSize: 14,
-    opacity: 0.9,
-  },
-  categoryButton: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 10,
   },
-  categoryButtonSelected: {
-    backgroundColor: '#fff',
+  successText: {
+    color: '#fff',
+    fontSize: 22,
+    letterSpacing: 2,
   },
-  selectionSection: {
+  emptyState: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 15,
+  },
+  emptyText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 16,
+    letterSpacing: 2,
+  },
+  loadingContainer: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    paddingTop: 25,
-    paddingHorizontal: 20,
+    backgroundColor: '#7C3AED',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  categoryTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    textAlign: 'center',
-    marginBottom: 20,
-    letterSpacing: 1,
-  },
-  assetsScrollView: {
+
+  // Modal Styles
+  modalOverlay: {
     flex: 1,
-  },
-  assetsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
-    gap: 10,
-    paddingBottom: 30,
-  },
-  assetOption: {
-    width: (width - 60) / 3,
-    aspectRatio: 1,
-    marginBottom: 15,
-    borderRadius: 15,
-    backgroundColor: '#f3f4f6',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
-    position: 'relative',
-    borderWidth: 2,
-    borderColor: 'transparent',
+    alignItems: 'center',
+    padding: 20,
   },
-  assetOptionSelected: {
-    borderColor: '#7c3aed',
-    backgroundColor: '#ede9fe',
-  },
-  assetPreview: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  modalContent: {
     backgroundColor: '#fff',
+    borderRadius: 32,
+    width: '100%',
+    maxWidth: 340,
+    padding: isSmallDevice ? 20 : 24,
+    alignItems: 'center',
+    borderWidth: 5,
+    borderColor: '#E0E7FF',
+  },
+  modalHeader: {
+    alignItems: 'center',
+    marginBottom: isSmallDevice ? 10 : 15,
+  },
+  modalIconCircle: {
+    width: isSmallDevice ? 60 : 70,
+    height: isSmallDevice ? 60 : 70,
+    borderRadius: 35,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
-    elevation: 2,
+    marginBottom: isSmallDevice ? 8 : 12,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
     shadowRadius: 4,
   },
-  selectedIndicator: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#7c3aed',
+  modalTitle: {
+    fontSize: isSmallDevice ? 22 : 26,
+    color: '#1E1B4B',
+    letterSpacing: 2,
+  },
+  modalMessage: {
+    fontSize: isSmallDevice ? 14 : 16,
+    color: '#475569',
+    textAlign: 'center',
+    marginBottom: isSmallDevice ? 20 : 25,
+    lineHeight: isSmallDevice ? 18 : 22,
+  },
+  modalActions: {
+    width: '100%',
+    gap: 12,
+  },
+  modalActionWrapper: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  modalActionButton: {
+    paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  noneOption: {
+  modalActionText: {
+    color: '#fff',
+    fontSize: 18,
+    letterSpacing: 1,
+  },
+  modalCancelButton: {
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
   },
-  noneText: {
-    fontSize: 12,
-    color: '#9ca3af',
-    fontWeight: 'bold',
+  modalCancelText: {
+    color: '#94A3B8',
+    fontSize: 14,
+    letterSpacing: 1,
   },
 });
 

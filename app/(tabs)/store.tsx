@@ -91,6 +91,7 @@ export default function StoreScreen() {
     thumbnail?: any;
     SvgComp?: any;
     categoryLabel: string;
+    rarity: string | null;
   } | null>(null);
   const [isPurchasing, setIsPurchasing] = React.useState<boolean>(false);
   const rotateValue = React.useRef(new Animated.Value(0)).current;
@@ -236,6 +237,7 @@ export default function StoreScreen() {
               thumbnail: item.thumbnail,
               SvgComp: SvgIcon,
               categoryLabel,
+              rarity: item.rarity,
             });
 
             // Update preview avatar
@@ -436,9 +438,31 @@ export default function StoreScreen() {
             <TouchableOpacity style={styles.modalClose} onPress={closeModal}>
               <Text style={styles.modalCloseText}>×</Text>
             </TouchableOpacity>
-            <Text style={[styles.modalTitle, fontsLoaded ? { fontFamily: 'Digitalt' } : null]}>
+             <Text style={[styles.modalTitle, fontsLoaded ? { fontFamily: 'Digitalt' } : null]}>
               {`COMPRAR ${selectedItem?.categoryLabel?.toUpperCase() ?? ''} POR`}
             </Text>
+
+            {selectedItem?.rarity && (
+              <View style={[
+                styles.modalRarityBadge,
+                selectedItem.rarity === 'legendario' && styles.rarityBadgeLegendary,
+                selectedItem.rarity === 'epico' && styles.rarityBadgeEpic,
+                selectedItem.rarity === 'raro' && styles.rarityBadgeRaro,
+                selectedItem.rarity === 'comun' && styles.rarityBadgeComun
+              ]}>
+                <Text style={[
+                  styles.rarityBadgeText,
+                  fontsLoaded ? { fontFamily: 'Digitalt' } : null,
+                  { fontSize: 14 },
+                  selectedItem.rarity === 'legendario' && styles.rarityBadgeTextLegendary,
+                  selectedItem.rarity === 'epico' && styles.rarityBadgeTextEpic,
+                  selectedItem.rarity === 'raro' && styles.rarityBadgeTextRaro,
+                  selectedItem.rarity === 'comun' && styles.rarityBadgeTextComun
+                ]}>
+                  {selectedItem.rarity.toUpperCase()}
+                </Text>
+              </View>
+            )}
             <View style={styles.modalPriceRow}>
               <Image source={require('@/assets/images/store/MQ-coin.png')} style={styles.modalCoin} />
               <Text style={[styles.modalPrice, fontsLoaded ? { fontFamily: 'Digitalt' } : null]}>
@@ -650,6 +674,14 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 22,
     fontWeight: '900',
+  },
+  modalRarityBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalTitle: {
     color: '#fff',
