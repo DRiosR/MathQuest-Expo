@@ -5,6 +5,8 @@ import { ActivityIndicator, Animated, Dimensions, Easing, StyleSheet, Text, View
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LayeredAvatar } from '@/components/LayeredAvatar';
+import InactivityModal from '@/components/InactivityModal';
+import ConfirmModal from '@/components/ConfirmModal';
 import MatchEndView from '@/components/matchmaking/MatchEndView';
 import MatchFoundView from '@/components/matchmaking/MatchFoundView';
 import MatchmakingView from '@/components/matchmaking/MatchmakingView';
@@ -129,6 +131,7 @@ export default function MatchmakingScreen() {
   // Inactividad: 3 minutos
   const INACTIVITY_LIMIT = 3 * 60 * 1000;
   const lastActivityTime = useRef(Date.now());
+  const matchStartTimeRef = useRef(Date.now());
   const [lastEmote, setLastEmote] = useState<{ userId: string; emote: string; timestamp: number } | null>(null);
   const [lastAnswerResult, setLastAnswerResult] = useState<{ correct: boolean; timestamp: number } | null>(null);
 
@@ -255,6 +258,7 @@ export default function MatchmakingScreen() {
       setLastEmote(null);
       setLastAnswerResult(null);
       setQuestionStartTime(Date.now());
+      matchStartTimeRef.current = Date.now();
 
       if ((data?.roundNumber || 1) === 1) {
         // Aseguramos que pasamos por MATCH_FOUND para ver los rangos
@@ -356,23 +360,46 @@ export default function MatchmakingScreen() {
   useEffect(() => {
     const unsubGameEnd = onGameFinished((data) => {
       console.log('🏆 Match finished data received');
-      // Merge with previous gameData to preserve round scores if needed
+      
+      // BLOQUEO INMEDIATO DE INACTIVIDAD
+      // Si el juego terminó (por cualquier razón, especialmente abandono),
+      // ya no permitimos que salte el modal de inactividad.
+      setShowInactivityModal(false);
+
+      const amIWinner = data.winner === myUserId || data.winner === socketId;
+      const isForfeit = data.forfeit || data.reason === 'abandoned';
+
+      // RECALCULAR TOTALES DESDE EL ARREGLO DE RONDAS
+      // A veces el server manda totales incompletos en caso de forfeit.
+      if (Array.isArray(data.rounds)) {
+        let realP1Total = 0;
+        let realP2Total = 0;
+        data.rounds.forEach((r: any) => {
+          realP1Total += (r.player1Score || 0);
+          realP2Total += (r.player2Score || 0);
+        });
+        console.log(`📊 Puntos reales calculados -> P1: ${realP1Total}, P2: ${realP2Total}`);
+        data.player1TotalScore = realP1Total;
+        data.player2TotalScore = realP2Total;
+      }
+
       setGameData((prev: any) => {
         const base = opponentAvatar ? { ...data, opponentAvatar } : data;
+        // Marcamos si la victoria fue por abandono para mostrarlo en la UI
+        if (isForfeit && amIWinner) {
+          base.winByForfeit = true;
+        }
         return prev ? { ...prev, ...base } : base;
       });
 
-      // Esperar un tiempo para que el usuario vea el resultado de la última ronda
-      // antes de pasar a la pantalla final de ELO y trofeos
-      // Si es abandono (forfeit), salimos mucho más rápido
-      const delayTime = data.forfeit ? 1000 : 2500;
+      const delayTime = data.forfeit ? 500 : 2000;
       
       setTimeout(() => {
         setGameState('MATCH_END');
       }, delayTime); 
     });
     return () => unsubGameEnd?.();
-  }, [onGameFinished, opponentAvatar]);
+  }, [onGameFinished, opponentAvatar, myUserId, socketId]);
 
   // Usuario sale de la sala
   useEffect(() => {
@@ -520,8 +547,14 @@ export default function MatchmakingScreen() {
     return () => clearInterval(timer);
   }, [isInitialCountdown]);
 
+  const [showInactivityModal, setShowInactivityModal] = useState(false);
+  const [showConfirmForfeit, setShowConfirmForfeit] = useState(false);
+
   // Timer de inactividad de 3 minutos
   useEffect(() => {
+    // Si el modal ya se está mostrando, NO permitimos que este efecto lo oculte
+    if (showInactivityModal) return;
+
     if (gameState !== 'QUIZ') return;
     
     lastActivityTime.current = Date.now();
@@ -530,11 +563,14 @@ export default function MatchmakingScreen() {
       if (elapsed >= INACTIVITY_LIMIT) {
         clearInterval(interval);
         console.log('⏰ Inactividad detectada (3 min). Terminando partida...');
-        Alert.alert(
-          'PARTIDA ANULADA',
-          'La partida ha terminado por inactividad. Se restarán puntos de ELO a ambos jugadores.',
-          [{ text: 'ENTENDIDO', onPress: handleExitMatchEnd }]
-        );
+        
+        // Aplicar penalización de inmediato
+        import('@/services/SupabaseService').then(service => {
+          service.incrementCurrentUserCoins(-15).catch(err => console.error('Error penalizando inactividad:', err));
+        });
+
+        setShowInactivityModal(true);
+        
         if (currentRoom) {
           forfeitGame(currentRoom);
         }
@@ -542,7 +578,7 @@ export default function MatchmakingScreen() {
     }, 5000); // Revisar cada 5 segundos
     
     return () => clearInterval(interval);
-  }, [gameState, currentRoom]);
+  }, [gameState, currentRoom, showInactivityModal]);
 
   useEffect(() => {
     const unsubAns = onAnswerResult((result: any) => {
@@ -767,22 +803,14 @@ export default function MatchmakingScreen() {
   };
 
   const handleForfeit = () => {
-    Alert.alert(
-      '¿ABANDONAR PARTIDA?',
-      'Si abandonas ahora, perderás la partida automáticamente y se te restarán puntos de ELO. ¿Estás seguro?',
-      [
-        { text: 'NO, SEGUIR JUGANDO', style: 'cancel' },
-        {
-          text: 'SÍ, ABANDONAR',
-          style: 'destructive',
-          onPress: () => {
-            if (currentRoom) {
-              forfeitGame(currentRoom);
-            }
-          }
-        }
-      ]
-    );
+    setShowConfirmForfeit(true);
+  };
+
+  const confirmForfeit = () => {
+    setShowConfirmForfeit(false);
+    if (currentRoom) {
+      forfeitGame(currentRoom);
+    }
   };
 
   const handleExitMatchEnd = () => {
@@ -965,6 +993,7 @@ export default function MatchmakingScreen() {
               player2TotalScore={gameData?.player2TotalScore ?? 0}
               player1Avatar={p1Av}
               player2Avatar={p2Av}
+              winByForfeit={gameData.winByForfeit}
               pointsDelta={(gameData?.winner === socketId ? gameData?.globalPointsUpdate?.winner : gameData?.globalPointsUpdate?.loser) ?? 0}
               eloInfo={eloInfo || undefined}
               onExit={handleExitMatchEnd}
@@ -1065,7 +1094,25 @@ export default function MatchmakingScreen() {
             </Animated.View>
           </Animated.View>
         )}
-      </SafeAreaView>
+        {/* Modal de Inactividad */}
+      <InactivityModal
+        visible={showInactivityModal}
+        onConfirm={handleExitMatchEnd}
+        penaltyPoints={15}
+      />
+
+      {/* Modal de Confirmar Abandono */}
+      <ConfirmModal
+        visible={showConfirmForfeit}
+        title="¿ABANDONAR PARTIDA?"
+        message="Si abandonas ahora, perderás automáticamente y se te restarán puntos de ELO. ¿Estás seguro?"
+        confirmText="SÍ, ABANDONAR"
+        cancelText="NO, SEGUIR JUGANDO"
+        onConfirm={confirmForfeit}
+        onCancel={() => setShowConfirmForfeit(false)}
+        type="danger"
+      />
+    </SafeAreaView>
     </View>
   );
 }

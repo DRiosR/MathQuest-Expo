@@ -20,6 +20,7 @@ type Props = {
   player1Avatar?: any;
   player2Avatar?: any;
   eloInfo?: { currentElo: number; beforeElo: number };
+  winByForfeit?: boolean;
   onExit: () => void;
 };
 
@@ -33,13 +34,16 @@ export default function MatchEndView({
   eloInfo, 
   player1Avatar,
   player2Avatar,
+  winByForfeit,
   onExit 
 }: Props) {
   const { user } = useAuth();
   const currentUsername = (user?.username ?? '').trim().toLowerCase();
   const isPlayer1CurrentUser = (player1Username ?? '').trim().toLowerCase() === currentUsername && currentUsername.length > 0;
   const isPlayer2CurrentUser = (player2Username ?? '').trim().toLowerCase() === currentUsername && currentUsername.length > 0;
-  const title = didWin ? '¡GANASTE!' : 'PERDISTE';
+  
+  const title = winByForfeit ? '¡RIVAL ABANDONÓ!' : (didWin ? '¡GANASTE!' : 'PERDISTE');
+  const subtitle = winByForfeit ? '¡GANASTE POR DEFAULT!' : '';
   const deltaPrefix = pointsDelta > 0 ? '+' : '-';
   const deltaColor = didWin ? '#10B981' : '#EF4444';
   const currentElo = typeof eloInfo?.currentElo === 'number' && Number.isFinite(eloInfo.currentElo) ? Math.max(0, Math.round(eloInfo.currentElo)) : null;
@@ -154,11 +158,8 @@ export default function MatchEndView({
     if (hasAwardedCoinsRef.current) return;
     hasAwardedCoinsRef.current = true;
 
-    // Assume "Points" refers to the current player's total score:
-    // winner's score if didWin, otherwise loser's score.
-    const myScore = didWin
-      ? Math.max(player1TotalScore ?? 0, player2TotalScore ?? 0)
-      : Math.min(player1TotalScore ?? 0, player2TotalScore ?? 0);
+    // Calculamos monedas basadas ÚNICAMENTE en el puntaje propio del usuario actual
+    const myScore = isPlayer1CurrentUser ? (player1TotalScore ?? 0) : (player2TotalScore ?? 0);
 
     const base = Math.floor((myScore || 0) / 10);
     const coinsToAdd = base > 0 ? (didWin ? base * 3 : base) : 0;
@@ -221,6 +222,9 @@ export default function MatchEndView({
       <View style={styles.content}>
         <FadeInView delay={0} duration={600} from="top">
           <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>{title}</Text>
+          {subtitle !== '' && (
+            <Text style={[styles.subtitle, { fontFamily: 'Digitalt' }]}>{subtitle}</Text>
+          )}
         </FadeInView>
 
         {/* Confetti overlay on top */}
@@ -360,7 +364,8 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
-  title: { color: '#FFFFFF', fontSize: 36, fontWeight: '900', letterSpacing: 1.5, marginBottom: 12 },
+  title: { color: '#FFFFFF', fontSize: 36, fontWeight: '900', letterSpacing: 1.5, marginBottom: 4, textAlign: 'center' },
+  subtitle: { color: '#FFD45E', fontSize: 18, fontWeight: '900', letterSpacing: 1, marginBottom: 12, textAlign: 'center' },
   deltaBox: { alignItems: 'center', marginBottom: 20 },
   deltaText: { fontSize: 42, fontWeight: '900' },
   deltaCaption: { color: '#EAE6FF', fontSize: 12, marginTop: 2 },
