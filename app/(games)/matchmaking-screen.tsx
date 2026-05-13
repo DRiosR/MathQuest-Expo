@@ -19,7 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAvatar } from '@/contexts/AvatarContext';
 import { useFontContext } from '@/contexts/FontsContext';
 import { useWebSocket } from '@/hooks/useWebSocket';
-import { getUserAvatar, getUserElo, getUserRankInfo, UserRankInfo } from '@/services/SupabaseService';
+import { getUserAvatar, getUserElo, getUserRankInfo, incrementCurrentUserCoins, incrementCurrentUserPoints, UserRankInfo } from '@/services/SupabaseService';
 import { Avatar } from '@/types/avatar';
 import LottieView from 'lottie-react-native';
 import { Alert } from 'react-native';
@@ -132,6 +132,8 @@ export default function MatchmakingScreen() {
   const INACTIVITY_LIMIT = 3 * 60 * 1000;
   const lastActivityTime = useRef(Date.now());
   const matchStartTimeRef = useRef(Date.now());
+  const isManualForfeitRef = useRef(false);
+  const isGameFinalizedRef = useRef(false);
   const [lastEmote, setLastEmote] = useState<{ userId: string; emote: string; timestamp: number } | null>(null);
   const [lastAnswerResult, setLastAnswerResult] = useState<{ correct: boolean; timestamp: number } | null>(null);
 
@@ -259,6 +261,8 @@ export default function MatchmakingScreen() {
       setLastAnswerResult(null);
       setQuestionStartTime(Date.now());
       matchStartTimeRef.current = Date.now();
+      isManualForfeitRef.current = false;
+      isGameFinalizedRef.current = false;
 
       if ((data?.roundNumber || 1) === 1) {
         // Aseguramos que pasamos por MATCH_FOUND para ver los rangos
@@ -359,54 +363,84 @@ export default function MatchmakingScreen() {
   // Match Terminado
   useEffect(() => {
     const unsubGameEnd = onGameFinished((data) => {
+      // CERROJO DE SEGURIDAD
+      if (isGameFinalizedRef.current) return;
+      isGameFinalizedRef.current = true;
+
       console.log('🏆 Match finished data received');
       
-      // BLOQUEO INMEDIATO DE INACTIVIDAD
-      // Si el juego terminó (por cualquier razón, especialmente abandono),
-      // ya no permitimos que salte el modal de inactividad.
+      const myScore = myRole === 'p1' ? data.player1Score : data.player2Score;
+      const oppScore = myRole === 'p1' ? data.player2Score : data.player1Score;
+      const isForfeit = data.forfeit || data.reason === 'abandoned';
+      const amIWinner = data.winner === myUserId || data.winner === socketId;
+
+      const matchElapsed = Date.now() - matchStartTimeRef.current;
+      const IS_TIMEOUT_ZONE = matchElapsed >= (INACTIVITY_LIMIT - 15000);
+
+      // 1. ESCENARIO: INACTIVIDAD MUTUA (Ambos 0-0 en zona de timeout)
+      if (isForfeit && !isManualForfeitRef.current && (myScore === 0 || myScore === undefined) && (oppScore === 0 || oppScore === undefined) && IS_TIMEOUT_ZONE) {
+        console.log('🛑 Inactividad mutua detectada (0-0 forfeit). Compensando...');
+        const amIWinnerByServer = data.winner === myUserId || data.winner === socketId;
+        
+        setTimeout(async () => {
+          try {
+            if (amIWinnerByServer) await incrementCurrentUserPoints(-45);
+            else await incrementCurrentUserPoints(10);
+            await incrementCurrentUserCoins(-15);
+          } catch (err: any) { console.error('Error compensando:', err); }
+        }, 2500);
+
+        setShowInactivityModal(true);
+        return; 
+      }
+
+      // BLOQUEO DE INACTIVIDAD (Para flujo normal)
       setShowInactivityModal(false);
 
-      const amIWinner = data.winner === myUserId || data.winner === socketId;
-      const isForfeit = data.forfeit || data.reason === 'abandoned';
-
       // RECALCULAR TOTALES DESDE EL ARREGLO DE RONDAS
-      // A veces el server manda totales incompletos en caso de forfeit.
       if (Array.isArray(data.rounds)) {
-        let realP1Total = 0;
-        let realP2Total = 0;
+        let realP1Total = 0, realP2Total = 0;
         data.rounds.forEach((r: any) => {
           realP1Total += (r.player1Score || 0);
           realP2Total += (r.player2Score || 0);
         });
-        console.log(`📊 Puntos reales calculados -> P1: ${realP1Total}, P2: ${realP2Total}`);
         data.player1TotalScore = realP1Total;
         data.player2TotalScore = realP2Total;
       }
 
       setGameData((prev: any) => {
         const base = opponentAvatar ? { ...data, opponentAvatar } : data;
-        // Marcamos si la victoria fue por abandono para mostrarlo en la UI
+        
+        // 2. ESCENARIO: INACTIVIDAD INDIVIDUAL (Rival 0 pts, Yo > 0 pts en timeout)
+        const isRivalInactive = (oppScore === 0 || oppScore === undefined) && (myScore > 0) && IS_TIMEOUT_ZONE;
+
         if (isForfeit && amIWinner) {
-          base.winByForfeit = true;
+          if (isRivalInactive) {
+            base.winByInactivity = true;
+          } else {
+            base.winByForfeit = true;
+          }
         }
         return prev ? { ...prev, ...base } : base;
       });
 
       const delayTime = data.forfeit ? 500 : 2000;
-      
-      setTimeout(() => {
-        setGameState('MATCH_END');
-      }, delayTime); 
+      setTimeout(() => { setGameState('MATCH_END'); }, delayTime); 
     });
     return () => unsubGameEnd?.();
-  }, [onGameFinished, opponentAvatar, myUserId, socketId]);
+  }, [onGameFinished, opponentAvatar, myUserId, socketId, myRole]);
 
   // Usuario sale de la sala
   useEffect(() => {
     const unsubUserLeft = onUserLeft((data) => {
+      // Si la partida ya está marcada como finalizada, ignorar
+      if (isGameFinalizedRef.current) return;
+
       // Solo actuar si el oponente sale ANTES de terminar la partida
       const currentState = gameStateRef.current;
       if (data.userId === opponent?.userId && currentState !== 'MATCH_END' && currentState !== 'MATCHMAKING') {
+        isGameFinalizedRef.current = true; // ACTIVAR CERROJO
+        
         // Force match end with forfeit info
         setGameData((prev: any) => ({
           ...prev,
@@ -552,31 +586,33 @@ export default function MatchmakingScreen() {
 
   // Timer de inactividad de 3 minutos
   useEffect(() => {
-    // Si el modal ya se está mostrando, NO permitimos que este efecto lo oculte
-    if (showInactivityModal) return;
-
+    // Si la partida ya finalizó o el modal ya se está mostrando, no hacemos nada
+    if (showInactivityModal || isGameFinalizedRef.current) return;
     if (gameState !== 'QUIZ') return;
-    
-    lastActivityTime.current = Date.now();
+
     const interval = setInterval(() => {
       const elapsed = Date.now() - lastActivityTime.current;
       if (elapsed >= INACTIVITY_LIMIT) {
-        clearInterval(interval);
+        // DOBLE CHECK: Si en este intervalo la partida finalizó por otro motivo, abortamos
+        if (isGameFinalizedRef.current) {
+          clearInterval(interval);
+          return;
+        }
+
         console.log('⏰ Inactividad detectada (3 min). Terminando partida...');
+        isGameFinalizedRef.current = true; // ACTIVAR CERROJO
         
-        // Aplicar penalización de inmediato
-        import('@/services/SupabaseService').then(service => {
-          service.incrementCurrentUserCoins(-15).catch(err => console.error('Error penalizando inactividad:', err));
-        });
+        // Penalización por inactividad
+        incrementCurrentUserCoins(-15).catch((err: any) => console.error('Error penalizando:', err));
 
         setShowInactivityModal(true);
-        
         if (currentRoom) {
           forfeitGame(currentRoom);
         }
+        clearInterval(interval);
       }
-    }, 5000); // Revisar cada 5 segundos
-    
+    }, 5000);
+
     return () => clearInterval(interval);
   }, [gameState, currentRoom, showInactivityModal]);
 
@@ -807,7 +843,10 @@ export default function MatchmakingScreen() {
   };
 
   const confirmForfeit = () => {
+    if (isGameFinalizedRef.current) return;
     setShowConfirmForfeit(false);
+    isManualForfeitRef.current = true;
+    isGameFinalizedRef.current = true;
     if (currentRoom) {
       forfeitGame(currentRoom);
     }
@@ -994,6 +1033,7 @@ export default function MatchmakingScreen() {
               player1Avatar={p1Av}
               player2Avatar={p2Av}
               winByForfeit={gameData.winByForfeit}
+              winByInactivity={gameData.winByInactivity}
               pointsDelta={(gameData?.winner === socketId ? gameData?.globalPointsUpdate?.winner : gameData?.globalPointsUpdate?.loser) ?? 0}
               eloInfo={eloInfo || undefined}
               onExit={handleExitMatchEnd}
