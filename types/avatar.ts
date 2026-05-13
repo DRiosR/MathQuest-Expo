@@ -6,6 +6,8 @@ export type Avatar = {
     mouth_asset?: string; //can be null
     clothes_asset: string;
     clothes_back_asset?: string; // layer behind the skin
+    frame_asset?: string; // front layer of the frame
+    frame_back_asset?: string; // back layer of the frame
 };
 
 export type AvatarAssets = {
@@ -15,6 +17,7 @@ export type AvatarAssets = {
     eyes: { [key: string]: any };
     mouth: { [key: string]: any };
     clothes: { [key: string]: any };
+    marco: { [key: string]: any };
 };
 
 // default avatar
@@ -25,6 +28,8 @@ export const defaultAvatar: Avatar = {
     eyes_asset: 'https://fdfmtjjeylzznldkrqwl.supabase.co/storage/v1/object/public/cosmeticos_avatar/ojos/ojos_01.png',
     mouth_asset: 'https://fdfmtjjeylzznldkrqwl.supabase.co/storage/v1/object/public/cosmeticos_avatar/boca/boca_01.png',
     clothes_asset: 'https://fdfmtjjeylzznldkrqwl.supabase.co/storage/v1/object/public/cosmeticos_avatar/camisa/camisa_01.png',
+    frame_asset: 'https://fdfmtjjeylzznldkrqwl.supabase.co/storage/v1/object/public/cosmeticos_avatar/marco/rangos/bronce/delante_bronce.png',
+    frame_back_asset: 'https://fdfmtjjeylzznldkrqwl.supabase.co/storage/v1/object/public/cosmeticos_avatar/marco/rangos/bronce/atras%20bronce.png',
 };
 
-export type AvatarCategory = 'skin' | 'hair' | 'eyes' | 'mouth' | 'clothes';
+export type AvatarCategory = 'skin' | 'hair' | 'eyes' | 'mouth' | 'clothes' | 'marco';

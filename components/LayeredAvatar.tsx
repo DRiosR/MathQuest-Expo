@@ -65,19 +65,20 @@ export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
   scale,
 }) => {
   const layers = useMemo(() => ([
+    ['marco', (avatar as any).frame_back_asset],
     ['hair_back', avatar.hair_back_asset],
     ['skin', avatar.skin_asset],
     ['eyes', avatar.eyes_asset],
     ['mouth', avatar.mouth_asset],
     ['clothes', avatar.clothes_asset],
     ['hair', avatar.hair_asset],
+    ['marco_front', (avatar as any).frame_asset],
   ] as Array<[keyof typeof avatarAssets, string | undefined]>), [avatar]);
 
-  const getLayerStyle = (value: string | undefined) => {
+  const getLayerStyle = (category: string, value: string | undefined) => {
     if (!value) return {};
     const styles: any = { transform: [] };
     
-    // Detectar si el asset es del nuevo sistema (store)
     const isNewSystem = value?.includes('_store') || 
                         value?.includes('AvatarItems') || 
                         value?.includes('cosmeticos_avatar') ||
@@ -85,68 +86,83 @@ export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
                         value?.includes('/prendas/');
 
     if (isNewSystem) {
-      const finalScale = scale ?? 1.0;
-      styles.transform.push({ scale: finalScale }); 
-      if (!scale) {
-        styles.transform.push({ translateY: 6 }); 
+      let finalScale = scale ?? 1.0;
+      // Cuerpo al 75% del tamaño del contenedor para dejar espacio al marco
+      if (category !== 'marco_front' && category !== 'marco_back') {
+        finalScale *= 0.75; 
       }
-    } else if (value && (value.includes('eyes_04.svg') || value.includes('eyes_05.svg'))) {
-      styles.transform.push({ translateX: 8 });
-      styles.transform.push({ translateY: 9 });
+      styles.transform.push({ scale: finalScale }); 
     }
 
     if (styles.transform.length === 0) delete styles.transform;
     return styles;
   };
 
-  const renderLayer = (category: string, value: string | undefined) => {
+  const renderLayer = (category: string, value: string | undefined, customSize?: number) => {
     if (!value || value === 'none') return null;
     
-    const LocalAsset = (avatarAssets as any)[category]?.[value as any];
+    const LocalAsset = (avatarAssets as any)[category === 'marco_front' || category === 'marco_back' ? 'marco' : category]?.[value as any];
+    const baseSize = customSize ?? size;
     
     let content = null;
     if (LocalAsset) {
       if (typeof LocalAsset === 'function') {
-        content = <LocalAsset width={size} height={size} />;
+        content = <LocalAsset width={baseSize} height={baseSize} />;
       } else {
-        content = <Image source={LocalAsset} style={{ width: size, height: size }} resizeMode="contain" />;
+        content = <Image source={LocalAsset} style={{ width: baseSize, height: baseSize }} resizeMode="contain" />;
       }
     } else if (isRemoteUrl(value)) {
       if (value.toLowerCase().includes('.svg')) {
-        content = <RemoteSvgLayer uri={value} size={size} />;
+        content = <RemoteSvgLayer uri={value} size={baseSize} />;
       } else {
-        content = <Image source={{ uri: value }} style={{ width: size, height: size }} resizeMode="contain" />;
+        content = <Image source={{ uri: value }} style={{ width: baseSize, height: baseSize }} resizeMode="contain" />;
       }
     }
 
     return (
-      <View 
-        key={`${category}-${value}`} 
-        style={[styles.layer, getLayerStyle(value)]}
-      >
+      <View key={`${category}-${value}`} style={[styles.layer, getLayerStyle(category, value)]}>
         {content}
       </View>
     );
   };
 
+  // Unificamos el desplazamiento para todo el cuerpo
+  const bodyOffsetY = size * 0.08;
+
   return (
     <View style={[styles.container, { width: size, height: size }, style]}>
-      {/* 1. Hair Back - Unclipped */}
-      {renderLayer('hair_back', avatar.hair_back_asset)}
+      {/* 0. Marco Trasero - 1.1x */}
+      {renderLayer('marco_back', (avatar as any).frame_back_asset, size * 1.1)}
 
-      {/* 1.5 Clothes Back - Unclipped (for capes/jackets) */}
-      {renderLayer('clothes_back', (avatar as any).clothes_back_asset)}
+      {/* Contenedor Maestro del Cuerpo (Todo lo que no es marco) */}
+      <View style={[StyleSheet.absoluteFill, { transform: [{ translateY: bodyOffsetY }] }]}>
+        
+        {/* Capas traseras externas al recorte */}
+        {renderLayer('hair_back', avatar.hair_back_asset)}
+        {renderLayer('clothes_back', (avatar as any).clothes_back_asset)}
 
-      {/* 2. Body Layers - Internally Clipped */}
-      <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden', alignItems: 'center', justifyContent: 'flex-end' }}>
-        {renderLayer('skin', avatar.skin_asset)}
-        {renderLayer('eyes', avatar.eyes_asset)}
-        {renderLayer('mouth', avatar.mouth_asset)}
-        {renderLayer('clothes', avatar.clothes_asset)}
+        {/* El "Core" del avatar (Piel, ojos, boca, ropa) - Recortado en círculo */}
+        <View style={{ 
+          width: size, 
+          height: size, 
+          borderRadius: size / 2, 
+          overflow: 'hidden', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          alignSelf: 'center'
+        }}>
+          {renderLayer('skin', avatar.skin_asset)}
+          {renderLayer('eyes', avatar.eyes_asset)}
+          {renderLayer('mouth', avatar.mouth_asset)}
+          {renderLayer('clothes', avatar.clothes_asset)}
+        </View>
+
+        {/* Capas delanteras externas al recorte (Cabello frontal) */}
+        {renderLayer('hair', avatar.hair_asset)}
       </View>
 
-      {/* 3. Hair Front - Unclipped */}
-      {renderLayer('hair', avatar.hair_asset)}
+      {/* 4. Marco Delantero - 1.35x para que sea el borde principal */}
+      {renderLayer('marco_front', (avatar as any).frame_asset, size * 1.35)}
     </View>
   );
 };

@@ -37,6 +37,8 @@ export type AvatarRow = {
   mouth_asset: string | null;
   clothes_asset: string;
   clothes_back_asset: string | null;
+  frame_asset: string | null;
+  frame_back_asset: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -51,7 +53,7 @@ export async function getCurrentUserAvatar(): Promise<Avatar | null> {
     if (!userId) return null;
     const { data, error } = await supabase
       .from('avatars')
-      .select('profile_id, skin_asset, hair_asset, hair_back_asset, eyes_asset, mouth_asset, clothes_asset, clothes_back_asset')
+      .select('profile_id, skin_asset, hair_asset, hair_back_asset, eyes_asset, mouth_asset, clothes_asset, clothes_back_asset, frame_asset, frame_back_asset')
       .eq('profile_id', userId)
       .maybeSingle();
     if (error) throw error;
@@ -64,6 +66,8 @@ export async function getCurrentUserAvatar(): Promise<Avatar | null> {
       mouth_asset: (data.mouth_asset as string | null) ?? undefined,
       clothes_asset: data.clothes_asset as string,
       clothes_back_asset: (data.clothes_back_asset as string | null) ?? undefined,
+      frame_asset: (data.frame_asset as string | null) ?? undefined,
+      frame_back_asset: (data.frame_back_asset as string | null) ?? undefined,
     };
   } catch (e) {
     console.error('Error fetching current user avatar:', e);
@@ -99,6 +103,8 @@ export async function upsertCurrentUserAvatar(avatar: Avatar): Promise<Avatar | 
           mouth_asset: avatar.mouth_asset ?? null,
           clothes_asset: avatar.clothes_asset,
           clothes_back_asset: avatar.clothes_back_asset ?? null,
+          frame_asset: avatar.frame_asset ?? null,
+          frame_back_asset: avatar.frame_back_asset ?? null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', existing.id);
@@ -115,6 +121,8 @@ export async function upsertCurrentUserAvatar(avatar: Avatar): Promise<Avatar | 
           mouth_asset: avatar.mouth_asset ?? null,
           clothes_asset: avatar.clothes_asset,
           clothes_back_asset: avatar.clothes_back_asset ?? null,
+          frame_asset: avatar.frame_asset ?? null,
+          frame_back_asset: avatar.frame_back_asset ?? null,
         });
       if (insertError) throw insertError;
     }
@@ -132,7 +140,7 @@ export async function getUserAvatar(profileId: string): Promise<Avatar | null> {
   try {
     const { data, error } = await supabase
       .from('avatars')
-      .select('profile_id, skin_asset, hair_asset, hair_back_asset, eyes_asset, mouth_asset, clothes_asset, clothes_back_asset')
+      .select('profile_id, skin_asset, hair_asset, hair_back_asset, eyes_asset, mouth_asset, clothes_asset, clothes_back_asset, frame_asset, frame_back_asset')
       .eq('profile_id', profileId)
       .maybeSingle();
     if (error) throw error;
@@ -145,6 +153,8 @@ export async function getUserAvatar(profileId: string): Promise<Avatar | null> {
       mouth_asset: (data.mouth_asset as string | null) ?? undefined,
       clothes_asset: data.clothes_asset as string,
       clothes_back_asset: (data.clothes_back_asset as string | null) ?? undefined,
+      frame_asset: (data.frame_asset as string | null) ?? undefined,
+      frame_back_asset: (data.frame_back_asset as string | null) ?? undefined,
     };
   } catch (e) {
     console.error('Error fetching user avatar:', e);
@@ -161,7 +171,7 @@ export async function getAvatarsForProfileIds(profileIds: string[]): Promise<Rec
   try {
     const { data, error } = await supabase
       .from('avatars')
-      .select('profile_id, skin_asset, hair_asset, hair_back_asset, eyes_asset, mouth_asset, clothes_asset, clothes_back_asset')
+      .select('profile_id, skin_asset, hair_asset, hair_back_asset, eyes_asset, mouth_asset, clothes_asset, clothes_back_asset, frame_asset, frame_back_asset')
       .in('profile_id', uniqueIds);
     if (error) throw error;
     const result: Record<string, Avatar> = {};
@@ -174,6 +184,8 @@ export async function getAvatarsForProfileIds(profileIds: string[]): Promise<Rec
         mouth_asset: (row.mouth_asset as string | null) ?? undefined,
         clothes_asset: row.clothes_asset as string,
         clothes_back_asset: (row.clothes_back_asset as string | null) ?? undefined,
+        frame_asset: (row.frame_asset as string | null) ?? undefined,
+        frame_back_asset: (row.frame_back_asset as string | null) ?? undefined,
       };
     });
     return result;
@@ -630,7 +642,7 @@ export async function getLeaderboard(limit: number = 50): Promise<LeaderboardEnt
       if (userIds.length === 0) return map;
       const { data: avRows, error: avError } = await supabase
         .from('avatars')
-        .select('profile_id, skin_asset, hair_asset, hair_back_asset, eyes_asset, mouth_asset, clothes_asset, clothes_back_asset')
+        .select('profile_id, skin_asset, hair_asset, hair_back_asset, eyes_asset, mouth_asset, clothes_asset, clothes_back_asset, frame_asset, frame_back_asset')
         .in('profile_id', userIds);
       if (avError) return map;
       (avRows || []).forEach((row: any) => {
@@ -642,6 +654,8 @@ export async function getLeaderboard(limit: number = 50): Promise<LeaderboardEnt
           mouth_asset: (row.mouth_asset as string | null) ?? undefined,
           clothes_asset: row.clothes_asset as string,
           clothes_back_asset: (row.clothes_back_asset as string | null) ?? undefined,
+          frame_asset: (row.frame_asset as string | null) ?? undefined,
+          frame_back_asset: (row.frame_back_asset as string | null) ?? undefined,
         });
       });
       return map;

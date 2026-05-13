@@ -298,6 +298,29 @@ class AuthService {
   /**
    * Refresh the current session
    */
+  async refreshSession(): Promise<AuthResponse> {
+    try {
+      const { data, error } = await this.supabase.auth.refreshSession();
+      
+      if (error) {
+        return { user: null, error };
+      }
+
+      const authUser: AuthUser = {
+        id: data.user?.id || '',
+        email: data.user?.email || '',
+        username: data.user?.user_metadata?.username,
+        avatar_url: data.user?.user_metadata?.avatar_url,
+      };
+
+      return { user: authUser, error: null };
+    } catch (error) {
+      return { 
+        user: null, 
+        error: error as AuthError 
+      };
+    }
+  }
   /**
    * Check if a username is available
    */

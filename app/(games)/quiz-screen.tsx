@@ -703,11 +703,8 @@ const styles = StyleSheet.create({
   avatarEmojiContainer: {
     width: 105,
     height: 105,
-    borderRadius: 52,
-    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
   },
   playerName: {
     color: '#fff',

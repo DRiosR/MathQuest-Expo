@@ -293,14 +293,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   podiumAvatarCircle: {
-    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 10,
   },
   placeBadge: {
     position: 'absolute',
@@ -375,8 +369,6 @@ const styles = StyleSheet.create({
   avatarMiniBg: {
     width: 50,
     height: 50,
-    borderRadius: 25,
-    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
   },

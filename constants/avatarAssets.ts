@@ -73,6 +73,7 @@ export const avatarAssets: AvatarAssets = {
   eyes: eyesAssets,
   mouth: mouthAssets,
   clothes: clothesAssets,
+  marco: {},
 };
 
 // Asset keys for easy iteration
@@ -83,6 +84,7 @@ export const assetKeys = {
   eyes: Object.keys(eyesAssets),
   mouth: Object.keys(mouthAssets),
   clothes: Object.keys(clothesAssets),
+  marco: [],
 };
 
 // Default avatar configuration
@@ -93,6 +95,8 @@ export const defaultAvatar = {
   eyes_asset: 'https://fdfmtjjeylzznldkrqwl.supabase.co/storage/v1/object/public/cosmeticos_avatar/ojos/ojos_01.png',
   mouth_asset: 'https://fdfmtjjeylzznldkrqwl.supabase.co/storage/v1/object/public/cosmeticos_avatar/boca/boca_01.png',
   clothes_asset: 'https://fdfmtjjeylzznldkrqwl.supabase.co/storage/v1/object/public/cosmeticos_avatar/camisa/camisa_01.png',
+  frame_asset: 'https://fdfmtjjeylzznldkrqwl.supabase.co/storage/v1/object/public/cosmeticos_avatar/marco/rangos/bronce/delante_bronce.png',
+  frame_back_asset: 'https://fdfmtjjeylzznldkrqwl.supabase.co/storage/v1/object/public/cosmeticos_avatar/marco/rangos/bronce/atras%20bronce.png',
 };
 
 // Category display names and icons
@@ -121,6 +125,11 @@ export const categoryConfig = {
     name: 'Clothes',
     icon: 'tshirt' as const,
     displayName: 'Ropa',
+  },
+  marco: {
+    name: 'Frame',
+    icon: 'border-all' as const,
+    displayName: 'Marco',
   },
 };
 

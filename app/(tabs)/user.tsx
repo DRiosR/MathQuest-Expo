@@ -1043,22 +1043,11 @@ const styles = StyleSheet.create({
   avatarCircle: {
     width: isSmallScreen ? 110 : 140,
     height: isSmallScreen ? 110 : 140,
-    borderRadius: isSmallScreen ? 55 : 70,
-    backgroundColor: '#fff',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    borderWidth: 4,
-    borderColor: '#fff',
-    elevation: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
+    justifyContent: 'center',
     position: 'relative',
-    overflow: 'hidden', // Contain avatar layers
   },
   layeredAvatar: {
-    borderRadius: 55,
   },
   customizeOverlay: {
     position: 'absolute',

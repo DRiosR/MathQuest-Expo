@@ -426,12 +426,8 @@ const styles = StyleSheet.create({
   avatarCircleSmall: {
     width: 50,
     height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
+    justifyContent: 'center',
   },
   exitButton: { height: 56, borderRadius: 28, overflow: 'hidden' },
   exitButtonGradient: { height: '100%', width: 180, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },

@@ -105,6 +105,7 @@ export default function AvatarCustomizationScreen() {
       eyes: {},
       mouth: {},
       clothes: {},
+      marco: {},
     };
     for (const r of storeItems) {
       const category = String(r.categoria) as AvatarCategory;
@@ -249,6 +250,10 @@ export default function AvatarCustomizationScreen() {
         updatedAvatar.clothes_asset = assetKey;
         updatedAvatar.clothes_back_asset = backUrl;
         break;
+      case 'marco':
+        updatedAvatar.frame_asset = assetKey;
+        updatedAvatar.frame_back_asset = backUrl;
+        break;
     }
 
     // Only update locally; saving happens explicitly
@@ -316,6 +321,8 @@ export default function AvatarCustomizationScreen() {
         return draftAvatar.mouth_asset;
       case 'clothes':
         return draftAvatar.clothes_asset;
+      case 'marco':
+        return draftAvatar.frame_asset;
       default:
         return '';
     }
@@ -383,6 +390,8 @@ export default function AvatarCustomizationScreen() {
                   mouth_asset: resolveToRemoteUrl('mouth', draftAvatar.mouth_asset) as any,
                   clothes_asset: resolveToRemoteUrl('clothes', draftAvatar.clothes_asset) as any,
                   clothes_back_asset: draftAvatar.clothes_back_asset,
+                  frame_asset: resolveToRemoteUrl('marco', draftAvatar.frame_asset) as any,
+                  frame_back_asset: draftAvatar.frame_back_asset,
                 }}
                 size={isVerySmallDevice ? 130 : isSmallDevice ? 160 : 220}
                 style={styles.avatar}
