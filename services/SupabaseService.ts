@@ -861,11 +861,11 @@ export async function getUserInventoryProductIds(): Promise<number[]> {
  */
 export async function initializeUserInventory(userId: string): Promise<void> {
   try {
-    // 1. Encontrar los IDs de los items básicos (01) y el marco de bronce
+    // 1. Encontrar los IDs de los items básicos (nombre termina en 01) Y el marco de bronce
     const { data: items } = await supabase
       .from('tienda')
       .select('id')
-      .or('nombre.ilike.%01,nombre.ilike.%bronce%');
+      .or('nombre.ilike.%01,and(categoria.eq.marco,nombre.ilike.%bronce%)');
 
     if (!items || items.length === 0) return;
 
@@ -1033,31 +1033,90 @@ export async function getUserActivityDates(userId: string): Promise<string[]> {
   }
 }
 
-export async function checkRankUpAndGrantFrame(userId: string, beforeElo: number, currentElo: number): Promise<StoreItemRow | null> {
+export async function checkRankUpAndGrantFrame(userId: string, beforeElo: number, currentElo: number): Promise<{ frame: StoreItemRow, rank: any } | null> {
   try {
+    // 1. Get all ranks sorted by min_points
     const ranks = await getAllRanks();
     if (ranks.length === 0) return null;
-    const beforeRank = ranks.find(r => beforeElo >= r.min_points && beforeElo <= r.max_points);
-    const currentRank = ranks.find(r => currentElo >= r.min_points && currentElo <= r.max_points);
-    if (!beforeRank || !currentRank) return null;
-    if (currentRank.min_points > beforeRank.min_points) {
-      console.log(`🎉 Rank Up Detected! From ${beforeRank.name} to ${currentRank.name}`);
-      const storeItems = await getStoreItems('marco');
-      let rankNameBase = currentRank.name.toLowerCase().replace('rango', '').trim();
-      const frameItem = storeItems.find(item => item.nombre.toLowerCase().includes(rankNameBase));
-      if (frameItem) {
-        const { error: invError } = await supabase
-          .from('inventario')
-          .insert({ usuario_id: userId, producto_id: frameItem.id });
-        if (invError) {
-          if ((invError as any).code !== '23505') {
-            console.error('Error granting rank frame:', invError);
-          }
+
+    // 2. Find the user's current rank based on currentElo
+    const currentRank = ranks.find(r => currentElo >= r.min_points && (r.max_points === null || currentElo <= r.max_points));
+    if (!currentRank) {
+      console.warn('[RANK_UP] No rank found for ELO:', currentElo);
+      return null;
+    }
+
+    // 3. Skip bronce rank – everyone gets it by default
+    const rankNameLower = currentRank.name.toLowerCase();
+    if (rankNameLower.includes('bronce') || rankNameLower.includes('bronze')) {
+      console.log('[RANK_UP] Bronce rank skipped (default).');
+      return null;
+    }
+
+    console.log(`[RANK_UP] Current rank is: ${currentRank.name} (${currentElo} ELO)`);
+
+    // 4. Find the matching frame in the store
+    const storeItems = await getStoreItems('marco');
+    const rankNameBase = currentRank.name.toLowerCase().replace('rango', '').trim();
+
+    console.log(`[RANK_UP] Looking for frame matching: "${rankNameBase}"`);
+    console.log(`[RANK_UP] Available frames in store:`, storeItems.map(i => `"${i.nombre}" (id:${i.id})`));
+
+    // Try multiple matching strategies
+    let frameItem = storeItems.find(item => item.nombre.toLowerCase().includes(rankNameBase));
+
+    // If no match, try individual words (e.g. "Rango Plata" -> try "plata")
+    if (!frameItem) {
+      const words = rankNameBase.split(' ').filter(w => w.length > 2);
+      for (const word of words) {
+        frameItem = storeItems.find(item => item.nombre.toLowerCase().includes(word));
+        if (frameItem) {
+          console.log(`[RANK_UP] Found frame via word match: "${word}" -> "${frameItem.nombre}"`);
+          break;
         }
-        return frameItem;
       }
     }
-    return null;
+
+    if (!frameItem) {
+      console.warn(`[RANK_UP] ❌ No frame found in store for rank: ${currentRank.name} (searched: "${rankNameBase}")`);
+      console.warn(`[RANK_UP] Please ensure the frame name in 'tienda' contains the rank word. Available names: ${storeItems.map(i => i.nombre).join(', ')}`);
+      return null;
+    }
+
+    console.log(`[RANK_UP] ✅ Matched frame: "${frameItem.nombre}" (id: ${frameItem.id})`);
+
+
+    // 5. Check if user already owns this frame (server-side check, not device-based)
+    const { data: existing } = await supabase
+      .from('inventario')
+      .select('id')
+      .eq('usuario_id', userId)
+      .eq('producto_id', frameItem.id)
+      .maybeSingle();
+
+    if (existing) {
+      console.log(`[RANK_UP] User already owns frame ${frameItem.nombre}. No celebration.`);
+      return null;
+    }
+
+    // 6. Grant the frame to the inventory
+    console.log(`[RANK_UP] Granting frame "${frameItem.nombre}" to user ${userId}`);
+    const { error: invError } = await supabase
+      .from('inventario')
+      .insert({ usuario_id: userId, producto_id: frameItem.id });
+
+    if (invError) {
+      if ((invError as any).code === '23505') {
+        console.log('[RANK_UP] Race condition: frame already inserted by another process.');
+        return null;
+      }
+      console.error('[RANK_UP] Error granting frame:', invError);
+      return null;
+    }
+
+    console.log(`[RANK_UP] ✅ Frame granted! Showing celebration modal.`);
+    return { frame: frameItem, rank: currentRank };
+
   } catch (e) {
     console.error('Error in checkRankUpAndGrantFrame:', e);
     return null;

@@ -8,6 +8,7 @@ import { Animated, Easing, Pressable, StyleSheet, Text, View, Image } from 'reac
 import { FadeInView } from '../shared/FadeInView';
 import { LayeredAvatar } from '@/components/LayeredAvatar';
 import { defaultAvatar } from '@/constants/avatarAssets';
+import { RankUpModal } from '@/components/modals/RankUpModal';
 
 
 type Props = {
@@ -64,7 +65,7 @@ export default function MatchEndView({
   const streakAnim = useRef(new Animated.Value(0)).current; 
   const streakPopupAnim = useRef(new Animated.Value(0)).current; 
   const hasAwardedCoinsRef = useRef<boolean>(false);
-  const [unlockedFrame, setUnlockedFrame] = useState<StoreItemRow | null>(null);
+  const [rankUpAchievement, setRankUpAchievement] = useState<{ frame: StoreItemRow, rank: any } | null>(null);
   const [showRankUpModal, setShowRankUpModal] = useState(false);
 
 
@@ -218,17 +219,26 @@ export default function MatchEndView({
     }
   }, [didWin, player1TotalScore, player2TotalScore, user?.id]);
 
-  // Check for rank up
+  const hasCheckedRankUpRef = useRef(false);
+
   useEffect(() => {
-    if (user?.id && hasElo && beforeElo !== null && currentElo !== null) {
-      checkRankUpAndGrantFrame(user.id, beforeElo, currentElo).then(frame => {
-        if (frame) {
-          setUnlockedFrame(frame);
-          setTimeout(() => setShowRankUpModal(true), 4500); // Show after other animations
-        }
-      }).catch(console.error);
-    }
-  }, [user?.id, hasElo, beforeElo, currentElo]);
+    // Guard: only check once per match end screen, and only when we have a valid user and ELO
+    if (hasCheckedRankUpRef.current) return;
+    if (!user?.id || !currentElo) return;
+
+    hasCheckedRankUpRef.current = true;
+    console.log('[RANK_UP] ✅ Triggering rank-up check. userId:', user.id, 'currentElo:', currentElo);
+
+    checkRankUpAndGrantFrame(user.id, beforeElo ?? 0, currentElo).then(result => {
+      if (result) {
+        console.log('[RANK_UP] 🎉 Celebration! Rank:', result.rank.name, '| Frame:', result.frame.nombre);
+        setRankUpAchievement(result);
+        setTimeout(() => setShowRankUpModal(true), 3800);
+      } else {
+        console.log('[RANK_UP] No new rank to celebrate.');
+      }
+    }).catch(e => console.error('[RANK_UP] Error:', e));
+  }, [user?.id, currentElo, hasElo]);
 
 
   return (
@@ -367,34 +377,16 @@ export default function MatchEndView({
         </FadeInView>
       </View>
 
-      {/* Rango Up Overlay */}
-      {showRankUpModal && unlockedFrame && (
-        <FadeInView delay={0} duration={500} style={styles.rankUpOverlay}>
-          <LinearGradient colors={["rgba(0,0,0,0.85)", "rgba(0,0,0,0.98)"]} style={StyleSheet.absoluteFill} />
-          
-          <LottieView
-            source={require('@/assets/lotties/extras/Confetti_quick.json')}
-            autoPlay
-            loop={false}
-            style={StyleSheet.absoluteFill}
-          />
-          
-          <Text style={[styles.rankUpTitle, { fontFamily: 'Digitalt' }]}>¡NUEVO RANGO ALCANZADO!</Text>
-          <Text style={[styles.rankUpSubtitle, { fontFamily: 'Digitalt' }]}>¡NUEVO MARCO OBTENIDO!</Text>
-          
-          <View style={styles.unlockedFrameContainer}>
-            {unlockedFrame.imagen_tienda && (
-               <Image source={{uri: unlockedFrame.imagen_tienda}} style={styles.unlockedFrameImage} resizeMode="contain" />
-            )}
-          </View>
-          
-          <Pressable 
-            style={({ pressed }) => [styles.rankUpButton, pressed && styles.rankUpButtonPressed]} 
-            onPress={() => setShowRankUpModal(false)}
-          >
-            <Text style={[styles.rankUpButtonText, { fontFamily: 'Digitalt' }]}>¡GENIAL!</Text>
-          </Pressable>
-        </FadeInView>
+      {/* Rango Up Modal (Integrated) */}
+      {rankUpAchievement && (
+        <RankUpModal
+          visible={showRankUpModal}
+          rankName={rankUpAchievement.rank.name}
+          rankIcon={rankUpAchievement.rank.icon_url}
+          rankColor={rankUpAchievement.rank.color || '#A855F7'}
+          unlockedItemImage={rankUpAchievement.frame.imagen_tienda || rankUpAchievement.frame.imagen}
+          onClose={() => setShowRankUpModal(false)}
+        />
       )}
     </View>
   );

@@ -15,7 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAvatar } from '@/contexts/AvatarContext';
 import { useFontContext } from '@/contexts/FontsContext';
 import { useTutorial } from '@/contexts/TutorialContext';
-import { getAllRanks, getUserRankInfo, UserRankInfo } from '@/services/SupabaseService';
+import { getAllRanks, getUserRankInfo, UserRankInfo, checkRankUpAndGrantFrame } from '@/services/SupabaseService';
 import { RankUpModal } from '@/components/modals/RankUpModal';
 
 const { height } = Dimensions.get('window');
@@ -30,6 +30,7 @@ export default function PlayScreen() {
   const [rankLoading, setRankLoading] = useState<boolean>(false);
   const [showRankUp, setShowRankUp] = useState(false);
   const [newRankData, setNewRankData] = useState<{ name: string; icon: string | null; color: string } | null>(null);
+  const [unlockedFrameImage, setUnlockedFrameImage] = useState<string | null>(null);
 
   const rankRef = useRef<View>(null);
   const competitiveRef = useRef<View>(null);
@@ -58,8 +59,9 @@ export default function PlayScreen() {
 
         setRankInfo(remote);
         
-        // Check if we should show rank up animation
-        const seenRanksStr = await AsyncStorage.getItem('@mathquest_seen_ranks');
+        // KEY POR CUENTA (no por dispositivo) — cada usuario tiene su propio historial
+        const storageKey = `@mathquest_seen_ranks_${user.id}`;
+        const seenRanksStr = await AsyncStorage.getItem(storageKey);
         const isFirstLoad = seenRanksStr === null;
         const seenRanks = seenRanksStr ? JSON.parse(seenRanksStr) : [];
         const rankId = remote.rank.id;
@@ -69,20 +71,37 @@ export default function PlayScreen() {
         const isBronze = rankName.includes('bronce') || rankName.includes('bronze');
         
         if (!seenRanks.includes(rankId)) {
-          // Guardar como visto inmediatamente
+          // Guardar como visto inmediatamente (por cuenta)
           const updatedSeen = [...seenRanks, rankId];
-          await AsyncStorage.setItem('@mathquest_seen_ranks', JSON.stringify(updatedSeen));
+          await AsyncStorage.setItem(storageKey, JSON.stringify(updatedSeen));
 
           // Solo mostrar si:
           // 1. No es un rango de bronce
-          // 2. No es la primerísima vez que entramos
-          // 3. Es una SUBIDA de rango (no bajada)
+          // 2. No es la primerísima vez que entramos (primera carga)
+          // 3. Es una SUBIDA de rango
           if (!isBronze && !isFirstLoad && isRankUp) {
-            setNewRankData({
+            const rankData = {
               name: remote.rank.name,
               icon: remote.rank.icon_url,
               color: remote.rank.color || '#A855F7'
-            });
+            };
+            setNewRankData(rankData);
+
+            // Otorgar el marco y obtener su imagen de preview
+            try {
+              const currentPoints = remote.points ?? 0;
+              const result = await checkRankUpAndGrantFrame(user.id, 0, currentPoints);
+              if (result) {
+                const frameImg = result.frame.imagen_tienda || result.frame.imagen || null;
+                setUnlockedFrameImage(frameImg);
+              } else {
+                setUnlockedFrameImage(null);
+              }
+            } catch (e) {
+              console.warn('[play.tsx] Could not get frame image:', e);
+              setUnlockedFrameImage(null);
+            }
+
             setShowRankUp(true);
           }
         }
@@ -221,7 +240,11 @@ export default function PlayScreen() {
           rankName={newRankData.name}
           rankIcon={newRankData.icon}
           rankColor={newRankData.color}
-          onClose={() => setShowRankUp(false)}
+          unlockedItemImage={unlockedFrameImage}
+          onClose={() => {
+            setShowRankUp(false);
+            setUnlockedFrameImage(null);
+          }}
         />
       )}
     </View>

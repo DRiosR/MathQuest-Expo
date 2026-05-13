@@ -12,9 +12,10 @@ type Props = {
   rankIcon: string | null;
   rankColor: string;
   onClose: () => void;
+  unlockedItemImage?: string | null; // Nuevo: para mostrar el marco obtenido
 };
 
-export function RankUpModal({ visible, rankName, rankIcon, rankColor, onClose }: Props) {
+export function RankUpModal({ visible, rankName, rankIcon, rankColor, onClose, unlockedItemImage }: Props) {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -43,13 +44,14 @@ export function RankUpModal({ visible, rankName, rankIcon, rankColor, onClose }:
     <Modal visible={visible} transparent animationType="fade">
       <BlurView intensity={80} style={styles.blurContainer} tint="dark">
         <View style={styles.content}>
-          <LottieView
-            source={require('@/assets/lotties/extras/Confetti_quick.json')}
-            autoPlay
-            loop={false}
-            style={styles.confetti}
-            pointerEvents="none"
-          />
+          <View pointerEvents="none" style={styles.confetti}>
+            <LottieView
+              source={require('@/assets/lotties/extras/Confetti_quick.json')}
+              autoPlay
+              loop={false}
+              style={StyleSheet.absoluteFill}
+            />
+          </View>
           
           <Animated.View style={[styles.mainCard, { transform: [{ scale: scaleAnim }], opacity: opacityAnim }]}>
             <LinearGradient
@@ -71,14 +73,25 @@ export function RankUpModal({ visible, rankName, rankIcon, rankColor, onClose }:
               <Text style={[styles.rankName, { fontFamily: 'Digitalt', color: rankColor }]}>
                 {rankName.toUpperCase()}
               </Text>
+
+              {unlockedItemImage && (
+                <View style={styles.rewardContainer}>
+                  <Text style={[styles.rewardTitle, { fontFamily: 'Digitalt' }]}>¡MARCO DESBLOQUEADO!</Text>
+                  <View style={styles.rewardFrameBox}>
+                    <Image source={{ uri: unlockedItemImage }} style={styles.rewardImage} resizeMode="contain" />
+                  </View>
+                </View>
+              )}
               
               <Text style={[styles.subText, { fontFamily: 'Gilroy-Black' }]}>
-                Has demostrado tu dominio matemático. ¡Sigue así!
+                {unlockedItemImage 
+                  ? '¡Felicidades! Has obtenido un nuevo marco para tu avatar.' 
+                  : 'Has demostrado tu dominio matemático. ¡Sigue así!'}
               </Text>
 
               <TouchableOpacity style={styles.button} activeOpacity={0.8} onPress={onClose}>
                 <LinearGradient colors={['#FFFFFF', '#E0E0E0']} style={styles.buttonGradient}>
-                  <Text style={[styles.buttonText, { fontFamily: 'Digitalt' }]}>¡VAMOS!</Text>
+                  <Text style={[styles.buttonText, { fontFamily: 'Digitalt' }]}>¡GENIAL!</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </LinearGradient>
@@ -125,52 +138,77 @@ const styles = StyleSheet.create({
   },
   congratsText: {
     color: '#FFFFFF',
-    fontSize: 28,
+    fontSize: 24,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 10,
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
   iconContainer: {
-    width: 140,
-    height: 140,
+    width: 100,
+    height: 100,
     backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 70,
+    borderRadius: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 15,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
   },
   rankIcon: {
-    width: 100,
-    height: 100,
+    width: 70,
+    height: 70,
   },
   placeholderIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
   },
   rankName: {
-    fontSize: 36,
+    fontSize: 32,
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 15,
     textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 10,
+  },
+  rewardContainer: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 20,
+    padding: 15,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  rewardTitle: {
+    color: '#FFD700',
+    fontSize: 16,
+    marginBottom: 10,
+  },
+  rewardFrameBox: {
+    width: 100,
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rewardImage: {
+    width: '100%',
+    height: '100%',
   },
   subText: {
     color: 'rgba(255,255,255,0.8)',
     fontSize: 14,
     textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: 25,
     lineHeight: 20,
     paddingHorizontal: 10,
   },
   button: {
     width: '100%',
-    height: 55,
+    height: 50,
     borderRadius: 15,
     overflow: 'hidden',
   },
@@ -181,7 +219,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#000000',
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '900',
   },
 });

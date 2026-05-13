@@ -1030,6 +1030,7 @@ export default function MatchmakingScreen() {
 
           return (
             <MatchEndView
+              key={`match-end-${user?.id}-${gameData?.winner ?? 'pending'}-${currentRoom ?? 'room'}`}
               didWin={gameData?.winner ? (gameData?.winner === socketId || gameData?.winner === myUserId) : false}
               player1Username={gameData?.player1Username || 'P1'}
               player2Username={gameData?.player2Username || 'P2'}
