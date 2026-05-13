@@ -779,6 +779,48 @@ export async function incrementCurrentUserCoins(delta: number): Promise<number> 
   }
 }
 
+/**
+ * Increments the current authenticated user's global points and persists it to profiles.points.
+ * Returns the new points balance.
+ */
+export async function incrementCurrentUserPoints(delta: number): Promise<number> {
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData?.user?.id ?? null;
+    if (!userId) return 0;
+
+    const { data: existing, error: fetchError } = await supabase
+      .from('profiles')
+      .select('points, username, email')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (fetchError) throw fetchError;
+
+    const current = Number(existing?.points ?? 0);
+    const newPoints = Math.max(0, current + Number(delta || 0));
+
+    const { error: upsertError } = await supabase
+      .from('profiles')
+      .upsert(
+        { 
+          id: userId, 
+          points: newPoints, 
+          username: existing?.username || 'Usuario', 
+          email: existing?.email || `${userId}@temp.com`, 
+          updated_at: new Date().toISOString() 
+        },
+        { onConflict: 'id' }
+      );
+
+    if (upsertError) throw upsertError;
+    return newPoints;
+  } catch (error) {
+    console.error('Error incrementing user points:', error);
+    return 0;
+  }
+}
+
 // -------------------- INVENTARIO (USER INVENTORY) --------------------
 
 /**
