@@ -163,6 +163,13 @@ export default function MatchmakingScreen() {
   const myUserId = useMemo(() => user?.id ?? `guest_${Date.now()}`, [user?.id]);
   const myUsername = useMemo(() => (user?.username || user?.email || 'Jugador').toString(), [user?.username, user?.email]);
 
+  // RESET TOTAL AL ENTRAR
+  useEffect(() => {
+    isGameFinalizedRef.current = false;
+    isManualForfeitRef.current = false;
+    setGameState('MATCHMAKING');
+  }, []);
+
   // ENCONTRADO!
   useEffect(() => {
     const unsubPlayerFound = onPlayerFound((data) => {
@@ -236,9 +243,9 @@ export default function MatchmakingScreen() {
 
   useEffect(() => {
     const unsubRoundStarted = onRoundStarted((data) => {
-      // Solo ignoramos si la partida ya terminó definitivamente
-      if (gameStateRef.current === 'MATCH_END') {
-        console.log('⚠️ Ignorando round-started porque la partida ya finalizó');
+      // Si la partida ya se marcó como finalizada o estamos en proceso de abandono, IGNORAR
+      if (gameStateRef.current === 'MATCH_END' || isManualForfeitRef.current || isGameFinalizedRef.current) {
+        console.log('⚠️ Ignorando round-started: partida finalizada o abandonada');
         return;
       }
 
@@ -363,69 +370,53 @@ export default function MatchmakingScreen() {
   // Match Terminado
   useEffect(() => {
     const unsubGameEnd = onGameFinished((data) => {
-      // CERROJO DE SEGURIDAD
       if (isGameFinalizedRef.current) return;
       isGameFinalizedRef.current = true;
 
       console.log('🏆 Match finished data received');
       
-      const myScore = myRole === 'p1' ? data.player1Score : data.player2Score;
-      const oppScore = myRole === 'p1' ? data.player2Score : data.player1Score;
-      const isForfeit = data.forfeit || data.reason === 'abandoned';
-      const amIWinner = data.winner === myUserId || data.winner === socketId;
-
-      const matchElapsed = Date.now() - matchStartTimeRef.current;
-      const IS_TIMEOUT_ZONE = matchElapsed >= (INACTIVITY_LIMIT - 15000);
-
-      // 1. ESCENARIO: INACTIVIDAD MUTUA (Ambos 0-0 en zona de timeout)
-      if (isForfeit && !isManualForfeitRef.current && (myScore === 0 || myScore === undefined) && (oppScore === 0 || oppScore === undefined) && IS_TIMEOUT_ZONE) {
-        console.log('🛑 Inactividad mutua detectada (0-0 forfeit). Compensando...');
-        const amIWinnerByServer = data.winner === myUserId || data.winner === socketId;
-        
-        setTimeout(async () => {
-          try {
-            if (amIWinnerByServer) await incrementCurrentUserPoints(-45);
-            else await incrementCurrentUserPoints(10);
-            await incrementCurrentUserCoins(-15);
-          } catch (err: any) { console.error('Error compensando:', err); }
-        }, 2500);
-
-        setShowInactivityModal(true);
-        return; 
-      }
-
-      // BLOQUEO DE INACTIVIDAD (Para flujo normal)
+      // BLOQUEO INMEDIATO DE INACTIVIDAD
       setShowInactivityModal(false);
 
-      // RECALCULAR TOTALES DESDE EL ARREGLO DE RONDAS
+      const amIWinner = data.winner === myUserId || data.winner === socketId;
+      const isForfeit = data.forfeit || data.reason === 'abandoned';
+      const myScore = myRole === 'p1' ? data.player1Score : data.player2Score;
+      const oppScore = myRole === 'p1' ? data.player2Score : data.player1Score;
+
+      // RECALCULAR TOTALES
       if (Array.isArray(data.rounds)) {
-        let realP1Total = 0, realP2Total = 0;
+        let rP1 = 0, rP2 = 0;
         data.rounds.forEach((r: any) => {
-          realP1Total += (r.player1Score || 0);
-          realP2Total += (r.player2Score || 0);
+          rP1 += (r.player1Score || 0);
+          rP2 += (r.player2Score || 0);
         });
-        data.player1TotalScore = realP1Total;
-        data.player2TotalScore = realP2Total;
+        data.player1TotalScore = rP1;
+        data.player2TotalScore = rP2;
       }
 
       setGameData((prev: any) => {
-        const base = opponentAvatar ? { ...data, opponentAvatar } : data;
+        const base = { ...data, opponentAvatar: opponentAvatar || prev?.opponentAvatar };
         
-        // 2. ESCENARIO: INACTIVIDAD INDIVIDUAL (Rival 0 pts, Yo > 0 pts en timeout)
-        const isRivalInactive = (oppScore === 0 || oppScore === undefined) && (myScore > 0) && IS_TIMEOUT_ZONE;
+        // Detectar penalización mutua (si el server mandó delta negativo para ambos)
+        if (!data.winner && data.globalPointsUpdate?.winner < 0 && data.globalPointsUpdate?.loser < 0) {
+          base.isMutualPenalty = true;
+        }
 
         if (isForfeit && amIWinner) {
-          if (isRivalInactive) {
-            base.winByInactivity = true;
-          } else {
-            base.winByForfeit = true;
-          }
+          base.winByForfeit = true;
         }
-        return prev ? { ...prev, ...base } : base;
+        return base;
       });
 
-      const delayTime = data.forfeit ? 500 : 2000;
-      setTimeout(() => { setGameState('MATCH_END'); }, delayTime); 
+      // LIMPIEZA DE UI
+      setIsTransitioningFromQuiz(false);
+      setIsTransitioningToQuiz(false);
+
+      const delayTime = (isForfeit || isManualForfeitRef.current) ? 0 : 2000;
+      setTimeout(() => { 
+        console.log('🚀 Changing gameState to MATCH_END');
+        setGameState('MATCH_END'); 
+      }, delayTime); 
     });
     return () => unsubGameEnd?.();
   }, [onGameFinished, opponentAvatar, myUserId, socketId, myRole]);
@@ -433,7 +424,6 @@ export default function MatchmakingScreen() {
   // Usuario sale de la sala
   useEffect(() => {
     const unsubUserLeft = onUserLeft((data) => {
-      // Si la partida ya está marcada como finalizada, ignorar
       if (isGameFinalizedRef.current) return;
 
       // Solo actuar si el oponente sale ANTES de terminar la partida
@@ -588,8 +578,9 @@ export default function MatchmakingScreen() {
   useEffect(() => {
     // Si la partida ya finalizó o el modal ya se está mostrando, no hacemos nada
     if (showInactivityModal || isGameFinalizedRef.current) return;
-    if (gameState !== 'QUIZ') return;
 
+    if (gameState !== 'QUIZ') return;
+    
     const interval = setInterval(() => {
       const elapsed = Date.now() - lastActivityTime.current;
       if (elapsed >= INACTIVITY_LIMIT) {
@@ -599,6 +590,7 @@ export default function MatchmakingScreen() {
           return;
         }
 
+        clearInterval(interval);
         console.log('⏰ Inactividad detectada (3 min). Terminando partida...');
         isGameFinalizedRef.current = true; // ACTIVAR CERROJO
         
@@ -609,10 +601,9 @@ export default function MatchmakingScreen() {
         if (currentRoom) {
           forfeitGame(currentRoom);
         }
-        clearInterval(interval);
       }
-    }, 5000);
-
+    }, 5000); // Revisar cada 5 segundos
+    
     return () => clearInterval(interval);
   }, [gameState, currentRoom, showInactivityModal]);
 
@@ -1025,16 +1016,16 @@ export default function MatchmakingScreen() {
 
           return (
             <MatchEndView
-              didWin={gameData?.winner ? gameData?.winner === socketId : false}
+              didWin={gameData?.winner ? (gameData?.winner === socketId || gameData?.winner === myUserId) : false}
               player1Username={gameData?.player1Username || 'P1'}
               player2Username={gameData?.player2Username || 'P2'}
               player1TotalScore={gameData?.player1TotalScore ?? 0}
               player2TotalScore={gameData?.player2TotalScore ?? 0}
               player1Avatar={p1Av}
               player2Avatar={p2Av}
-              winByForfeit={gameData.winByForfeit}
-              winByInactivity={gameData.winByInactivity}
-              pointsDelta={(gameData?.winner === socketId ? gameData?.globalPointsUpdate?.winner : gameData?.globalPointsUpdate?.loser) ?? 0}
+              winByForfeit={gameData?.winByForfeit || isManualForfeitRef.current}
+              isMutualPenalty={gameData?.isMutualPenalty}
+              pointsDelta={(gameData?.winner === socketId || gameData?.winner === myUserId ? gameData?.globalPointsUpdate?.winner : gameData?.globalPointsUpdate?.loser) ?? 0}
               eloInfo={eloInfo || undefined}
               onExit={handleExitMatchEnd}
             />
