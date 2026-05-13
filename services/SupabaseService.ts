@@ -517,7 +517,6 @@ export async function getUserRankInfo(userId: string): Promise<UserRankInfo | nu
       currentRank = (r as RankRow) || null;
     }
 
-    // Find next rank (first with min_points greater than current points)
     const { data: next } = await supabase
       .from('ranks')
       .select('id, name, min_points, max_points, icon_url, color')
@@ -862,11 +861,11 @@ export async function getUserInventoryProductIds(): Promise<number[]> {
  */
 export async function initializeUserInventory(userId: string): Promise<void> {
   try {
-    // 1. Encontrar los IDs de los items básicos (01)
+    // 1. Encontrar los IDs de los items básicos (01) y el marco de bronce
     const { data: items } = await supabase
       .from('tienda')
       .select('id')
-      .ilike('nombre', '%01');
+      .or('nombre.ilike.%01,nombre.ilike.%bronce%');
 
     if (!items || items.length === 0) return;
 
@@ -1031,5 +1030,36 @@ export async function getUserActivityDates(userId: string): Promise<string[]> {
   } catch (error) {
     console.error('Error fetching activity dates:', error);
     return [];
+  }
+}
+
+export async function checkRankUpAndGrantFrame(userId: string, beforeElo: number, currentElo: number): Promise<StoreItemRow | null> {
+  try {
+    const ranks = await getAllRanks();
+    if (ranks.length === 0) return null;
+    const beforeRank = ranks.find(r => beforeElo >= r.min_points && beforeElo <= r.max_points);
+    const currentRank = ranks.find(r => currentElo >= r.min_points && currentElo <= r.max_points);
+    if (!beforeRank || !currentRank) return null;
+    if (currentRank.min_points > beforeRank.min_points) {
+      console.log(`🎉 Rank Up Detected! From ${beforeRank.name} to ${currentRank.name}`);
+      const storeItems = await getStoreItems('marco');
+      let rankNameBase = currentRank.name.toLowerCase().replace('rango', '').trim();
+      const frameItem = storeItems.find(item => item.nombre.toLowerCase().includes(rankNameBase));
+      if (frameItem) {
+        const { error: invError } = await supabase
+          .from('inventario')
+          .insert({ usuario_id: userId, producto_id: frameItem.id });
+        if (invError) {
+          if ((invError as any).code !== '23505') {
+            console.error('Error granting rank frame:', invError);
+          }
+        }
+        return frameItem;
+      }
+    }
+    return null;
+  } catch (e) {
+    console.error('Error in checkRankUpAndGrantFrame:', e);
+    return null;
   }
 }

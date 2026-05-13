@@ -110,10 +110,7 @@ export default function RouletteView({
         <View style={styles.header}>
           {/* Left player (Me) */}
           <View style={styles.playerCol}>
-            <View style={[
-              styles.avatarCircle,
-              styles.avatarCircleHighlight
-            ]}>
+            <View style={styles.avatarCircle}>
               {leftPlayer?.avatarComponent}
             </View>
             <Text style={[
@@ -183,15 +180,6 @@ const styles = StyleSheet.create({
     height: 120,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  avatarCircleHighlight: {
-    borderWidth: 3,
-    borderColor: '#FFD616',
-    shadowColor: '#FFD616',
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 8,
   },
   scoreText: { 
     color: '#FFFFFF', 

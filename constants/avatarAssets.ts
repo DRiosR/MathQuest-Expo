@@ -73,7 +73,9 @@ export const avatarAssets: AvatarAssets = {
   eyes: eyesAssets,
   mouth: mouthAssets,
   clothes: clothesAssets,
-  marco: {},
+  marco: {
+    none: null,
+  },
 };
 
 // Asset keys for easy iteration
@@ -84,7 +86,9 @@ export const assetKeys = {
   eyes: Object.keys(eyesAssets),
   mouth: Object.keys(mouthAssets),
   clothes: Object.keys(clothesAssets),
-  marco: [],
+  marco: {
+    none: 'none',
+  },
 };
 
 // Default avatar configuration

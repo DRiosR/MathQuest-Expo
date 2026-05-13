@@ -1,10 +1,10 @@
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
-import { incrementCurrentUserCoins, updateUserStreak } from '@/services/SupabaseService';
+import { incrementCurrentUserCoins, updateUserStreak, StoreItemRow, checkRankUpAndGrantFrame } from '@/services/SupabaseService';
 import { LinearGradient } from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, Text, View, Image } from 'react-native';
 import { FadeInView } from '../shared/FadeInView';
 import { LayeredAvatar } from '@/components/LayeredAvatar';
 import { defaultAvatar } from '@/constants/avatarAssets';
@@ -64,6 +64,9 @@ export default function MatchEndView({
   const streakAnim = useRef(new Animated.Value(0)).current; 
   const streakPopupAnim = useRef(new Animated.Value(0)).current; 
   const hasAwardedCoinsRef = useRef<boolean>(false);
+  const [unlockedFrame, setUnlockedFrame] = useState<StoreItemRow | null>(null);
+  const [showRankUpModal, setShowRankUpModal] = useState(false);
+
 
   // Interpolate bar width between the min and max of before/current
   const minElo = useMemo(() => (hasElo ? Math.min(beforeElo!, currentElo!) : 0), [hasElo, beforeElo, currentElo]);
@@ -215,6 +218,19 @@ export default function MatchEndView({
     }
   }, [didWin, player1TotalScore, player2TotalScore, user?.id]);
 
+  // Check for rank up
+  useEffect(() => {
+    if (user?.id && hasElo && beforeElo !== null && currentElo !== null) {
+      checkRankUpAndGrantFrame(user.id, beforeElo, currentElo).then(frame => {
+        if (frame) {
+          setUnlockedFrame(frame);
+          setTimeout(() => setShowRankUpModal(true), 4500); // Show after other animations
+        }
+      }).catch(console.error);
+    }
+  }, [user?.id, hasElo, beforeElo, currentElo]);
+
+
   return (
     <View style={styles.container}>
       <LinearGradient colors={["#9C58FE", "#6F52FD"]} style={styles.gradientBackground} />
@@ -350,6 +366,36 @@ export default function MatchEndView({
           </Pressable>
         </FadeInView>
       </View>
+
+      {/* Rango Up Overlay */}
+      {showRankUpModal && unlockedFrame && (
+        <FadeInView delay={0} duration={500} style={styles.rankUpOverlay}>
+          <LinearGradient colors={["rgba(0,0,0,0.85)", "rgba(0,0,0,0.98)"]} style={StyleSheet.absoluteFill} />
+          
+          <LottieView
+            source={require('@/assets/lotties/extras/Confetti_quick.json')}
+            autoPlay
+            loop={false}
+            style={StyleSheet.absoluteFill}
+          />
+          
+          <Text style={[styles.rankUpTitle, { fontFamily: 'Digitalt' }]}>¡NUEVO RANGO ALCANZADO!</Text>
+          <Text style={[styles.rankUpSubtitle, { fontFamily: 'Digitalt' }]}>¡NUEVO MARCO OBTENIDO!</Text>
+          
+          <View style={styles.unlockedFrameContainer}>
+            {unlockedFrame.imagen_tienda && (
+               <Image source={{uri: unlockedFrame.imagen_tienda}} style={styles.unlockedFrameImage} resizeMode="contain" />
+            )}
+          </View>
+          
+          <Pressable 
+            style={({ pressed }) => [styles.rankUpButton, pressed && styles.rankUpButtonPressed]} 
+            onPress={() => setShowRankUpModal(false)}
+          >
+            <Text style={[styles.rankUpButtonText, { fontFamily: 'Digitalt' }]}>¡GENIAL!</Text>
+          </Pressable>
+        </FadeInView>
+      )}
     </View>
   );
 }
@@ -489,5 +535,67 @@ const styles = StyleSheet.create({
     color: '#6366f1',
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  rankUpOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+    padding: 20,
+  },
+  rankUpTitle: {
+    color: '#FFD700',
+    fontSize: 40,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 4 },
+    textShadowRadius: 8,
+    marginBottom: 10,
+    lineHeight: 45,
+  },
+  rankUpSubtitle: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    textAlign: 'center',
+    marginBottom: 40,
+    opacity: 0.9,
+  },
+  unlockedFrameContainer: {
+    width: 250,
+    height: 250,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 125,
+    marginBottom: 50,
+    borderWidth: 4,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  unlockedFrameImage: {
+    width: '100%',
+    height: '100%',
+  },
+  rankUpButton: {
+    backgroundColor: '#FF46A5',
+    paddingHorizontal: 40,
+    paddingVertical: 18,
+    borderRadius: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 5,
+    elevation: 8,
+  },
+  rankUpButtonPressed: {
+    transform: [{ scale: 0.95 }],
+    opacity: 0.9,
+  },
+  rankUpButtonText: {
+    color: '#FFF',
+    fontSize: 24,
   },
 });

@@ -312,6 +312,23 @@ export default function AvatarCustomizationScreen() {
         mapped.unshift({ id: -1, svgUrl: 'none', backUrl: null, storeImage: null, rarity: 'comun' });
       }
     }
+
+    // AÑADIR MARCO BRONCE POR DEFAULT SIEMPRE (No importa si no está en inventory)
+    if (selectedCategory === 'marco') {
+      const BRONCE_URL = 'https://fdfmtjjeylzznldkrqwl.supabase.co/storage/v1/object/public/cosmeticos_avatar/marco/rangos/bronce/delante_bronce.png';
+      const BACK_BRONCE_URL = 'https://fdfmtjjeylzznldkrqwl.supabase.co/storage/v1/object/public/cosmeticos_avatar/marco/rangos/bronce/atras_bronce.png';
+      
+      if (!mapped.some(o => o.svgUrl === BRONCE_URL)) {
+        mapped.push({ 
+          id: 999999, // ID dummy para el default
+          svgUrl: BRONCE_URL, 
+          backUrl: BACK_BRONCE_URL, 
+          storeImage: 'https://fdfmtjjeylzznldkrqwl.supabase.co/storage/v1/object/public/tienda_avatar/marco/rango/marco_tienda_bronce.png', 
+          rarity: 'comun' 
+        });
+      }
+    }
+
     return mapped;
   }, [ownedProductIds, storeItems, selectedCategory]);
 
@@ -509,12 +526,23 @@ export default function AvatarCustomizationScreen() {
                             <Text style={[styles.noneText, { fontFamily: 'Digitalt' }]}>QUITAR</Text>
                           </View>
                         ) : (
-                          <ExpoImage
-                            source={{ uri: opt.storeImage || opt.svgUrl }}
-                            style={styles.assetImage}
-                            contentFit="contain"
-                            cachePolicy="disk"
-                          />
+                          <>
+                            {/* Solo renderizamos el backUrl en el cuadro si NO hay un storeImage que ya traiga todo combinado */}
+                            {selectedCategory === 'marco' && opt.backUrl && !opt.storeImage && (
+                              <ExpoImage
+                                source={{ uri: opt.backUrl }}
+                                style={[styles.assetImage, styles.backLayerImage]}
+                                contentFit="contain"
+                                cachePolicy="disk"
+                              />
+                            )}
+                            <ExpoImage
+                              source={{ uri: opt.storeImage || opt.svgUrl }}
+                              style={styles.assetImage}
+                              contentFit="contain"
+                              cachePolicy="disk"
+                            />
+                          </>
                         )}
                       </View>
 
@@ -825,6 +853,10 @@ const styles = StyleSheet.create({
   assetImage: {
     width: '100%',
     height: '100%',
+  },
+  backLayerImage: {
+    position: 'absolute',
+    transform: [{ scale: 1.1 }], // Un poco más grande para que sobresalga por detrás del frente
   },
   noneWrapper: {
     alignItems: 'center',

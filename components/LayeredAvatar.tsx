@@ -104,7 +104,7 @@ export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
 
       // Ajustar posición del marco trasero si es necesario (mover un poco abajo)
       if (category === 'marco_back') {
-        styles.transform.push({ translateY: size * 0.05 });
+        styles.transform.push({ translateY: size * 0.05 + 3 });
       }
       
       styles.transform.push({ scale: finalScale }); 
@@ -168,8 +168,13 @@ export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
 
   return (
     <View style={[styles.container, { width: size, height: size }, style]}>
-      {/* 0. Marco Trasero - Reducido 6px adicionales para un ajuste perfecto */}
-      {renderLayer('marco_back', avatar.frame_back_asset, size * 0.95 - 6)}
+      {/* 0. Marco Trasero - Ajustado: +5px para que sobresalga un poco más */}
+      {renderLayer('marco_back', avatar.frame_back_asset, size * 0.95 - 1)}
+
+      {/* 0.1 Fondo por defecto - Solo si NO hay marco */}
+      {(!avatar.frame_asset || avatar.frame_asset === 'none') && (!avatar.frame_back_asset || avatar.frame_back_asset === 'none') && (
+        <View style={[styles.defaultBgCircle, { width: size * 0.9, height: size * 0.9, borderRadius: size * 0.45 }]} />
+      )}
 
       {/* Contenedor Maestro del Cuerpo (Todo lo que no es marco) */}
       <View style={[StyleSheet.absoluteFill, { transform: [{ translateY: bodyOffsetY }] }]}>
@@ -229,6 +234,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: -1,
+  },
+  defaultBgCircle: {
+    position: 'absolute',
+    backgroundColor: 'rgba(255,255,255,0.4)', // Fondo sutil para que no flote
   },
 });
