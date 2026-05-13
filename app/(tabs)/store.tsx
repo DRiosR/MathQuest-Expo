@@ -146,9 +146,9 @@ export default function StoreScreen() {
   const CARD_HEIGHT = CARD_SIZE + 16; 
   
   // Responsive Avatar Sizing
-  const TOP_SECTION_HEIGHT = height * 0.40;
-  const AVATAR_CIRCLE_SIZE = Math.min(width * 0.6, height * 0.28);
-  const AVATAR_IMAGE_SIZE = AVATAR_CIRCLE_SIZE * 0.9;
+  const TOP_SECTION_HEIGHT = height * 0.42;
+  const AVATAR_IMAGE_SIZE = Math.min(width * 0.78, height * 0.34);
+  const AVATAR_CIRCLE_SIZE = AVATAR_IMAGE_SIZE * 0.80; // Más pequeño para que el marco sea el protagonista
 
   const CARD_RADIUS = 24;
   const [ownedProductIds, setOwnedProductIds] = React.useState<number[]>([]);
@@ -375,7 +375,7 @@ export default function StoreScreen() {
                 <LayeredAvatar 
                   avatar={previewAvatar}
                   size={AVATAR_IMAGE_SIZE}
-                  scale={0.8}
+                  scale={1.0}
                 />
               </Animated.View>
           </View>
@@ -827,7 +827,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'absolute',
-    bottom: 15,
+    bottom: 50, // Subido de 15 a 50 para que el avatar esté más alto
     left: 0,
     right: 0,
     zIndex: 10,
@@ -835,7 +835,7 @@ const styles = StyleSheet.create({
   avatarPreviewBg: {
     backgroundColor: 'rgba(255,255,255,0.95)',
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'center', // Centrado para que coincida con el marco
     borderWidth: 6,
     borderColor: 'rgba(255,255,255,0.4)',
     elevation: 20,

@@ -252,7 +252,13 @@ export default function AvatarCustomizationScreen() {
         break;
       case 'marco':
         updatedAvatar.frame_asset = assetKey;
-        updatedAvatar.frame_back_asset = backUrl;
+        // Smart fallback: si no hay backUrl explícito pero es un marco de rango, derivarlo del nombre
+        let finalBackUrl = backUrl;
+        if (!finalBackUrl && assetKey.includes('delante_')) {
+          finalBackUrl = assetKey.replace('delante_', 'atras_');
+          console.log('✨ Derivando marco_back automáticamente:', finalBackUrl);
+        }
+        updatedAvatar.frame_back_asset = finalBackUrl;
         break;
     }
 
@@ -391,7 +397,7 @@ export default function AvatarCustomizationScreen() {
                   clothes_asset: resolveToRemoteUrl('clothes', draftAvatar.clothes_asset) as any,
                   clothes_back_asset: draftAvatar.clothes_back_asset,
                   frame_asset: resolveToRemoteUrl('marco', draftAvatar.frame_asset) as any,
-                  frame_back_asset: draftAvatar.frame_back_asset,
+                  frame_back_asset: resolveToRemoteUrl('marco', draftAvatar.frame_back_asset) as any,
                 }}
                 size={isVerySmallDevice ? 130 : isSmallDevice ? 160 : 220}
                 style={styles.avatar}

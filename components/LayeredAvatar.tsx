@@ -1,7 +1,8 @@
 import { avatarAssets } from '@/constants/avatarAssets';
 import { Avatar } from '@/types/avatar';
 import React, { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View, Image } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
 import * as FileSystem from 'expo-file-system';
 import { SvgUri } from 'react-native-svg';
 
@@ -64,16 +65,25 @@ export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
   style,
   scale,
 }) => {
+  useEffect(() => {
+    if (avatar.frame_asset || avatar.frame_back_asset) {
+      console.log('🖼️ Renderizando Avatar con Marco:', {
+        delante: avatar.frame_asset?.split('/').pop(),
+        atras: avatar.frame_back_asset?.split('/').pop()
+      });
+    }
+  }, [avatar.frame_asset, avatar.frame_back_asset]);
+
   const layers = useMemo(() => ([
-    ['marco', (avatar as any).frame_back_asset],
+    ['marco_back', avatar.frame_back_asset],
     ['hair_back', avatar.hair_back_asset],
     ['skin', avatar.skin_asset],
     ['eyes', avatar.eyes_asset],
     ['mouth', avatar.mouth_asset],
     ['clothes', avatar.clothes_asset],
     ['hair', avatar.hair_asset],
-    ['marco_front', (avatar as any).frame_asset],
-  ] as Array<[keyof typeof avatarAssets, string | undefined]>), [avatar]);
+    ['marco_front', avatar.frame_asset],
+  ] as Array<[keyof typeof avatarAssets | 'marco_back' | 'marco_front', string | undefined]>), [avatar]);
 
   const getLayerStyle = (category: string, value: string | undefined) => {
     if (!value) return {};
@@ -88,9 +98,15 @@ export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
     if (isNewSystem) {
       let finalScale = scale ?? 1.0;
       // Cuerpo al 75% del tamaño del contenedor para dejar espacio al marco
-      if (category !== 'marco_front' && category !== 'marco_back') {
+      if (category !== 'marco_front' && category !== 'marco_back' && category !== 'marco') {
         finalScale *= 0.75; 
       }
+
+      // Ajustar posición del marco trasero si es necesario (mover un poco abajo)
+      if (category === 'marco_back') {
+        styles.transform.push({ translateY: size * 0.05 });
+      }
+      
       styles.transform.push({ scale: finalScale }); 
     }
 
@@ -100,27 +116,48 @@ export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
 
   const renderLayer = (category: string, value: string | undefined, customSize?: number) => {
     if (!value || value === 'none') return null;
+    const baseSize = customSize ?? size;
+    console.log(`🎨 Renderizando capa [${category}] - Tamaño: ${baseSize.toFixed(1)}px - URL:`, value.split('/').pop());
     
     const LocalAsset = (avatarAssets as any)[category === 'marco_front' || category === 'marco_back' ? 'marco' : category]?.[value as any];
-    const baseSize = customSize ?? size;
     
     let content = null;
     if (LocalAsset) {
       if (typeof LocalAsset === 'function') {
         content = <LocalAsset width={baseSize} height={baseSize} />;
       } else {
-        content = <Image source={LocalAsset} style={{ width: baseSize, height: baseSize }} resizeMode="contain" />;
+        content = <Image source={LocalAsset} style={{ width: baseSize, height: baseSize }} contentFit="contain" />;
       }
     } else if (isRemoteUrl(value)) {
       if (value.toLowerCase().includes('.svg')) {
         content = <RemoteSvgLayer uri={value} size={baseSize} />;
       } else {
-        content = <Image source={{ uri: value }} style={{ width: baseSize, height: baseSize }} resizeMode="contain" />;
+        // Normalizar URL: Supabase storage prefiere guiones bajos para estos assets
+        let normalizedUri = value;
+        if (value.includes('marco/rangos') || value.includes('cosmeticos_avatar')) {
+          normalizedUri = value.replace(/ /g, '_').replace(/%20/g, '_');
+        } else if (value.includes(' ')) {
+          normalizedUri = value.replace(/ /g, '%20');
+        }
+        
+        content = (
+          <Image 
+            source={{ uri: normalizedUri }} 
+            style={{ width: baseSize, height: baseSize }} 
+            contentFit="contain" 
+            cachePolicy="memory-disk"
+            transition={200}
+          />
+        );
       }
     }
 
     return (
-      <View key={`${category}-${value}`} style={[styles.layer, getLayerStyle(category, value)]}>
+      <View key={`${category}-${value}`} style={[
+        styles.layer, 
+        category.includes('marco') ? styles.marcoLayer : null,
+        getLayerStyle(category, value)
+      ]}>
         {content}
       </View>
     );
@@ -131,8 +168,8 @@ export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
 
   return (
     <View style={[styles.container, { width: size, height: size }, style]}>
-      {/* 0. Marco Trasero - 1.1x */}
-      {renderLayer('marco_back', (avatar as any).frame_back_asset, size * 1.1)}
+      {/* 0. Marco Trasero - Reducido 6px adicionales para un ajuste perfecto */}
+      {renderLayer('marco_back', avatar.frame_back_asset, size * 0.95 - 6)}
 
       {/* Contenedor Maestro del Cuerpo (Todo lo que no es marco) */}
       <View style={[StyleSheet.absoluteFill, { transform: [{ translateY: bodyOffsetY }] }]}>
@@ -161,8 +198,8 @@ export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
         {renderLayer('hair', avatar.hair_asset)}
       </View>
 
-      {/* 4. Marco Delantero - 1.35x para que sea el borde principal */}
-      {renderLayer('marco_front', (avatar as any).frame_asset, size * 1.35)}
+      {/* 4. Marco Delantero - 1.2x para coincidir exactamente con la capa trasera */}
+      {renderLayer('marco_front', (avatar as any).frame_asset, size * 1.2)}
     </View>
   );
 };
@@ -172,14 +209,26 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'visible',
   },
   layer: {
     position: 'absolute',
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     bottom: 0,
     left: 0,
     right: 0,
     top: 0,
+  },
+  marcoLayer: {
+    // Centrado absoluto simple
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: -1,
   },
 });

@@ -21,7 +21,6 @@ type Props = {
   player2Avatar?: any;
   eloInfo?: { currentElo: number; beforeElo: number };
   winByForfeit?: boolean;
-  isMutualPenalty?: boolean;
   onExit: () => void;
 };
 
@@ -36,7 +35,6 @@ export default function MatchEndView({
   player1Avatar,
   player2Avatar,
   winByForfeit,
-  isMutualPenalty,
   onExit 
 }: Props) {
   const { user } = useAuth();
@@ -44,8 +42,8 @@ export default function MatchEndView({
   const isPlayer1CurrentUser = (player1Username ?? '').trim().toLowerCase() === currentUsername && currentUsername.length > 0;
   const isPlayer2CurrentUser = (player2Username ?? '').trim().toLowerCase() === currentUsername && currentUsername.length > 0;
   
-  const title = isMutualPenalty ? '¡PENALIZACIÓN MUTUA!' : (winByForfeit ? '¡RIVAL ABANDONÓ!' : (didWin ? '¡GANASTE!' : 'PERDISTE'));
-  const subtitle = isMutualPenalty ? 'INACTIVIDAD DETECTADA' : (winByForfeit ? '¡GANASTE POR DEFAULT!' : '');
+  const title = winByForfeit ? '¡RIVAL ABANDONÓ!' : (didWin ? '¡GANASTE!' : 'PERDISTE');
+  const subtitle = winByForfeit ? '¡GANASTE POR DEFAULT!' : '';
   const deltaPrefix = pointsDelta > 0 ? '+' : '-';
   const deltaColor = didWin ? '#10B981' : '#EF4444';
   const currentElo = typeof eloInfo?.currentElo === 'number' && Number.isFinite(eloInfo.currentElo) ? Math.max(0, Math.round(eloInfo.currentElo)) : null;

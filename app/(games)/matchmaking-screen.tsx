@@ -106,6 +106,12 @@ export default function MatchmakingScreen() {
   const [queuePosition, setQueuePosition] = useState<number | undefined>();
   const [opponent, setOpponent] = useState<{ userId: string; username: string } | null>(null);
   const [gameData, setGameData] = useState<any>(null);
+  const gameDataRef = useRef<any>(null);
+  
+  // Update ref whenever gameData changes
+  useEffect(() => {
+    gameDataRef.current = gameData;
+  }, [gameData]);
   const [isExitingMatchmaking, setIsExitingMatchmaking] = useState(false);
   const [isExitingMatchFound, setIsExitingMatchFound] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<{ id: string; name: string; emoji: string; color: string } | undefined>(undefined);
@@ -370,10 +376,15 @@ export default function MatchmakingScreen() {
   // Match Terminado
   useEffect(() => {
     const unsubGameEnd = onGameFinished((data) => {
-      if (isGameFinalizedRef.current) return;
+      console.log('🏆 Match finished data received:', data);
+      
+      // Si ya tenemos datos finales en gameDataRef, no procesar de nuevo
+      if (gameStateRef.current === 'MATCH_END' && gameDataRef.current?.globalPointsUpdate) {
+        console.log('ℹ️ Partida ya finalizada con datos completos, ignorando duplicado.');
+        return;
+      }
+      
       isGameFinalizedRef.current = true;
-
-      console.log('🏆 Match finished data received');
       
       // BLOQUEO INMEDIATO DE INACTIVIDAD
       setShowInactivityModal(false);
@@ -395,15 +406,14 @@ export default function MatchmakingScreen() {
       }
 
       setGameData((prev: any) => {
-        const base = { ...data, opponentAvatar: opponentAvatar || prev?.opponentAvatar };
+        const base = { ...data, opponentAvatar: opponentAvatar || prev?.opponentAvatar, reason: data.reason };
         
-        // Detectar penalización mutua (si el server mandó delta negativo para ambos)
-        if (!data.winner && data.globalPointsUpdate?.winner < 0 && data.globalPointsUpdate?.loser < 0) {
-          base.isMutualPenalty = true;
-        }
+        // Removed mutual and individual inactivity detection
 
         if (isForfeit && amIWinner) {
           base.winByForfeit = true;
+        } else {
+          base.winByForfeit = false;
         }
         return base;
       });
@@ -428,6 +438,8 @@ export default function MatchmakingScreen() {
 
       // Solo actuar si el oponente sale ANTES de terminar la partida
       const currentState = gameStateRef.current;
+      const currentData = gameDataRef.current;
+      
       if (data.userId === opponent?.userId && currentState !== 'MATCH_END' && currentState !== 'MATCHMAKING') {
         isGameFinalizedRef.current = true; // ACTIVAR CERROJO
         
@@ -436,6 +448,7 @@ export default function MatchmakingScreen() {
           ...prev,
           winner: myUserId,
           forfeit: true,
+          winByForfeit: true,
           player1TotalScore: prev?.player1TotalScore || cumulativeTotals.p1,
           player2TotalScore: prev?.player2TotalScore || cumulativeTotals.p2,
         }));
@@ -837,7 +850,8 @@ export default function MatchmakingScreen() {
     if (isGameFinalizedRef.current) return;
     setShowConfirmForfeit(false);
     isManualForfeitRef.current = true;
-    isGameFinalizedRef.current = true;
+    // NO activamos isGameFinalizedRef aquí, dejamos que el evento del servidor lo haga
+    // para asegurar que recibimos los puntos y el ELO correctamente.
     if (currentRoom) {
       forfeitGame(currentRoom);
     }
@@ -1023,8 +1037,7 @@ export default function MatchmakingScreen() {
               player2TotalScore={gameData?.player2TotalScore ?? 0}
               player1Avatar={p1Av}
               player2Avatar={p2Av}
-              winByForfeit={gameData?.winByForfeit || isManualForfeitRef.current}
-              isMutualPenalty={gameData?.isMutualPenalty}
+              winByForfeit={gameData?.winByForfeit}
               pointsDelta={(gameData?.winner === socketId || gameData?.winner === myUserId ? gameData?.globalPointsUpdate?.winner : gameData?.globalPointsUpdate?.loser) ?? 0}
               eloInfo={eloInfo || undefined}
               onExit={handleExitMatchEnd}
