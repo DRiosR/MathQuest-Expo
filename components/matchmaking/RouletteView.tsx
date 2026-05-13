@@ -175,15 +175,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 8,
+    transform: [{ translateY: 20 }]
   },
   playerCol: { alignItems: 'center', gap: 6 },
   avatarCircle: {
     width: 120,
     height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255,255,255,0.5)',
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
   },
   avatarCircleHighlight: {
     borderWidth: 3,

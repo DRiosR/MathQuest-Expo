@@ -534,12 +534,8 @@ const styles = StyleSheet.create({
   avatarCircleSmall: {
     width: 74,
     height: 74,
-    borderRadius: 37,
-    backgroundColor: 'rgba(255,255,255,0.5)',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.5)',
+    justifyContent: 'center',
   },
   textInfo: {
     justifyContent: 'center',

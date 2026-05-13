@@ -207,24 +207,14 @@ const styles = StyleSheet.create({
 
   playerContent: { width: '100%', paddingHorizontal: 30, zIndex: 1 },
   
-  mainRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 25 },
+  mainRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 25, transform: [{ translateY: 40 }] },
 
   avatarWrapper: { position: 'relative' },
   avatarCircle: {
     width: 170,
     height: 170,
-    borderRadius: 85,
-    backgroundColor: 'rgba(255,255,255,0.5)',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    borderWidth: 4,
-    borderColor: 'rgba(255,255,255,0.4)',
-
-    elevation: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
+    justifyContent: 'center',
   },
   rankBadge: {
     position: 'absolute',
