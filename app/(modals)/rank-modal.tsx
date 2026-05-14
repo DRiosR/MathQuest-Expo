@@ -21,7 +21,9 @@ import Animated, {
 import AnimatedMathBackground from '@/components/ui/AnimatedMathBackground';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFontContext } from '@/contexts/FontsContext';
-import { getAllRanks, getUserRankInfo, RankRow, UserRankInfo, getStoreItems, StoreItemRow, getUserInventory } from '@/services/SupabaseService';
+import { getAllRanks, getUserRankInfo, RankRow, UserRankInfo, getStoreItems, StoreItemRow, getUserInventory, getCurrentUserAvatar } from '@/services/SupabaseService';
+import { Avatar } from '@/types/avatar';
+import { LayeredAvatar } from '@/components/LayeredAvatar';
 
 const { width } = Dimensions.get('window');
 
@@ -166,23 +168,26 @@ export default function RankModal() {
   const [ranks, setRanks] = useState<RankRow[]>([]);
   const [rankInfo, setRankInfo] = useState<UserRankInfo | null>(null);
   const [frames, setFrames] = useState<StoreItemRow[]>([]);
-  const [inventoryIds, setInventoryIds] = useState<string[]>([]);
+  const [inventoryIds, setInventoryIds] = useState<(string | number)[]>([]);
+  const [userAvatar, setUserAvatar] = useState<Avatar | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [r, u, f, inv] = await Promise.all([
+        const [r, u, f, inv, av] = await Promise.all([
           getAllRanks(),
           user?.id ? getUserRankInfo(user.id) : Promise.resolve(null),
           getStoreItems('marco'),
           user?.id ? getUserInventory(user.id) : Promise.resolve([]),
+          getCurrentUserAvatar(),
         ]);
         const sortedRanks = Array.isArray(r) ? [...r].sort((a, b) => a.min_points - b.min_points) : [];
         setRanks(sortedRanks);
         setRankInfo(u ?? null);
         setFrames(f || []);
-        setInventoryIds(inv || []);
+        setInventoryIds((inv as (string | number)[]) || []);
+        setUserAvatar(av);
         
         // Auto-scroll to current rank
         if (u?.rank) {
@@ -210,7 +215,7 @@ export default function RankModal() {
     let maxIdx = currentRankIndex;
     ranks.forEach((rank, idx) => {
       const rewardFrame = frames.find(f => f.nombre.toLowerCase().includes(rank.name.toLowerCase()));
-      if (rewardFrame && inventoryIds.includes(rewardFrame.id)) {
+      if (rewardFrame && inventoryIds.map(String).includes(String(rewardFrame.id))) {
         if (idx > maxIdx) maxIdx = idx;
       }
     });
@@ -283,45 +288,66 @@ export default function RankModal() {
             strokeDashoffset={isPathUnlocked ? 0 : 1000 * (1 - segmentProgress)}
           />
         )}
-
-        {/* Player Marker on Current Path */}
-        {isPathCurrent && segmentProgress > 0.15 && segmentProgress < 0.85 && (() => {
-          // Calculate Cubic Bezier position
-          const t = segmentProgress;
-          const invT = 1 - t;
-          
-          const posX = (Math.pow(invT, 3) * startX) + 
-                       (3 * Math.pow(invT, 2) * t * cp1x) + 
-                       (3 * invT * Math.pow(t, 2) * cp2x) + 
-                       (Math.pow(t, 3) * endX);
-                       
-          const posY = (Math.pow(invT, 3) * startY) + 
-                       (3 * Math.pow(invT, 2) * t * cp1y) + 
-                       (3 * invT * Math.pow(t, 2) * cp2y) + 
-                       (Math.pow(t, 3) * endY);
-
-          // Dynamic opacity to avoid overlapping with island icons
-          const opacity = Math.min(1, Math.max(0, (t - 0.15) / 0.1) * Math.max(0, (0.85 - t) / 0.1));
-
-          return (
-            <G transform={`translate(${posX - 30}, ${posY - 30})`} opacity={opacity}>
-              <Circle cx="30" cy="30" r="18" fill={biome.glow} opacity="0.4" />
-              <Circle cx="30" cy="30" r="14" fill="#fff" />
-              <SvgText
-                x="30"
-                y="10"
-                fontSize="12"
-                fontWeight="900"
-                fill="#fff"
-                textAnchor="middle"
-                fontFamily="Digitalt"
-              >
-                TÚ
-              </SvgText>
-            </G>
-          );
-        })()}
       </G>
+    );
+  };
+
+  const renderPlayerAvatarMarker = () => {
+    if (!rankInfo?.rank?.id) return null;
+    
+    // Find current path index
+    const index = currentRankIndex;
+    const nextRank = ranks[index + 1];
+    
+    // Calculate progress
+    const lower = ranks[index].min_points;
+    const upper = nextRank ? nextRank.min_points : ranks[index].max_points || lower + 1000;
+    const points = rankInfo.points ?? 0;
+    const t = Math.max(0, Math.min(1, (points - lower) / (upper - lower)));
+
+    // If no next rank, stay on last island
+    if (!nextRank) return null;
+
+    const isStartRight = index % 2 !== 0;
+    const startX = isStartRight ? width * 0.7 : width * 0.3;
+    const startY = (ranks.length - 1 - index) * ISLAND_HEIGHT + MAP_PADDING + 30;
+    const endX = isStartRight ? width * 0.3 : width * 0.7;
+    const endY = (ranks.length - 1 - (index + 1)) * ISLAND_HEIGHT + MAP_PADDING + 30;
+    
+    const midY = (startY + endY) / 2;
+    const cp1x = startX;
+    const cp1y = midY;
+    const cp2x = endX;
+    const cp2y = midY;
+
+    // Bezier
+    const invT = 1 - t;
+    const posX = (Math.pow(invT, 3) * startX) + (3 * Math.pow(invT, 2) * t * cp1x) + (3 * invT * Math.pow(t, 2) * cp2x) + (Math.pow(t, 3) * endX);
+    const posY = (Math.pow(invT, 3) * startY) + (3 * Math.pow(invT, 2) * t * cp1y) + (3 * invT * Math.pow(t, 2) * cp2y) + (Math.pow(t, 3) * endY);
+
+    const biomeKey = (nextRank?.name || 'Bronce').trim() as keyof typeof BIOMES;
+    const biome = BIOMES[biomeKey] || BIOMES.Bronce;
+
+    return (
+      <Animated.View 
+        pointerEvents="none"
+        style={[
+          styles.playerAvatarMarker, 
+          { 
+            left: posX - 30, 
+            top: posY - 35,
+            shadowColor: biome.glow,
+            borderColor: biome.accent,
+          }
+        ]}
+      >
+        <View style={styles.avatarMiniWrap}>
+          <LayeredAvatar avatar={userAvatar!} size={60} />
+        </View>
+        <View style={[styles.miniYouTag, { backgroundColor: biome.glow }]}>
+          <Text style={styles.miniYouText}>TÚ</Text>
+        </View>
+      </Animated.View>
     );
   };
 
@@ -367,6 +393,9 @@ export default function RankModal() {
               />
             );
           })}
+
+          {/* Player Avatar Marker */}
+          {renderPlayerAvatarMarker()}
         </ScrollView>
 
         {/* Points Banner Bottom */}
@@ -573,6 +602,41 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 1,
     marginTop: 4,
+  },
+  playerAvatarMarker: {
+    position: 'absolute',
+    width: 70,
+    height: 70,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  avatarMiniWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  miniYouTag: {
+    position: 'absolute',
+    bottom: -5,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  miniYouText: {
+    color: '#fff',
+    fontSize: 10,
+    fontFamily: 'Digitalt',
   },
   cardSpacer: {
     height: 0,
