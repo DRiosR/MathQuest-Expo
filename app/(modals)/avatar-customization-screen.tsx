@@ -568,44 +568,70 @@ export default function AvatarCustomizationScreen() {
         onRequestClose={() => setConfirmModal(prev => ({ ...prev, visible: false }))}
       >
         <View style={styles.modalOverlay}>
-          <FadeInView from="bottom" duration={300} style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <View style={[styles.modalIconCircle, { backgroundColor: confirmModal.confirmColor[0] }]}>
-                <FontAwesome5 name={confirmModal.icon} size={30} color="#fff" />
+          <FadeInView from="bottom" duration={300} style={styles.modalCard}>
+            <LinearGradient
+              colors={['#2E1065', '#1E1B4B']}
+              style={styles.modalGradient}
+            >
+              <View style={styles.modalHeader}>
+                <View style={[styles.modalIconCircle, { backgroundColor: confirmModal.confirmColor[0], shadowColor: confirmModal.confirmColor[0] }]}>
+                  <FontAwesome5 name={confirmModal.icon} size={30} color="#fff" />
+                </View>
+                <Text style={[styles.modalTitle, { fontFamily: 'Digitalt' }]}>{confirmModal.title}</Text>
               </View>
-              <Text style={[styles.modalTitle, { fontFamily: 'Digitalt' }]}>{confirmModal.title}</Text>
-            </View>
-            
-            <Text style={[styles.modalMessage, { fontFamily: 'Gilroy-Medium' }]}>{confirmModal.message}</Text>
-            
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                onPress={confirmModal.onConfirm}
-                activeOpacity={0.8}
-                style={styles.modalActionWrapper}
-              >
-                <LinearGradient
-                  colors={confirmModal.confirmColor as [string, string]}
-                  style={styles.modalActionButton}
-                >
-                  <Text style={[styles.modalActionText, { fontFamily: 'Digitalt' }]}>{confirmModal.confirmText}</Text>
-                </LinearGradient>
-              </TouchableOpacity>
               
-              <TouchableOpacity
-                onPress={() => {
-                  if (confirmModal.title === '¡ESPERA!') {
-                    discardChangesAndExit();
-                  } else {
-                    setConfirmModal(prev => ({ ...prev, visible: false }));
-                  }
-                }}
-                activeOpacity={0.6}
-                style={styles.modalCancelButton}
-              >
-                <Text style={[styles.modalCancelText, { fontFamily: 'Digitalt' }]}>{confirmModal.cancelText}</Text>
-              </TouchableOpacity>
-            </View>
+              <Text style={[styles.modalMessage, { fontFamily: 'Gilroy-Medium' }]}>{confirmModal.message}</Text>
+              
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  onPress={confirmModal.onConfirm}
+                  activeOpacity={0.8}
+                  style={styles.modalActionWrapper}
+                >
+                  <LinearGradient
+                    colors={confirmModal.confirmColor as [string, string]}
+                    style={styles.modalActionButton}
+                  >
+                    <Text style={[styles.modalActionText, { fontFamily: 'Digitalt' }]}>{confirmModal.confirmText}</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  onPress={() => {
+                    if (confirmModal.title === '¡ESPERA!') {
+                      discardChangesAndExit();
+                    } else {
+                      setConfirmModal(prev => ({ ...prev, visible: false }));
+                    }
+                  }}
+                  activeOpacity={0.6}
+                  style={styles.modalCancelButton}
+                >
+                  <View style={[
+                    styles.modalCancelBackground,
+                    confirmModal.title === '¡ESPERA!' && { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)' }
+                  ]}>
+                    <Text style={[
+                      styles.modalCancelText, 
+                      { fontFamily: 'Digitalt' },
+                      confirmModal.title === '¡ESPERA!' && { color: '#EF4444' }
+                    ]}>
+                      {confirmModal.cancelText}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {confirmModal.title === '¡ESPERA!' && (
+                  <TouchableOpacity
+                    onPress={() => setConfirmModal(prev => ({ ...prev, visible: false }))}
+                    activeOpacity={0.6}
+                    style={styles.modalSecondaryButton}
+                  >
+                    <Text style={[styles.modalSecondaryText, { fontFamily: 'Digitalt' }]}>CANCELAR</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </LinearGradient>
           </FadeInView>
         </View>
       </Modal>
@@ -973,65 +999,67 @@ const styles = StyleSheet.create({
   // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.85)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 32,
+  modalCard: {
     width: '100%',
     maxWidth: 340,
-    padding: isSmallDevice ? 20 : 24,
+    borderRadius: 32,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  modalGradient: {
+    padding: isSmallDevice ? 25 : 30,
     alignItems: 'center',
-    borderWidth: 5,
-    borderColor: '#E0E7FF',
   },
   modalHeader: {
     alignItems: 'center',
-    marginBottom: isSmallDevice ? 10 : 15,
+    marginBottom: isSmallDevice ? 15 : 20,
   },
   modalIconCircle: {
-    width: isSmallDevice ? 60 : 70,
-    height: isSmallDevice ? 60 : 70,
-    borderRadius: 35,
+    width: isSmallDevice ? 64 : 74,
+    height: isSmallDevice ? 64 : 74,
+    borderRadius: 37,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: isSmallDevice ? 8 : 12,
-    elevation: 4,
-    shadowColor: '#000',
+    marginBottom: isSmallDevice ? 10 : 15,
+    elevation: 8,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
   },
   modalTitle: {
-    fontSize: isSmallDevice ? 22 : 26,
-    color: '#1E1B4B',
+    fontSize: isSmallDevice ? 24 : 28,
+    color: '#fff',
     letterSpacing: 2,
+    textAlign: 'center',
   },
   modalMessage: {
-    fontSize: isSmallDevice ? 14 : 16,
-    color: '#475569',
+    fontSize: isSmallDevice ? 15 : 17,
+    color: 'rgba(255,255,255,0.7)',
     textAlign: 'center',
-    marginBottom: isSmallDevice ? 20 : 25,
-    lineHeight: isSmallDevice ? 18 : 22,
+    marginBottom: isSmallDevice ? 25 : 30,
+    lineHeight: isSmallDevice ? 20 : 24,
   },
   modalActions: {
     width: '100%',
     gap: 12,
   },
   modalActionWrapper: {
-    borderRadius: 16,
+    borderRadius: 18,
     overflow: 'hidden',
-    elevation: 3,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
-    shadowRadius: 3,
+    shadowRadius: 5,
   },
   modalActionButton: {
-    paddingVertical: 15,
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1041,12 +1069,30 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   modalCancelButton: {
-    paddingVertical: 12,
+    borderRadius: 18,
+    overflow: 'hidden',
+  },
+  modalCancelBackground: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 18,
+  },
+  modalCancelText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 16,
+    letterSpacing: 1,
+  },
+  modalSecondaryButton: {
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modalCancelText: {
-    color: '#94A3B8',
+  modalSecondaryText: {
+    color: 'rgba(255,255,255,0.4)',
     fontSize: 14,
     letterSpacing: 1,
   },
