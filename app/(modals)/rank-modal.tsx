@@ -7,12 +7,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop, G, Circle, Text as SvgText } from 'react-native-svg';
-import Animated, { 
-  useAnimatedStyle, 
-  withRepeat, 
-  withSequence, 
-  withTiming, 
-  useSharedValue, 
+import Animated, {
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+  useSharedValue,
   withDelay,
   interpolate,
   Extrapolate
@@ -42,7 +42,7 @@ const BIOMES = {
 
 const FloatingIsland = ({ rank, index, isCurrent, isUnlocked, totalRanks, rewardFrame }: any) => {
   const floatValue = useSharedValue(0);
-  
+
   useEffect(() => {
     floatValue.value = withRepeat(
       withSequence(
@@ -65,8 +65,8 @@ const FloatingIsland = ({ rank, index, isCurrent, isUnlocked, totalRanks, reward
 
   return (
     <Animated.View style={[
-      styles.islandWrapper, 
-      { 
+      styles.islandWrapper,
+      {
         top: (totalRanks - 1 - index) * ISLAND_HEIGHT + MAP_PADDING,
         left: islandX,
       },
@@ -75,10 +75,10 @@ const FloatingIsland = ({ rank, index, isCurrent, isUnlocked, totalRanks, reward
       <View style={styles.islandContainer}>
         {/* Glow/Aura beneath */}
         <View style={[styles.islandGlow, { shadowColor: biome.glow, opacity: isUnlocked ? 0.9 : 0.2 }]} />
-        
+
         {/* Rock Base (Tinted 3D Effect) */}
         <View style={[
-          styles.rockBase, 
+          styles.rockBase,
           { backgroundColor: isUnlocked ? biome.colors[1] : '#0f172a', opacity: 0.8 }
         ]} />
 
@@ -88,9 +88,9 @@ const FloatingIsland = ({ rank, index, isCurrent, isUnlocked, totalRanks, reward
           style={[styles.islandBase, !isUnlocked && styles.lockedIsland]}
         >
           <View style={styles.islandSurface}>
-            <LinearGradient 
-              colors={['rgba(255,255,255,0.4)', 'transparent']} 
-              style={StyleSheet.absoluteFill} 
+            <LinearGradient
+              colors={['rgba(255,255,255,0.4)', 'transparent']}
+              style={StyleSheet.absoluteFill}
             />
           </View>
         </LinearGradient>
@@ -98,11 +98,11 @@ const FloatingIsland = ({ rank, index, isCurrent, isUnlocked, totalRanks, reward
         {/* Reward Frame Bubble (Near the Island) */}
         {rewardFrame && (
           <View style={[
-            styles.rewardBubble, 
+            styles.rewardBubble,
             { [isRight ? 'right' : 'left']: 110, top: -20 }
           ]}>
-            <ExpoImage 
-              source={{ uri: (rewardFrame.imagen_tienda || rewardFrame.imagen) ?? undefined }} 
+            <ExpoImage
+              source={{ uri: (rewardFrame.imagen_tienda || rewardFrame.imagen) ?? undefined }}
               style={[styles.rewardFrameImg, !isUnlocked && { opacity: 0.3 }]}
               contentFit="contain"
             />
@@ -119,9 +119,9 @@ const FloatingIsland = ({ rank, index, isCurrent, isUnlocked, totalRanks, reward
 
         {/* Info Card (Also on the inner side but lower) */}
         <View style={[
-          styles.ornateCard, 
-          { 
-            borderColor: biome.glow, 
+          styles.ornateCard,
+          {
+            borderColor: biome.glow,
             [isRight ? 'right' : 'left']: 110,
             top: 40,
             opacity: isUnlocked ? 1 : 0.6
@@ -142,9 +142,9 @@ const FloatingIsland = ({ rank, index, isCurrent, isUnlocked, totalRanks, reward
 
         {/* Rank Badge */}
         <View style={[styles.rankBadge, { borderColor: biome.glow, shadowColor: biome.glow }]}>
-          <LinearGradient 
-            colors={isUnlocked ? (biome.colors as [string, string]) : (['#1e293b', '#0f172a'] as [string, string])} 
-            style={styles.rankBadgeBg} 
+          <LinearGradient
+            colors={isUnlocked ? (biome.colors as [string, string]) : (['#1e293b', '#0f172a'] as [string, string])}
+            style={styles.rankBadgeBg}
           />
           {rank.icon_url ? (
             <ExpoImage source={{ uri: rank.icon_url }} style={styles.rankBadgeIcon} />
@@ -188,7 +188,7 @@ export default function RankModal() {
         setFrames(f || []);
         setInventoryIds((inv as (string | number)[]) || []);
         setUserAvatar(av);
-        
+
         // Auto-scroll to current rank
         if (u?.rank) {
           const idx = sortedRanks.findIndex(rank => rank.id === u.rank?.id);
@@ -229,7 +229,7 @@ export default function RankModal() {
     const startY = (ranks.length - 1 - index) * ISLAND_HEIGHT + MAP_PADDING + 30;
     const endX = isStartRight ? width * 0.3 : width * 0.7;
     const endY = (ranks.length - 1 - (index + 1)) * ISLAND_HEIGHT + MAP_PADDING + 30;
-    
+
     const midY = (startY + endY) / 2;
     const cp1x = startX;
     const cp1y = midY;
@@ -263,7 +263,7 @@ export default function RankModal() {
           strokeWidth={8}
           fill="none"
         />
-        
+
         {/* Glow Path (Filled) */}
         {(isPathUnlocked || isPathCurrent) && (
           <Path
@@ -294,11 +294,11 @@ export default function RankModal() {
 
   const renderPlayerAvatarMarker = () => {
     if (!rankInfo?.rank?.id) return null;
-    
+
     // Find current path index
     const index = currentRankIndex;
     const nextRank = ranks[index + 1];
-    
+
     // Calculate progress
     const lower = ranks[index].min_points;
     const upper = nextRank ? nextRank.min_points : ranks[index].max_points || lower + 1000;
@@ -313,7 +313,7 @@ export default function RankModal() {
     const startY = (ranks.length - 1 - index) * ISLAND_HEIGHT + MAP_PADDING + 30;
     const endX = isStartRight ? width * 0.3 : width * 0.7;
     const endY = (ranks.length - 1 - (index + 1)) * ISLAND_HEIGHT + MAP_PADDING + 30;
-    
+
     const midY = (startY + endY) / 2;
     const cp1x = startX;
     const cp1y = midY;
@@ -329,12 +329,12 @@ export default function RankModal() {
     const biome = BIOMES[biomeKey] || BIOMES.Bronce;
 
     return (
-      <Animated.View 
+      <Animated.View
         pointerEvents="none"
         style={[
-          styles.playerAvatarMarker, 
-          { 
-            left: posX - 30, 
+          styles.playerAvatarMarker,
+          {
+            left: posX - 30,
             top: posY - 35,
             shadowColor: biome.glow,
             borderColor: biome.accent,
@@ -356,7 +356,7 @@ export default function RankModal() {
       <LinearGradient colors={['#312e81', '#5b21b6', '#a855f7']} style={StyleSheet.absoluteFill} />
       <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.05)' }]} />
       <AnimatedMathBackground />
-      
+
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.header}>
           <View>
@@ -368,7 +368,7 @@ export default function RankModal() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView 
+        <ScrollView
           ref={scrollRef}
           contentContainerStyle={{ height: ranks.length * ISLAND_HEIGHT + 200 }}
           showsVerticalScrollIndicator={false}
@@ -382,7 +382,7 @@ export default function RankModal() {
           {ranks.map((rank, index) => {
             const frameReward = frames.find(f => f.nombre.toLowerCase().includes(rank.name.toLowerCase()));
             return (
-              <FloatingIsland 
+              <FloatingIsland
                 key={rank.id}
                 rank={rank}
                 index={index}
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -30,
     width: 130,
-    backgroundColor: 'rgba(15, 23, 42, 0.85)', 
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
     borderRadius: 12,
     borderWidth: 1.5,
     padding: 10,

@@ -95,7 +95,7 @@ export default function MatchFoundView({ me, opponent, isExiting = false, onExit
       <Animated.View style={[styles.sideContainer, { transform: [{ translateY: slide }] }]}>
         <LinearGradient colors={theme as any} style={styles.gradient} start={{x: 0, y: 0}} end={{x: 1, y: 1}}>
           
-          {/* subtle Background Icon */}
+          {/* subtle Background Icon - Contained inside its half */}
           {iconUrl && (
             <View style={styles.bgIconContainer}>
                <Animated.Image 
@@ -103,8 +103,11 @@ export default function MatchFoundView({ me, opponent, isExiting = false, onExit
                 style={[
                   styles.bgRankIcon,
                   { 
-                    transform: [{ rotate: rotation }, { scale: 1.2 }],
-                    opacity: 0.08 
+                    transform: [
+                      { rotate: rotation },
+                      { scale: 1.05 }
+                    ],
+                    opacity: 0.12 
                   }
                 ]}
                 resizeMode="contain"
@@ -113,30 +116,36 @@ export default function MatchFoundView({ me, opponent, isExiting = false, onExit
           )}
 
           <View style={styles.playerContent}>
-            <FadeInView delay={isTop ? 200 : 400} duration={600} from={isTop ? 'left' : 'right'} style={styles.playerInfoRow}>
-              <View style={styles.avatarContainer}>
-                <View style={styles.avatarMainCircle}>
-                  {player.avatarComponent}
-                </View>
-                {iconUrl && (
-                  <View style={styles.miniRankBadge}>
-                    <Image source={{ uri: iconUrl }} style={styles.miniRankIcon} />
+            <View style={styles.mainRow}>
+               <FadeInView delay={300} duration={600} from="none" style={styles.avatarWrapper}>
+                  <View style={styles.avatarCircle}>
+                    {player.avatarComponent}
                   </View>
-                )}
-              </View>
+                  <View style={styles.rankBadge}>
+                    {iconUrl ? (
+                      <Image 
+                        source={{ uri: iconUrl }} 
+                        style={styles.rankIconImage} 
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <Text style={[styles.rankBadgeText, { fontFamily: 'Digitalt' }]}>{rankName.substring(0, 1)}</Text>
+                    )}
+                  </View>
+                </FadeInView>
 
-              <View style={styles.statsColumn}>
-                <Text style={[styles.usernameText, { fontFamily: 'Digitalt' }]} numberOfLines={1}>
-                  {player.username.toUpperCase()}
-                </Text>
-                <View style={styles.rankRow}>
-                  <Text style={[styles.rankNameText, { fontFamily: 'Digitalt' }]}>{rankName}</Text>
-                  <View style={styles.eloPill}>
-                    <Text style={[styles.eloText, { fontFamily: 'Digitalt' }]}>{points} PTS</Text>
+                <FadeInView delay={500} duration={500} from={isTop ? 'top' : 'bottom'} style={styles.infoWrapper}>
+                  <Text style={[styles.username, { fontFamily: 'Digitalt' }]} numberOfLines={1}>
+                    {player.username.toUpperCase()}
+                  </Text>
+                  <Text style={[styles.rankName, { fontFamily: 'Digitalt' }]}>
+                    {rankName}
+                  </Text>
+                  <View style={styles.pointsBadge}>
+                    <Text style={[styles.pointsText, { fontFamily: 'Digitalt' }]}>{points} ELO</Text>
                   </View>
-                </View>
-              </View>
-            </FadeInView>
+                </FadeInView>
+            </View>
           </View>
         </LinearGradient>
       </Animated.View>
@@ -176,99 +185,112 @@ const styles = StyleSheet.create({
     flex: 1, 
     width: '100%', 
     overflow: 'hidden',
-  },
-  gradient: { flex: 1, justifyContent: 'center' },
-  bgIconContainer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  bgRankIcon: { width: width * 0.9, height: width * 0.9 },
-  playerContent: { paddingHorizontal: 20 },
-  playerInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    padding: 15,
-    borderRadius: 30,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  avatarContainer: {
-    width: 120,
-    height: 120,
     position: 'relative',
   },
-  avatarMainCircle: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  miniRankBadge: {
+  gradient: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  
+  bgIconContainer: {
     position: 'absolute',
-    bottom: -5,
-    right: -5,
-    backgroundColor: '#000',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden', // Extra layer of containment
+    zIndex: 0,
+  },
+  bgRankIcon: {
+    width: width * 0.7,
+    height: width * 0.7,
+  },
+
+  playerContent: { width: '100%', paddingHorizontal: 30, zIndex: 1 },
+  
+  mainRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 25 },
+
+  avatarWrapper: { position: 'relative' },
+  avatarCircle: {
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+
+    elevation: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+  },
+  rankBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#FFF',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#FFD616',
+    borderColor: '#000',
+    elevation: 5,
   },
-  miniRankIcon: { width: 28, height: 28 },
-  statsColumn: { flex: 1, gap: 4 },
-  usernameText: { color: '#FFF', fontSize: 24, fontWeight: '900', letterSpacing: 1 },
-  rankRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  rankNameText: { color: 'rgba(255,255,255,0.7)', fontSize: 14, letterSpacing: 1 },
-  eloPill: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-    borderRadius: 10,
+  rankIconImage: { width: 24, height: 24 },
+  rankBadgeText: { fontSize: 18, color: '#000', fontWeight: '900' },
+
+  infoWrapper: { flex: 1, alignItems: 'flex-start' },
+  username: { color: '#FFF', fontSize: 24, fontWeight: '900', marginBottom: 2 },
+  rankName: { color: 'rgba(255,255,255,0.8)', fontSize: 16, fontWeight: '700', marginBottom: 8, textTransform: 'uppercase' },
+  pointsBadge: {
+    backgroundColor: '#FFD616',
+    paddingHorizontal: 15,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#FFF',
   },
-  eloText: { color: '#FFD616', fontSize: 12 },
+  pointsText: { color: '#000', fontSize: 18, fontWeight: '900' },
 
   vsOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 100,
+    zIndex: 20,
   },
   vsContainer: {
-    transform: [{ rotate: '-10deg' }],
+    padding: 5,
+    backgroundColor: '#000',
+    borderRadius: 50,
   },
   vsCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 6,
+    borderWidth: 4,
     borderColor: '#FFF',
-    shadowColor: '#FFD616',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 20,
-    elevation: 20,
   },
-  vsText: { color: '#000', fontSize: 48, fontWeight: '900' },
+  vsText: { color: '#000', fontSize: 42, fontWeight: '900' },
+
   matchTitleContainer: {
     position: 'absolute',
     top: 50,
     width: '100%',
     alignItems: 'center',
-    zIndex: 200,
+    zIndex: 10,
   },
   matchTitle: {
-    color: '#FFD616',
-    fontSize: 18,
+    color: '#FFF',
+    fontSize: 20,
     fontWeight: '900',
-    letterSpacing: 4,
-    textShadowColor: '#000',
-    textShadowRadius: 10,
+    letterSpacing: 2,
+    opacity: 0.8,
   }
 });
