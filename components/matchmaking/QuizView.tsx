@@ -2,7 +2,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View, Vibration } from 'react-native';
+import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View, Vibration, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LayeredAvatar } from '@/components/LayeredAvatar';
 import { Avatar } from '@/types/avatar';
@@ -414,9 +414,15 @@ export default function QuizView({
         onPress={onForfeit}
         activeOpacity={0.8}
       >
-        <Text style={[styles.forfeitBtnText, { fontFamily: 'Gilroy-Black' }]}>
-          🚪 ABANDONAR
-        </Text>
+        <LinearGradient
+          colors={['#EF4444', '#B91C1C']}
+          style={styles.actionBtnGradient}
+        >
+          <FontAwesome5 name="door-open" size={16} color="#FFF" />
+          <Text style={[styles.forfeitBtnText, { fontFamily: 'Digitalt' }]}>
+            ABANDONAR
+          </Text>
+        </LinearGradient>
       </TouchableOpacity>
 
       {/* Pantalla de espera si yo ya terminé */}
@@ -453,7 +459,12 @@ export default function QuizView({
         onPress={() => setShowEmoteMenu(!showEmoteMenu)}
         activeOpacity={0.7}
       >
-        <Text style={styles.emoteBtnIcon}>💬</Text>
+        <LinearGradient
+          colors={['#8B5CF6', '#6D28D9']}
+          style={styles.actionBtnGradient}
+        >
+          <FontAwesome5 name="comment-dots" size={20} color="#FFF" />
+        </LinearGradient>
       </TouchableOpacity>
 
       {/* Menú de Emotes (Ahora siempre encima) */}
@@ -508,8 +519,16 @@ export default function QuizView({
   );
 }
 
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const IS_SMALL_DEVICE = SCREEN_HEIGHT < 750;
+
 const styles = StyleSheet.create({
-  quizContainer: { flex: 1, paddingHorizontal: 20, justifyContent: 'flex-start', paddingBottom: 20 },
+  quizContainer: { 
+    flex: 1, 
+    paddingHorizontal: 20, 
+    justifyContent: 'space-between', 
+    paddingBottom: IS_SMALL_DEVICE ? 75 : 95 // Aumentado para evitar solapamiento con botones absolutos
+  },
   header: { alignItems: 'center', marginTop: 8, alignSelf: 'stretch' },
   topInfoRow: {
     flexDirection: 'row',
@@ -532,24 +551,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarCircleSmall: {
-    width: 74,
-    height: 74,
+    width: IS_SMALL_DEVICE ? 74 : 85,
+    height: IS_SMALL_DEVICE ? 74 : 85,
     alignItems: 'center',
     justifyContent: 'center',
   },
   textInfo: {
     justifyContent: 'center',
-    maxWidth: 80,
+    maxWidth: IS_SMALL_DEVICE ? 80 : 120,
+    gap: 2,
   },
   playerNameText: {
     color: '#FFFFFF',
-    fontSize: 10,
-    opacity: 0.8,
+    fontSize: IS_SMALL_DEVICE ? 12 : 14,
+    opacity: 0.9,
+    letterSpacing: 0.5,
   },
   playerTotalScore: {
     color: '#FFD45E',
-    fontSize: 12,
+    fontSize: IS_SMALL_DEVICE ? 14 : 18,
     fontWeight: '900',
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   roundInfoCenter: {
     alignItems: 'center',
@@ -565,38 +589,55 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', borderRadius: 3 },
   mascotContainer: { marginTop: 4, alignItems: 'center', marginBottom: -22, zIndex: 2 },
   mascotLottie: { width: 100, height: 100 },
-  questionCard: { marginTop: 0, backgroundColor: 'rgba(0,0,0,0.15)', paddingVertical: 20, paddingHorizontal: 20, borderRadius: 24, alignItems: 'center' },
-  questionText: { color: '#FFFFFF', fontSize: 24, fontWeight: '800', letterSpacing: 1 },
-  answerDisplay: { marginTop: 12, backgroundColor: '#FFFFFF', paddingVertical: 12, borderRadius: 16, alignItems: 'center' },
-  answerText: { color: '#000000', fontSize: 24, fontWeight: '900' },
-  keypad: { marginTop: 12 },
-  keypadRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  keypadBtn: { flex: 1, marginHorizontal: 4, backgroundColor: 'rgba(255,255,255,0.2)', paddingVertical: 14, borderRadius: 16, alignItems: 'center' },
-  keypadBtnText: { color: '#FFFFFF', fontSize: 18, fontWeight: '800' },
-  keypadOk: { backgroundColor: '#FF46A5' },
-  keypadClear: { backgroundColor: 'rgba(255,255,255,0.25)' },
+  questionCard: { marginTop: 0, backgroundColor: 'rgba(0,0,0,0.15)', paddingVertical: IS_SMALL_DEVICE ? 15 : 25, paddingHorizontal: 20, borderRadius: 24, alignItems: 'center' },
+  questionText: { color: '#FFFFFF', fontSize: IS_SMALL_DEVICE ? 24 : 32, fontWeight: '800', letterSpacing: 1, textAlign: 'center' },
+  answerDisplay: { marginTop: 10, backgroundColor: '#FFFFFF', paddingVertical: IS_SMALL_DEVICE ? 10 : 16, borderRadius: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10, elevation: 5 },
+  answerText: { color: '#000000', fontSize: IS_SMALL_DEVICE ? 28 : 36, fontWeight: '900' },
+  keypad: { marginTop: 10, width: '100%', paddingBottom: 5 },
+  keypadRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: IS_SMALL_DEVICE ? 6 : 12 },
+  keypadBtn: { 
+    flex: 1, 
+    marginHorizontal: 5, 
+    backgroundColor: 'rgba(255,255,255,0.22)', 
+    paddingVertical: IS_SMALL_DEVICE ? 15 : 22, 
+    borderRadius: 20, 
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: 4,
+    borderBottomColor: 'rgba(0,0,0,0.15)',
+  },
+  keypadBtnText: { color: '#FFFFFF', fontSize: IS_SMALL_DEVICE ? 22 : 28, fontWeight: '900' },
+  keypadOk: { backgroundColor: '#FF46A5', borderBottomColor: '#C0267D' },
+  keypadClear: { backgroundColor: 'rgba(255,255,255,0.3)', borderBottomColor: 'rgba(0,0,0,0.2)' },
   forfeitBtnBottomRight: {
     position: 'absolute',
     bottom: 20,
     right: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    backgroundColor: '#FF4444',
-    borderRadius: 25,
-    borderWidth: 2,
-    borderColor: '#FF7676',
-    elevation: 8,
+    width: 140,
+    height: 44,
+    borderRadius: 22,
+    zIndex: 2001,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 4,
+    shadowRadius: 5,
+    elevation: 8,
   },
   forfeitBtnText: {
     color: '#FFFFFF',
-    fontSize: 11,
-    letterSpacing: 0.5,
+    fontSize: 12,
+    letterSpacing: 1,
     fontWeight: '900',
-    textAlign: 'center',
+    marginLeft: 8,
+  },
+  actionBtnGradient: {
+    flex: 1,
+    borderRadius: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: 3,
+    borderBottomColor: 'rgba(0,0,0,0.2)',
   },
   // Waiting Overlay Styles
   waitingOverlay: {
@@ -674,19 +715,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 20,
     left: 20,
-    backgroundColor: '#FFD45E', // Amarillo sólido para visibilidad
     width: 44,
     height: 44,
     borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    zIndex: 2001, // Por encima de la pantalla de espera
-    elevation: 10,
-  },
-  emoteBtnIcon: {
-    fontSize: 20,
+    zIndex: 2001,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
   },
   emoteMenuContainer: {
     position: 'absolute',
