@@ -32,6 +32,8 @@ export default function PlayScreen() {
   const [newRankData, setNewRankData] = useState<{ name: string; icon: string | null; color: string } | null>(null);
   const [unlockedFrameImage, setUnlockedFrameImage] = useState<string | null>(null);
 
+  const { startTutorial } = useTutorial();
+
   const rankRef = useRef<View>(null);
   const competitiveRef = useRef<View>(null);
   const howToPlayRef = useRef<View>(null);
@@ -227,11 +229,22 @@ export default function PlayScreen() {
           style={styles.fab}
         >
           <LinearGradient colors={["#FFD45E", "#FFA500"]} style={styles.fabGradient}>
-            <FontAwesome5 name="trophy" size={18} color="#fff" />
-            <Text style={styles.fabText}>Clasificación</Text>
+            <FontAwesome5 name="trophy" size={16} color="#fff" />
+            <Text style={[styles.fabText, { fontFamily: 'Gilroy-Black' }]}>Ranking</Text>
           </LinearGradient>
         </TouchableOpacity>
       </Link>
+
+      <TouchableOpacity
+        style={styles.helpFab}
+        onPress={() => startTutorial('1vs1')}
+      >
+        <LinearGradient colors={["#AD1DEB", "#6E72FC"]} style={styles.helpFabGradient}>
+          <FontAwesome5 name="info-circle" size={20} color="#fff" />
+          <Text style={[styles.helpFabText, { fontFamily: 'Gilroy-Black' }]}>GUÍA</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+
       <TutorialOverlay />
       
       {newRankData && (
@@ -365,6 +378,30 @@ const styles = StyleSheet.create({
   },
   fabText: {
     color: '#fff',
+    fontSize: 12,
     fontWeight: '700',
+  },
+  helpFab: {
+    position: 'absolute',
+    left: 20,
+    bottom: 30,
+    width: 100,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+    elevation: 8,
+    zIndex: 60,
+  },
+  helpFabGradient: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  helpFabText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '900',
   },
 });
