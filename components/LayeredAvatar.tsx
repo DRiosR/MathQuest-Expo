@@ -65,14 +65,7 @@ export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
   style,
   scale,
 }) => {
-  useEffect(() => {
-    if (avatar.frame_asset || avatar.frame_back_asset) {
-      console.log('🖼️ Renderizando Avatar con Marco:', {
-        delante: avatar.frame_asset?.split('/').pop(),
-        atras: avatar.frame_back_asset?.split('/').pop()
-      });
-    }
-  }, [avatar.frame_asset, avatar.frame_back_asset]);
+
 
   const layers = useMemo(() => ([
     ['marco_back', avatar.frame_back_asset],
@@ -117,7 +110,7 @@ export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
   const renderLayer = (category: string, value: string | undefined, customSize?: number) => {
     if (!value || value === 'none') return null;
     const baseSize = customSize ?? size;
-    console.log(`🎨 Renderizando capa [${category}] - Tamaño: ${baseSize.toFixed(1)}px - URL:`, value.split('/').pop());
+
     
     const LocalAsset = (avatarAssets as any)[category === 'marco_front' || category === 'marco_back' ? 'marco' : category]?.[value as any];
     

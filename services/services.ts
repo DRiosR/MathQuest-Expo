@@ -88,10 +88,7 @@ class WebSocketService {
   private answerResultListeners: ((data: any) => void)[] = [];
   private chatMessageListeners: ((data: any) => void)[] = [];
 
-  constructor() {
-    // No inicializar automáticamente, solo cuando se llame connect()
-    console.log('🔧 WebSocketService inicializado - Listo para conectar');
-  }
+
 
   private async initializeSocket() {
     // Detectar automáticamente el servidor
@@ -101,13 +98,11 @@ class WebSocketService {
         WEBSOCKET_URL = await getAutoServerURL();
         console.log('✅ Servidor detectado:', WEBSOCKET_URL);
       } catch (error) {
-        console.log('⚠️ Error detectando servidor, usando Render como fallback...');
-        WEBSOCKET_URL = 'https://server-x7b4.onrender.com'; // Servidor de Render como fallback
-        console.log('✅ Usando servidor fallback (Render):', WEBSOCKET_URL);
+
       }
     }
     
-    console.log('🔧 Inicializando WebSocket con URL:', WEBSOCKET_URL);
+
     
     this.socket = io(WEBSOCKET_URL, {
       timeout: 60000,
@@ -130,14 +125,10 @@ class WebSocketService {
     if (!this.socket) return;
 
     // Eventos de conexión
-    this.socket.onAny((event: string, ...args: any[]) => {
-      if (event !== 'ping' && event !== 'pong') {
-        console.log(`🌐 [WS ANY] Event: ${event}`, args);
-      }
-    });
+
 
     this.socket.on('connect', () => {
-      console.log('✅ Conectado al servidor WebSocket');
+
       this.isConnected = true;
       this.reconnectAttempts = 0;
       this.isManualDisconnect = false;
@@ -158,11 +149,11 @@ class WebSocketService {
     });
 
     this.socket.on('connected', (data) => {
-      console.log('🎯 Confirmación de conexión del servidor:', data);
+
     });
 
     this.socket.on('reconnect', (attemptNumber) => {
-      console.log(`🔄 Reconectado al servidor (intento ${attemptNumber})`);
+
       this.isConnected = true;
       this.connectionListeners.forEach(listener => listener(true));
     });
@@ -228,9 +219,8 @@ class WebSocketService {
 
     // Eventos de chat (actualizar actividad)
     this.socket.on('new-message', (message: WebSocketMessage) => {
-      this.lastActivity = Date.now();
-      console.log('📨 Nuevo mensaje recibido:', message);
-      this.messageListeners.forEach(listener => listener(message));
+        this.lastActivity = Date.now();
+        this.messageListeners.forEach(listener => listener(message));
     });
 
     this.socket.on('message-expired', (data: { messageId: string }) => {
@@ -259,9 +249,8 @@ class WebSocketService {
     });
 
     this.socket.on('room-joined', (data: { roomId: string; users: User[]; messages: WebSocketMessage[] }) => {
-      this.lastActivity = Date.now();
-      console.log('🏠 Unido a sala:', data);
-      this.roomJoinedListeners.forEach(listener => listener(data));
+        this.lastActivity = Date.now();
+        this.roomJoinedListeners.forEach(listener => listener(data));
     });
 
     this.socket.on('private-room-created', (data: { roomId: string; message: string }) => {
@@ -277,9 +266,8 @@ class WebSocketService {
     });
 
     this.socket.on('player-found', (data: { roomId: string; message: string; opponent: { userId: string; username: string }; users: User[]; messages: WebSocketMessage[]; selectedCategory?: { id: string; name: string; emoji: string; color: string } }) => {
-      this.lastActivity = Date.now();
-      console.log('🎯 Jugador encontrado:', data);
-      this.playerFoundListeners.forEach(listener => listener(data));
+        this.lastActivity = Date.now();
+        this.playerFoundListeners.forEach(listener => listener(data));
     });
 
       this.socket.on('search-cancelled', (data: { message: string }) => {
@@ -296,13 +284,11 @@ class WebSocketService {
       // Eventos del juego
       this.socket.on('round-started', (data: any) => {
         this.lastActivity = Date.now();
-        console.log('🎯 WebSocketService recibió round-started:', data);
-        console.log('🎯 Número de listeners registrados:', this.roundStartedListeners.length);
-        this.roundStartedListeners.forEach((listener, index) => {
-          console.log(`🎯 Ejecutando listener ${index + 1}...`);
+        this.roundStartedListeners.forEach((listener) => {
           listener(data);
         });
       });
+
 
       this.socket.on('round-finished', (data: any) => {
         this.lastActivity = Date.now();

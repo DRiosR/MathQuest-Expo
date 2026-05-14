@@ -50,7 +50,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               .maybeSingle();
 
             if (!profile) {
-              console.log('⚠️ Perfil no encontrado en la base de datos. Cerrando sesión...');
+
               await AuthService.signOut();
               setUser(null);
             } else {
@@ -66,7 +66,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // No mostrar como error fatal si es solo un token expirado, ya que Supabase se recuperará o pedirá login
         const errorMsg = error instanceof Error ? error.message : String(error);
         if (errorMsg.includes('Invalid Refresh Token')) {
-          console.log('ℹ️ Sesión previa expirada, el usuario deberá iniciar sesión.');
+
         } else {
           console.warn('⚠️ Error al obtener usuario inicial:', errorMsg);
         }
@@ -81,7 +81,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Handle deep links for authentication (recovery, signup confirmation, etc.)
     const handleDeepLink = async (event: { url: string }) => {
       const { url } = event;
-      console.log('🔗 Deep link recibida en AuthContext:', url);
+
       
       // Parse the URL to get tokens or errors
       // Supabase sends tokens/errors after # in the fragment
@@ -105,7 +105,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
         
         if (accessToken && refreshToken) {
-          console.log(`🔑 Tokens detectados (tipo: ${type}), estableciendo sesión...`);
+
           if (type === 'recovery') {
             setIsRecovering(true);
           }
@@ -114,7 +114,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.error('❌ Error al establecer sesión desde URL:', error.message);
             Alert.alert('Error de Sesión', 'No se pudo iniciar la sesión de recuperación.');
           } else {
-            console.log('✅ Sesión establecida correctamente desde URL');
+
           }
         }
       }
@@ -134,9 +134,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // Also listen to raw events to detect recovery mode earlier
     const { data: { subscription: eventSub } } = AuthService.getClient().auth.onAuthStateChange((event, session) => {
-      console.log('🔔 Auth Event:', event);
+
       if (event === 'PASSWORD_RECOVERY') {
-        console.log('🛡️ PASSWORD_RECOVERY detectado por evento. Activando modo seguro...');
+
         setIsRecovering(true);
       }
     });
