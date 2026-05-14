@@ -573,6 +573,14 @@ export default function AvatarCustomizationScreen() {
               colors={['#2E1065', '#1E1B4B']}
               style={styles.modalGradient}
             >
+              <TouchableOpacity 
+                style={styles.modalCloseX} 
+                onPress={() => setConfirmModal(prev => ({ ...prev, visible: false }))}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <FontAwesome5 name="times" size={18} color="rgba(255,255,255,0.4)" />
+              </TouchableOpacity>
+
               <View style={styles.modalHeader}>
                 <View style={[styles.modalIconCircle, { backgroundColor: confirmModal.confirmColor[0], shadowColor: confirmModal.confirmColor[0] }]}>
                   <FontAwesome5 name={confirmModal.icon} size={30} color="#fff" />
@@ -1019,6 +1027,13 @@ const styles = StyleSheet.create({
   modalHeader: {
     alignItems: 'center',
     marginBottom: isSmallDevice ? 15 : 20,
+    marginTop: 10,
+  },
+  modalCloseX: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    zIndex: 10,
   },
   modalIconCircle: {
     width: isSmallDevice ? 64 : 74,
