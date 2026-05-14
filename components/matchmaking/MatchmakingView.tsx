@@ -4,7 +4,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 
 
-const { height } = Dimensions.get('window');
+const { height, width } = Dimensions.get('window');
+const IS_SMALL_DEVICE = height < 750;
+const SCALE = width / 375;
+const normalize = (size: number) => Math.round(size * SCALE);
 
 type Props = {
   username: string;
@@ -89,15 +92,17 @@ export default function MatchmakingView({ username, avatarComponent, onCancel, p
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.headerWrap, { opacity: headerOpacity, transform: [{ translateY: headerTranslateY }] }]}>
-        <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>BUSCANDO</Text>
-        <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>OPONENTE{dots}</Text>
+        <Text style={[styles.title, { fontFamily: 'Digitalt', fontSize: IS_SMALL_DEVICE ? 24 : 34 }]}>BUSCANDO</Text>
+        <Text style={[styles.title, { fontFamily: 'Digitalt', fontSize: IS_SMALL_DEVICE ? 24 : 34 }]}>OPONENTE{dots}</Text>
       </Animated.View>
 
       <View style={styles.meWrap}>
         <View style={styles.avatarCircle}>{avatarComponent}</View>
-        <Text style={[styles.username, { fontFamily: 'Digitalt' }]} numberOfLines={1}>
-          {username}
-        </Text>
+        <View style={styles.usernameTag}>
+          <Text style={[styles.username, { fontFamily: 'Digitalt' }]} numberOfLines={1}>
+            {username}
+          </Text>
+        </View>
       </View>
 
       <Animated.View style={[styles.lottieWrap, { opacity: lottieOpacity, transform: [{ translateY: lottieTranslateY }] }]}>
@@ -135,20 +140,34 @@ export default function MatchmakingView({ username, avatarComponent, onCancel, p
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 24, paddingTop: 16, justifyContent: 'space-between' },
-  headerWrap: { marginTop: 8, alignItems: 'center' },
-  title: { color: '#FFFFFF', fontSize: 34, fontWeight: '900', letterSpacing: 1.5, textAlign: 'center' },
-  meWrap: { alignItems: 'center', gap: 12, marginTop: 20, transform: [{ translateY: 30 }] },
+  container: { 
+    flex: 1, 
+    paddingHorizontal: 24, 
+    paddingTop: 16, 
+    justifyContent: IS_SMALL_DEVICE ? 'space-between' : 'space-around',
+    alignItems: 'center'
+  },
+  headerWrap: { width: '100%', alignItems: 'center' },
+  title: { color: '#FFFFFF', fontSize: IS_SMALL_DEVICE ? 22 : 34, fontWeight: '900', letterSpacing: 1.5, textAlign: 'center' },
+  meWrap: { width: '100%', alignItems: 'center', gap: IS_SMALL_DEVICE ? 20 : 25 },
   avatarCircle: {
-    width: 160,
-    height: 160,
+    width: IS_SMALL_DEVICE ? 110 : 180,
+    height: IS_SMALL_DEVICE ? 110 : 180,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  username: { color: '#FFFFFF', fontSize: 14, fontWeight: '900', letterSpacing: 1.2 },
-  lottieWrap: { alignItems: 'center', justifyContent: 'center', marginTop: 16, flex: 1 },
-  lottie: { width: height * 0.2, height: height * 0.2 },
-  footer: { paddingBottom: 28, alignItems: 'center' },
+  usernameTag: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  username: { color: '#FFFFFF', fontSize: IS_SMALL_DEVICE ? 16 : 20, fontWeight: '900', letterSpacing: 1.2 },
+  lottieWrap: { width: '100%', alignItems: 'center', justifyContent: 'center' },
+  lottie: { width: height * (IS_SMALL_DEVICE ? 0.1 : 0.18), height: height * (IS_SMALL_DEVICE ? 0.1 : 0.18) },
+  footer: { width: '100%', paddingBottom: IS_SMALL_DEVICE ? 5 : 28, alignItems: 'center' },
   cancelButton: {
     height: 56,
     borderRadius: 28,
@@ -175,10 +194,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   tipsContainer: {
-    marginTop: 20,
+    marginTop: IS_SMALL_DEVICE ? 10 : 20,
     paddingHorizontal: 30,
     alignItems: 'center',
-    minHeight: 60,
+    minHeight: IS_SMALL_DEVICE ? 40 : 60,
   },
   tipLabel: {
     color: '#FFD616',

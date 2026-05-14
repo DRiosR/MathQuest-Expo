@@ -26,6 +26,9 @@ import { Alert } from 'react-native';
 
 type GameState = 'MATCHMAKING' | 'MATCH_FOUND' | 'COUNTDOWN' | 'ROULETTE' | 'QUIZ' | 'ROUND_RESULT' | 'MATCH_END';
 
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const IS_SMALL_DEVICE = SCREEN_HEIGHT < 750;
+
 function clamp(n: number, min = 0, max = 255) { return Math.min(max, Math.max(min, n)); }
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   const normalized = hex.replace('#', '');
@@ -880,7 +883,7 @@ export default function MatchmakingScreen() {
         return (
           <MatchmakingView
             username={myUsername?.toUpperCase()}
-            avatarComponent={<LayeredAvatar avatar={avatar} size={180} />}
+            avatarComponent={<LayeredAvatar avatar={avatar!} size={IS_SMALL_DEVICE ? 110 : 180} />}
             onCancel={handleCancel}
             position={queuePosition}
             isExiting={isExitingMatchmaking}
@@ -896,12 +899,12 @@ export default function MatchmakingScreen() {
           <MatchFoundView
             me={{
               username: myUsername?.toUpperCase(),
-              avatarComponent: <LayeredAvatar avatar={avatar} size={190} />,
+              avatarComponent: <LayeredAvatar avatar={avatar!} size={IS_SMALL_DEVICE ? 140 : 190} />,
               rankInfo: myRankInfo
             }}
             opponent={{
               username: (opponent?.username || 'OPONENTE').toUpperCase(),
-              avatarComponent: <LayeredAvatar avatar={opponentAvatar || defaultAvatar} size={190} />,
+              avatarComponent: <LayeredAvatar avatar={opponentAvatar || defaultAvatar} size={IS_SMALL_DEVICE ? 140 : 190} />,
               rankInfo: opponentRankInfo
             }}
             isExiting={isExitingMatchFound}

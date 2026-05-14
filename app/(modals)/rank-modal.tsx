@@ -21,7 +21,7 @@ import Animated, {
 import AnimatedMathBackground from '@/components/ui/AnimatedMathBackground';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFontContext } from '@/contexts/FontsContext';
-import { getAllRanks, getUserRankInfo, RankRow, UserRankInfo, getStoreItems, StoreItemRow } from '@/services/SupabaseService';
+import { getAllRanks, getUserRankInfo, RankRow, UserRankInfo, getStoreItems, StoreItemRow, getUserInventory } from '@/services/SupabaseService';
 
 const { width } = Dimensions.get('window');
 
@@ -166,20 +166,23 @@ export default function RankModal() {
   const [ranks, setRanks] = useState<RankRow[]>([]);
   const [rankInfo, setRankInfo] = useState<UserRankInfo | null>(null);
   const [frames, setFrames] = useState<StoreItemRow[]>([]);
+  const [inventoryIds, setInventoryIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [r, u, f] = await Promise.all([
+        const [r, u, f, inv] = await Promise.all([
           getAllRanks(),
           user?.id ? getUserRankInfo(user.id) : Promise.resolve(null),
           getStoreItems('marco'),
+          user?.id ? getUserInventory(user.id) : Promise.resolve([]),
         ]);
         const sortedRanks = Array.isArray(r) ? [...r].sort((a, b) => a.min_points - b.min_points) : [];
         setRanks(sortedRanks);
         setRankInfo(u ?? null);
         setFrames(f || []);
+        setInventoryIds(inv || []);
         
         // Auto-scroll to current rank
         if (u?.rank) {
@@ -203,6 +206,17 @@ export default function RankModal() {
     return ranks.findIndex(r => r.id === rankInfo.rank?.id);
   }, [ranks, rankInfo]);
 
+  const maxUnlockedIndex = useMemo(() => {
+    let maxIdx = currentRankIndex;
+    ranks.forEach((rank, idx) => {
+      const rewardFrame = frames.find(f => f.nombre.toLowerCase().includes(rank.name.toLowerCase()));
+      if (rewardFrame && inventoryIds.includes(rewardFrame.id)) {
+        if (idx > maxIdx) maxIdx = idx;
+      }
+    });
+    return maxIdx;
+  }, [ranks, currentRankIndex, frames, inventoryIds]);
+
   const renderPath = (index: number) => {
     if (index >= ranks.length - 1) return null;
     const isStartRight = index % 2 !== 0;
@@ -220,7 +234,7 @@ export default function RankModal() {
     const nextRank = ranks[index + 1];
     const biomeKey = nextRank.name.trim() as keyof typeof BIOMES;
     const biome = BIOMES[biomeKey] || BIOMES.Bronce;
-    const isPathUnlocked = index < currentRankIndex;
+    const isPathUnlocked = index < maxUnlockedIndex;
     const isPathCurrent = index === currentRankIndex;
 
     // Calculate progress on current segment
@@ -271,24 +285,42 @@ export default function RankModal() {
         )}
 
         {/* Player Marker on Current Path */}
-        {isPathCurrent && segmentProgress > 0 && segmentProgress < 1 && (
-          <G transform={`translate(${(startX + endX) / 2 - 30}, ${(startY + endY) / 2 - 40})`}>
-            {/* Simple approximation of position for now */}
-            <Circle cx="30" cy="30" r="18" fill={biome.glow} opacity="0.4" />
-            <Circle cx="30" cy="30" r="14" fill="#fff" />
-            <SvgText
-              x="30"
-              y="10"
-              fontSize="12"
-              fontWeight="900"
-              fill="#fff"
-              textAnchor="middle"
-              fontFamily="Digitalt"
-            >
-              TÚ
-            </SvgText>
-          </G>
-        )}
+        {isPathCurrent && segmentProgress > 0.15 && segmentProgress < 0.85 && (() => {
+          // Calculate Cubic Bezier position
+          const t = segmentProgress;
+          const invT = 1 - t;
+          
+          const posX = (Math.pow(invT, 3) * startX) + 
+                       (3 * Math.pow(invT, 2) * t * cp1x) + 
+                       (3 * invT * Math.pow(t, 2) * cp2x) + 
+                       (Math.pow(t, 3) * endX);
+                       
+          const posY = (Math.pow(invT, 3) * startY) + 
+                       (3 * Math.pow(invT, 2) * t * cp1y) + 
+                       (3 * invT * Math.pow(t, 2) * cp2y) + 
+                       (Math.pow(t, 3) * endY);
+
+          // Dynamic opacity to avoid overlapping with island icons
+          const opacity = Math.min(1, Math.max(0, (t - 0.15) / 0.1) * Math.max(0, (0.85 - t) / 0.1));
+
+          return (
+            <G transform={`translate(${posX - 30}, ${posY - 30})`} opacity={opacity}>
+              <Circle cx="30" cy="30" r="18" fill={biome.glow} opacity="0.4" />
+              <Circle cx="30" cy="30" r="14" fill="#fff" />
+              <SvgText
+                x="30"
+                y="10"
+                fontSize="12"
+                fontWeight="900"
+                fill="#fff"
+                textAnchor="middle"
+                fontFamily="Digitalt"
+              >
+                TÚ
+              </SvgText>
+            </G>
+          );
+        })()}
       </G>
     );
   };
@@ -330,7 +362,7 @@ export default function RankModal() {
                 index={index}
                 totalRanks={ranks.length}
                 isCurrent={rank.id === rankInfo?.rank?.id}
-                isUnlocked={index <= currentRankIndex}
+                isUnlocked={index <= maxUnlockedIndex}
                 rewardFrame={frameReward}
               />
             );

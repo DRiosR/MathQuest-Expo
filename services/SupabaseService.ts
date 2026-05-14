@@ -1133,3 +1133,21 @@ export async function checkRankUpAndGrantFrame(userId: string, beforeElo: number
     return null;
   }
 }
+
+/**
+ * Fetch the IDs of all items in the user's inventory.
+ */
+export async function getUserInventory(userId: string): Promise<string[]> {
+  try {
+    const { data, error } = await supabase
+      .from('inventario')
+      .select('producto_id')
+      .eq('usuario_id', userId);
+    
+    if (error) throw error;
+    return (data || []).map(item => item.producto_id);
+  } catch (e) {
+    console.error('Error fetching user inventory:', e);
+    return [];
+  }
+}
