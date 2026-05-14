@@ -137,8 +137,6 @@ export default function MatchmakingScreen() {
   const [opponentFinished, setOpponentFinished] = useState<boolean>(false);
   const [finalCountdown, setFinalCountdown] = useState<number | null>(null);
   
-  // Inactividad: 3 minutos
-  const INACTIVITY_LIMIT = 3 * 60 * 1000;
   const lastActivityTime = useRef(Date.now());
   const matchStartTimeRef = useRef(Date.now());
   const isManualForfeitRef = useRef(false);
@@ -590,38 +588,7 @@ export default function MatchmakingScreen() {
   const [showInactivityModal, setShowInactivityModal] = useState(false);
   const [showConfirmForfeit, setShowConfirmForfeit] = useState(false);
 
-  // Timer de inactividad de 3 minutos
-  useEffect(() => {
-    // Si la partida ya finalizó o el modal ya se está mostrando, no hacemos nada
-    if (showInactivityModal || isGameFinalizedRef.current) return;
 
-    if (gameState !== 'QUIZ') return;
-    
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - lastActivityTime.current;
-      if (elapsed >= INACTIVITY_LIMIT) {
-        // DOBLE CHECK: Si en este intervalo la partida finalizó por otro motivo, abortamos
-        if (isGameFinalizedRef.current) {
-          clearInterval(interval);
-          return;
-        }
-
-        clearInterval(interval);
-        console.log('⏰ Inactividad detectada (3 min). Terminando partida...');
-        isGameFinalizedRef.current = true; // ACTIVAR CERROJO
-        
-        // Penalización por inactividad
-        incrementCurrentUserCoins(-15).catch((err: any) => console.error('Error penalizando:', err));
-
-        setShowInactivityModal(true);
-        if (currentRoom) {
-          forfeitGame(currentRoom);
-        }
-      }
-    }, 5000); // Revisar cada 5 segundos
-    
-    return () => clearInterval(interval);
-  }, [gameState, currentRoom, showInactivityModal]);
 
   useEffect(() => {
     const unsubAns = onAnswerResult((result: any) => {
