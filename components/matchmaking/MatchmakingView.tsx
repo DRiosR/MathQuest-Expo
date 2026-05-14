@@ -91,47 +91,53 @@ export default function MatchmakingView({ username, avatarComponent, onCancel, p
 
   return (
     <View style={styles.container}>
+      {/* Dynamic Background elements could go here if handled by parent, 
+          but we focus on the component's internal structure */}
+      
       <Animated.View style={[styles.headerWrap, { opacity: headerOpacity, transform: [{ translateY: headerTranslateY }] }]}>
-        <Text style={[styles.title, { fontFamily: 'Digitalt', fontSize: IS_SMALL_DEVICE ? 24 : 34 }]}>BUSCANDO</Text>
-        <Text style={[styles.title, { fontFamily: 'Digitalt', fontSize: IS_SMALL_DEVICE ? 24 : 34 }]}>OPONENTE{dots}</Text>
+        <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>BUSCANDO</Text>
+        <Text style={[styles.title, { fontFamily: 'Digitalt', color: '#FFD616' }]}>OPONENTE{dots}</Text>
       </Animated.View>
 
-      <View style={styles.meWrap}>
-        <View style={styles.avatarCircle}>{avatarComponent}</View>
-        <View style={styles.usernameTag}>
-          <Text style={[styles.username, { fontFamily: 'Digitalt' }]} numberOfLines={1}>
-            {username}
-          </Text>
+      <View style={styles.centerSection}>
+        <View style={styles.meWrap}>
+          <View style={styles.avatarGlowContainer}>
+            <View style={styles.avatarCircle}>{avatarComponent}</View>
+          </View>
+          <View style={styles.usernameContainer}>
+            <Text style={[styles.username, { fontFamily: 'Digitalt' }]} numberOfLines={1}>
+              {username}
+            </Text>
+          </View>
         </View>
+
+        <Animated.View style={[styles.lottieWrap, { opacity: lottieOpacity, transform: [{ translateY: lottieTranslateY }] }]}>
+          <LottieView
+            ref={lottieRef}
+            autoPlay
+            loop
+            source={require('@/assets/lotties/extras/lupa.json')}
+            style={styles.lottie}
+          />
+        </Animated.View>
       </View>
 
-      <Animated.View style={[styles.lottieWrap, { opacity: lottieOpacity, transform: [{ translateY: lottieTranslateY }] }]}>
-        <View style={styles.searchTimeContainer}>
-          <Text style={[styles.searchTimeText, { fontFamily: 'Digitalt' }]}>
-            TIEMPO: {formatTime(seconds)}
-          </Text>
-        </View>
-
-        <LottieView
-          ref={lottieRef}
-          autoPlay
-          loop
-          source={require('@/assets/lotties/extras/lupa.json')}
-          style={styles.lottie}
-        />
-
-        <View style={styles.tipsContainer}>
-          <Text style={[styles.tipLabel, { fontFamily: 'Gilroy-Black' }]}>TIP PRO:</Text>
-          <Text style={[styles.tipText, { fontFamily: 'Digitalt' }]}>
-            {TIPS[tipIndex]}
-          </Text>
-        </View>
-      </Animated.View>
-
       <Animated.View style={[styles.footer, { opacity: footerOpacity, transform: [{ translateY: footerTranslateY }] }]}>
-        <Pressable onPress={onCancel} style={({ pressed }) => [styles.cancelButton, pressed && { opacity: 0.9 }]}>
-          <LinearGradient colors={['#FFD616', '#F65D00']} style={styles.cancelButtonGradient}>
-            <Text style={[styles.cancelText, { fontFamily: 'Gilroy-Black' }]}>Cancelar</Text>
+        <View style={styles.glassCard}>
+           <View style={styles.cardHeader}>
+              <Text style={[styles.tipLabel, { fontFamily: 'Gilroy-Black' }]}>CONSEJO PRO</Text>
+              <View style={styles.timeBadge}>
+                <Text style={[styles.timeText, { fontFamily: 'Digitalt' }]}>{formatTime(seconds)}</Text>
+              </View>
+           </View>
+           <Text style={[styles.tipText, { fontFamily: 'Digitalt' }]}>
+              {TIPS[tipIndex]}
+           </Text>
+        </View>
+
+        <Pressable onPress={onCancel} style={({ pressed }) => [styles.cancelButton, pressed && { transform: [{scale: 0.96}] }]}>
+          <LinearGradient colors={['#ef4444', '#991b1b']} style={styles.cancelButtonGradient}>
+            <Text style={[styles.cancelText, { fontFamily: 'Gilroy-Black' }]}>ABANDONAR COLA</Text>
           </LinearGradient>
         </Pressable>
       </Animated.View>
@@ -143,75 +149,153 @@ const styles = StyleSheet.create({
   container: { 
     flex: 1, 
     paddingHorizontal: 24, 
-    paddingTop: 16, 
-    justifyContent: IS_SMALL_DEVICE ? 'space-between' : 'space-around',
+    paddingTop: IS_SMALL_DEVICE ? 10 : 40,
+    justifyContent: 'space-between',
     alignItems: 'center'
   },
-  headerWrap: { width: '100%', alignItems: 'center' },
-  title: { color: '#FFFFFF', fontSize: IS_SMALL_DEVICE ? 22 : 34, fontWeight: '900', letterSpacing: 1.5, textAlign: 'center' },
-  meWrap: { width: '100%', alignItems: 'center', gap: IS_SMALL_DEVICE ? 20 : 25 },
-  avatarCircle: {
-    width: IS_SMALL_DEVICE ? 110 : 180,
-    height: IS_SMALL_DEVICE ? 110 : 180,
+  headerWrap: { width: '100%', alignItems: 'center', gap: 4 },
+  statusBadge: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  usernameTag: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 16,
+    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+    paddingHorizontal: 12,
     paddingVertical: 4,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 12,
+    marginBottom: 8,
   },
-  username: { color: '#FFFFFF', fontSize: IS_SMALL_DEVICE ? 16 : 20, fontWeight: '900', letterSpacing: 1.2 },
-  lottieWrap: { width: '100%', alignItems: 'center', justifyContent: 'center' },
-  lottie: { width: height * (IS_SMALL_DEVICE ? 0.1 : 0.18), height: height * (IS_SMALL_DEVICE ? 0.1 : 0.18) },
-  footer: { width: '100%', paddingBottom: IS_SMALL_DEVICE ? 5 : 28, alignItems: 'center' },
-  cancelButton: {
-    height: 56,
-    borderRadius: 28,
-    overflow: 'hidden',
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#22c55e',
+    marginRight: 6,
   },
-  cancelButtonGradient: {
-    height: '100%',
-    width: 160,
-    borderRadius: 28,
+  statusText: { color: '#22c55e', fontSize: 12, letterSpacing: 1 },
+  title: { 
+    color: '#FFFFFF', 
+    fontSize: IS_SMALL_DEVICE ? 28 : 42, 
+    fontWeight: '900', 
+    letterSpacing: 2, 
+    textAlign: 'center',
+    lineHeight: IS_SMALL_DEVICE ? 32 : 46,
+  },
+  centerSection: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+  },
+  meWrap: { width: '100%', alignItems: 'center', marginBottom: 20 },
+  avatarGlowContainer: {
+    width: IS_SMALL_DEVICE ? 140 : 220,
+    height: IS_SMALL_DEVICE ? 140 : 220,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cancelText: { color: '#FFFFFF', fontSize: 18, fontWeight: '900' },
-  searchTimeContainer: {
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginBottom: 10,
+  pulseRing1: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    borderRadius: 110,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 214, 22, 0.3)',
   },
-  searchTimeText: {
-    color: '#FFD616',
-    fontSize: 16,
-    letterSpacing: 1,
+  pulseRing2: {
+    position: 'absolute',
+    width: '85%',
+    height: '85%',
+    borderRadius: 95,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  tipsContainer: {
-    marginTop: IS_SMALL_DEVICE ? 10 : 20,
-    paddingHorizontal: 30,
+  avatarCircle: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
-    minHeight: IS_SMALL_DEVICE ? 40 : 60,
+    justifyContent: 'center',
   },
+  usernameContainer: {
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  username: { 
+    color: '#FFFFFF', 
+    fontSize: IS_SMALL_DEVICE ? 20 : 28, 
+    fontWeight: '900', 
+    letterSpacing: 1.5,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  rankBadge: {
+    backgroundColor: '#FFD616',
+    paddingHorizontal: 12,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 4,
+  },
+  rankText: { color: '#000', fontSize: 10, fontWeight: 'bold' },
+  lottieWrap: { 
+    height: 100, 
+    alignItems: 'center', 
+    justifyContent: 'center',
+  },
+  lottie: { width: 120, height: 120 },
+  footer: { 
+    width: '100%', 
+    paddingBottom: IS_SMALL_DEVICE ? 20 : 40, 
+    alignItems: 'center',
+    gap: 20
+  },
+  glassCard: {
+    width: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  timeBadge: {
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  timeText: { color: '#FFD616', fontSize: 14 },
   tipLabel: {
-    color: '#FFD616',
+    color: 'rgba(255,255,255,0.5)',
     fontSize: 12,
-    letterSpacing: 1,
-    marginBottom: 4,
+    letterSpacing: 2,
   },
   tipText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 15,
+    lineHeight: 22,
     textAlign: 'center',
-    lineHeight: 18,
-    opacity: 0.9,
   },
+  cancelButton: {
+    width: '80%',
+    height: 56,
+    borderRadius: 28,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  cancelButtonGradient: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelText: { color: '#FFFFFF', fontSize: 16, fontWeight: '900', letterSpacing: 1 },
 });
 
 
