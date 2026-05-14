@@ -63,6 +63,8 @@ export default function UserScreen() {
     setGamesPlayed(stats.totalMatches);
     const winRateVal = stats.totalMatches > 0 ? (stats.wins / stats.totalMatches) * 100 : 0;
     setWinRate(Math.round(winRateVal));
+    setGlobalRank(stats.globalRank);
+    setGlobalPoints(stats.globalPoints);
       // Determine streak state
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
@@ -101,6 +103,8 @@ export default function UserScreen() {
   const [gamesPlayed, setGamesPlayed] = React.useState(0);
   const [winRate, setWinRate] = React.useState(0);
   const [streakCount, setStreakCount] = React.useState(0);
+  const [globalRank, setGlobalRank] = React.useState(0);
+  const [globalPoints, setGlobalPoints] = React.useState(0);
   const [streakState, setStreakState] = React.useState<'active' | 'pending' | 'warning' | 'expired'>('expired');
   const [recentMatch, setRecentMatch] = React.useState<UserMatchItem | null>(null);
   const [isRecentOpen, setIsRecentOpen] = React.useState(false);
@@ -527,7 +531,9 @@ export default function UserScreen() {
             
             <View style={styles.statsGrid}>
               <FadeInView from="bottom" delay={250} style={styles.statCard}>
-                <GameControllerIcon size={24} color="#4f46e5" weight="fill" />
+                <View style={[styles.statIconContainer, { backgroundColor: 'rgba(129, 140, 248, 0.15)' }]}>
+                  <GameControllerIcon size={20} color="#818CF8" weight="fill" />
+                </View>
                 <Text style={[styles.statNumber, { fontFamily: 'Digitalt' }]}>
                   {gamesPlayed}
                 </Text>
@@ -537,12 +543,38 @@ export default function UserScreen() {
               </FadeInView>
               
               <FadeInView from="bottom" delay={300} style={styles.statCard}>
-                <PercentIcon size={24} color="#22c55e" weight="bold" />
+                <View style={[styles.statIconContainer, { backgroundColor: 'rgba(34, 197, 94, 0.15)' }]}>
+                  <PercentIcon size={20} color="#4ADE80" weight="bold" />
+                </View>
                 <Text style={[styles.statNumber, { fontFamily: 'Digitalt' }]}>
                   {winRate}%
                 </Text>
                 <Text style={[styles.statLabel, { fontFamily: 'Gilroy-Black' }]}>
-                  Porcentaje de Victorias
+                  Victorias
+                </Text>
+              </FadeInView>
+
+              <FadeInView from="bottom" delay={350} style={styles.statCard}>
+                <View style={[styles.statIconContainer, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+                  <FontAwesome5 name="trophy" size={18} color="#FBBF24" solid />
+                </View>
+                <Text style={[styles.statNumber, { fontFamily: 'Digitalt' }]}>
+                  #{globalRank}
+                </Text>
+                <Text style={[styles.statLabel, { fontFamily: 'Gilroy-Black' }]}>
+                  Ranking Global
+                </Text>
+              </FadeInView>
+
+              <FadeInView from="bottom" delay={400} style={styles.statCard}>
+                <View style={[styles.statIconContainer, { backgroundColor: 'rgba(236, 72, 153, 0.15)' }]}>
+                  <FontAwesome5 name="star" size={18} color="#F472B6" solid />
+                </View>
+                <Text style={[styles.statNumber, { fontFamily: 'Digitalt' }]}>
+                  {globalPoints}
+                </Text>
+                <Text style={[styles.statLabel, { fontFamily: 'Gilroy-Black' }]}>
+                  Puntos ELO
                 </Text>
               </FadeInView>
             </View>
@@ -1119,25 +1151,38 @@ const styles = StyleSheet.create({
   },
   statsGrid: {
     flexDirection: 'row',
-    gap: 15,
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
   },
   statCard: {
-    flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 20,
-    padding: 20,
+    width: (width - 60 - 12) / 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 28,
+    padding: 14,
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  statIconContainer: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   statNumber: {
     color: '#fff',
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
   },
   statLabel: {
-    color: '#9ca3af',
-    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 10,
     textAlign: 'center',
+    marginTop: 2,
   },
   sectionHeaderRow: {
     flexDirection: 'row',

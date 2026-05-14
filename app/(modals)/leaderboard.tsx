@@ -130,7 +130,7 @@ export default function LeaderboardModal() {
                       </View>
 
                       <View style={styles.cardInfo}>
-                        <Text style={[styles.usernameText, { fontFamily: 'Gilroy-Bold' }]} numberOfLines={1}>
+                        <Text style={[styles.usernameText, { fontFamily: 'Gilroy-Bold' }, isCurrent && { color: '#FFD616' }]} numberOfLines={1}>
                           {e.username}
                         </Text>
                         <View style={styles.pointsPill}>
@@ -139,11 +139,7 @@ export default function LeaderboardModal() {
                         </View>
                       </View>
 
-                      {isCurrent && (
-                        <View style={styles.meBadge}>
-                          <Text style={[styles.meBadgeText, { fontFamily: 'Gilroy-Black' }]}>TÚ</Text>
-                        </View>
-                      )}
+
                     </View>
                     {idx < others.length - 1 && <View style={styles.separator} />}
                   </FadeInView>
@@ -172,7 +168,7 @@ type PodiumSpotProps = {
 
 function PodiumSpot({ place, entry, highlight }: PodiumSpotProps) {
   const isFirst = place === 1;
-  const avatarSize = isFirst ? 90 : 70;
+  const avatarSize = isFirst ? 110 : 70;
   
   const placeColors = {
     1: ['#FFD700', '#F59E0B'], // Gold
@@ -186,9 +182,8 @@ function PodiumSpot({ place, entry, highlight }: PodiumSpotProps) {
     <View style={[styles.spotContainer, isFirst && styles.spotContainerFirst]}>
       <View style={styles.avatarPodiumWrap}>
         <View style={[
-          styles.podiumAvatarCircle, 
+          styles.podiumAvatarCircle,
           { width: avatarSize + 8, height: avatarSize + 8, borderRadius: (avatarSize + 8) / 2 },
-          highlight && { borderColor: '#FFD616', borderWidth: 3 }
         ]}>
           <LayeredAvatar avatar={entry?.avatar || defaultAvatar} size={avatarSize} />
         </View>
@@ -265,7 +260,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   podiumSection: {
-    paddingTop: 20,
+    paddingTop: 60,
     paddingBottom: 30,
     alignItems: 'center',
   },
@@ -286,7 +281,6 @@ const styles = StyleSheet.create({
   },
   spotContainerFirst: {
     zIndex: 10,
-    transform: [{ scale: 1.1 }, { translateY: -10 }],
   },
   avatarPodiumWrap: {
     position: 'relative',
@@ -352,7 +346,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   cardRowCurrent: {
-    backgroundColor: 'rgba(255,214,22,0.15)',
     borderRadius: 20,
   },
   rankNumberContainer: {

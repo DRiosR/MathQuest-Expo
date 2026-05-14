@@ -22,6 +22,7 @@ export type UserStats = {
   recentMatch: MatchRow | null;
   streakCount: number;
   lastStreakDate: string | null;
+  globalRank: number;
 };
 
 const supabase = AuthService.getClient();
@@ -227,7 +228,8 @@ export async function getUserStats(userId: string): Promise<UserStats | null> {
           globalPoints: p2?.points || 0,
           recentMatch: null,
           streakCount: 0,
-          lastStreakDate: null
+          lastStreakDate: null,
+          globalRank: 0
         };
       }
       throw profileError;
@@ -262,6 +264,14 @@ export async function getUserStats(userId: string): Promise<UserStats | null> {
       }
     }
 
+    // Calcular ranking global
+    const { count: rankCount, error: rankError } = await supabase
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .gt('points', profile.points || 0);
+
+    const globalRank = (rankCount ?? 0) + 1;
+
     return {
       totalMatches,
       wins,
@@ -270,6 +280,7 @@ export async function getUserStats(userId: string): Promise<UserStats | null> {
       recentMatch,
       streakCount: currentStreak,
       lastStreakDate: (profile as any)?.last_streak_date || null,
+      globalRank,
     };
   } catch (error) {
     console.error('Error fetching user stats:', error);
