@@ -1,11 +1,22 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Medal, X } from 'phosphor-react-native';
-import React, { useEffect, useMemo, useState } from 'react';
-import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View, Dimensions } from 'react-native';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View, Dimensions, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
+import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop, G, Circle, Text as SvgText } from 'react-native-svg';
+import Animated, { 
+  useAnimatedStyle, 
+  withRepeat, 
+  withSequence, 
+  withTiming, 
+  useSharedValue, 
+  withDelay,
+  interpolate,
+  Extrapolate
+} from 'react-native-reanimated';
 
 import AnimatedMathBackground from '@/components/ui/AnimatedMathBackground';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,189 +25,324 @@ import { getAllRanks, getUserRankInfo, RankRow, UserRankInfo, getStoreItems, Sto
 
 const { width } = Dimensions.get('window');
 
+const ISLAND_HEIGHT = 280; // Aumentado para dar más aire
+const MAP_PADDING = 60;
+
+const BIOMES = {
+  Bronce: { colors: ['#92400E', '#451A03'], glow: '#D97706', accent: '#FDE68A', pathColor: '#F59E0B' },
+  Plata: { colors: ['#475569', '#1E293B'], glow: '#94A3B8', accent: '#E2E8F0', pathColor: '#CBD5E1' },
+  Oro: { colors: ['#B45309', '#78350F'], glow: '#FBBF24', accent: '#FEF3C7', pathColor: '#FBBF24' },
+  Platino: { colors: ['#0369A1', '#0C4A6E'], glow: '#38BDF8', accent: '#BAE6FD', pathColor: '#38BDF8' },
+  Diamante: { colors: ['#1E3A8A', '#172554'], glow: '#60A5FA', accent: '#DBEAFE', pathColor: '#60A5FA' },
+  Master: { colors: ['#F472B6', '#BE185D'], glow: '#FF69B4', accent: '#FDF2F8', pathColor: '#DB2777' },
+  Maestro: { colors: ['#F472B6', '#BE185D'], glow: '#FF69B4', accent: '#FDF2F8', pathColor: '#DB2777' },
+};
+
+const FloatingIsland = ({ rank, index, isCurrent, isUnlocked, totalRanks, rewardFrame }: any) => {
+  const floatValue = useSharedValue(0);
+  
+  useEffect(() => {
+    floatValue.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 2500 + index * 300 }),
+        withTiming(0, { duration: 2500 + index * 300 })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: floatValue.value * 12 }],
+  }));
+
+  const biome = BIOMES[rank.name as keyof typeof BIOMES] || BIOMES.Bronce;
+  const isRight = index % 2 !== 0;
+  // Posiciones más centradas para evitar desbordamiento
+  const islandX = isRight ? width * 0.55 : width * 0.1;
+
+  return (
+    <Animated.View style={[
+      styles.islandWrapper, 
+      { 
+        top: (totalRanks - 1 - index) * ISLAND_HEIGHT + MAP_PADDING,
+        left: islandX,
+      },
+      animatedStyle
+    ]}>
+      <View style={styles.islandContainer}>
+        {/* Glow/Aura beneath */}
+        <View style={[styles.islandGlow, { shadowColor: biome.glow, opacity: isUnlocked ? 0.9 : 0.2 }]} />
+        
+        {/* Rock Base (Tinted 3D Effect) */}
+        <View style={[
+          styles.rockBase, 
+          { backgroundColor: isUnlocked ? biome.colors[1] : '#0f172a', opacity: 0.8 }
+        ]} />
+
+        {/* The Island Surface (Main color) */}
+        <LinearGradient
+          colors={isUnlocked ? (biome.colors as [string, string]) : (['#1e293b', '#0f172a'] as [string, string])}
+          style={[styles.islandBase, !isUnlocked && styles.lockedIsland]}
+        >
+          <View style={styles.islandSurface}>
+            <LinearGradient 
+              colors={['rgba(255,255,255,0.4)', 'transparent']} 
+              style={StyleSheet.absoluteFill} 
+            />
+          </View>
+        </LinearGradient>
+
+        {/* Reward Frame Bubble (Near the Island) */}
+        {rewardFrame && (
+          <View style={[
+            styles.rewardBubble, 
+            { [isRight ? 'right' : 'left']: 110, top: -20 }
+          ]}>
+            <ExpoImage 
+              source={{ uri: (rewardFrame.imagen_tienda || rewardFrame.imagen) ?? undefined }} 
+              style={[styles.rewardFrameImg, !isUnlocked && { opacity: 0.3 }]}
+              contentFit="contain"
+            />
+            {!isUnlocked && (
+              <View style={styles.miniLockOverlay}>
+                <FontAwesome5 name="lock" size={14} color="#fff" />
+              </View>
+            )}
+            <View style={styles.rewardLabelSmall}>
+              <Text style={styles.rewardTextSmall}>RECOMPENSA</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Info Card (Also on the inner side but lower) */}
+        <View style={[
+          styles.ornateCard, 
+          { 
+            borderColor: biome.glow, 
+            [isRight ? 'right' : 'left']: 110,
+            top: 40,
+            opacity: isUnlocked ? 1 : 0.6
+          }
+        ]}>
+          <Text style={[styles.ornateTitle, { fontFamily: 'Digitalt', color: biome.accent }]}>
+            {rank.name.toUpperCase()}
+          </Text>
+          <Text style={styles.ornatePoints}>
+            {rank.min_points} PTS
+          </Text>
+          {isCurrent && (
+            <View style={styles.currentTag}>
+              <Text style={styles.currentTabText}>TÚ</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Rank Badge */}
+        <View style={[styles.rankBadge, { borderColor: biome.glow, shadowColor: biome.glow }]}>
+          <LinearGradient 
+            colors={isUnlocked ? (biome.colors as [string, string]) : (['#1e293b', '#0f172a'] as [string, string])} 
+            style={styles.rankBadgeBg} 
+          />
+          {rank.icon_url ? (
+            <ExpoImage source={{ uri: rank.icon_url }} style={styles.rankBadgeIcon} />
+          ) : (
+            <FontAwesome5 name="medal" size={26} color="#fff" />
+          )}
+          {!isUnlocked && (
+            <View style={[styles.miniLockOverlay, { zIndex: 100 }]}>
+              <FontAwesome5 name="lock" size={24} color="#fff" />
+            </View>
+          )}
+        </View>
+      </View>
+    </Animated.View>
+  );
+};
+
 export default function RankModal() {
   const { user } = useAuth();
-  const { fontsLoaded } = useFontContext();
+  const scrollRef = useRef<ScrollView>(null);
   const [ranks, setRanks] = useState<RankRow[]>([]);
   const [rankInfo, setRankInfo] = useState<UserRankInfo | null>(null);
   const [frames, setFrames] = useState<StoreItemRow[]>([]);
-  const [loadingRanks, setLoadingRanks] = useState<boolean>(false);
-  const [loadingUserRank, setLoadingUserRank] = useState<boolean>(false);
-  const loading = loadingRanks || loadingUserRank;
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
     const load = async () => {
-      setLoadingRanks(true);
-      setLoadingUserRank(true);
       try {
         const [r, u, f] = await Promise.all([
           getAllRanks(),
           user?.id ? getUserRankInfo(user.id) : Promise.resolve(null),
           getStoreItems('marco'),
         ]);
-        if (mounted) {
-          // Orden ascendente: Bronce (0) arriba, Maestro abajo
-          const sortedRanks = Array.isArray(r) ? [...r].sort((a, b) => a.min_points - b.min_points) : [];
-          setRanks(sortedRanks);
-          setRankInfo(u ?? null);
-          setFrames(f || []);
+        const sortedRanks = Array.isArray(r) ? [...r].sort((a, b) => a.min_points - b.min_points) : [];
+        setRanks(sortedRanks);
+        setRankInfo(u ?? null);
+        setFrames(f || []);
+        
+        // Auto-scroll to current rank
+        if (u?.rank) {
+          const idx = sortedRanks.findIndex(rank => rank.id === u.rank?.id);
+          if (idx !== -1) {
+            const scrollPos = (sortedRanks.length - 1 - idx) * ISLAND_HEIGHT;
+            setTimeout(() => {
+              scrollRef.current?.scrollTo({ y: scrollPos, animated: true });
+            }, 600);
+          }
         }
       } finally {
-        if (mounted) {
-          setLoadingRanks(false);
-          setLoadingUserRank(false);
-        }
+        setLoading(false);
       }
     };
     load();
-    return () => { mounted = false; };
   }, [user?.id]);
 
-  const currentRankId = rankInfo?.rank?.id ?? null;
-  const currentIndex = useMemo(() => {
-    const idx = ranks.findIndex(r => r.id === currentRankId);
-    return idx < 0 ? Number.MAX_SAFE_INTEGER : idx;
-  }, [ranks, currentRankId]);
+  const currentRankIndex = useMemo(() => {
+    if (!rankInfo?.rank?.id) return 0;
+    return ranks.findIndex(r => r.id === rankInfo.rank?.id);
+  }, [ranks, rankInfo]);
 
-  const rankColor = useMemo(() => {
-    return rankInfo?.rank?.color || '#A855F7';
-  }, [rankInfo?.rank?.color]);
+  const renderPath = (index: number) => {
+    if (index >= ranks.length - 1) return null;
+    const isStartRight = index % 2 !== 0;
+    const startX = isStartRight ? width * 0.7 : width * 0.3;
+    const startY = (ranks.length - 1 - index) * ISLAND_HEIGHT + MAP_PADDING + 30;
+    const endX = isStartRight ? width * 0.3 : width * 0.7;
+    const endY = (ranks.length - 1 - (index + 1)) * ISLAND_HEIGHT + MAP_PADDING + 30;
+    
+    const midY = (startY + endY) / 2;
+    const cp1x = startX;
+    const cp1y = midY;
+    const cp2x = endX;
+    const cp2y = midY;
+
+    const nextRank = ranks[index + 1];
+    const biomeKey = nextRank.name.trim() as keyof typeof BIOMES;
+    const biome = BIOMES[biomeKey] || BIOMES.Bronce;
+    const isPathUnlocked = index < currentRankIndex;
+    const isPathCurrent = index === currentRankIndex;
+
+    // Calculate progress on current segment
+    let segmentProgress = 0;
+    if (isPathCurrent) {
+      const lower = ranks[index].min_points;
+      const upper = ranks[index + 1].min_points;
+      const current = rankInfo?.points ?? 0;
+      segmentProgress = Math.max(0, Math.min(1, (current - lower) / (upper - lower)));
+    }
+
+    // Path string
+    const d = `M ${startX} ${startY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${endX} ${endY}`;
+
+    return (
+      <G key={`path-group-${index}`}>
+        {/* Background (Empty Path) */}
+        <Path
+          d={d}
+          stroke="rgba(255,255,255,0.05)"
+          strokeWidth={8}
+          fill="none"
+        />
+        
+        {/* Glow Path (Filled) */}
+        {(isPathUnlocked || isPathCurrent) && (
+          <Path
+            d={d}
+            stroke={biome.glow}
+            strokeWidth={12}
+            strokeOpacity={0.2}
+            fill="none"
+            strokeDasharray="1000" // Big enough
+            strokeDashoffset={isPathUnlocked ? 0 : 1000 * (1 - segmentProgress)}
+          />
+        )}
+
+        {/* Core Path (Filled) */}
+        {(isPathUnlocked || isPathCurrent) && (
+          <Path
+            d={d}
+            stroke={biome.pathColor}
+            strokeWidth={4}
+            fill="none"
+            strokeDasharray="1000"
+            strokeDashoffset={isPathUnlocked ? 0 : 1000 * (1 - segmentProgress)}
+          />
+        )}
+
+        {/* Player Marker on Current Path */}
+        {isPathCurrent && segmentProgress > 0 && segmentProgress < 1 && (
+          <G transform={`translate(${(startX + endX) / 2 - 30}, ${(startY + endY) / 2 - 40})`}>
+            {/* Simple approximation of position for now */}
+            <Circle cx="30" cy="30" r="18" fill={biome.glow} opacity="0.4" />
+            <Circle cx="30" cy="30" r="14" fill="#fff" />
+            <SvgText
+              x="30"
+              y="10"
+              fontSize="12"
+              fontWeight="900"
+              fill="#fff"
+              textAnchor="middle"
+              fontFamily="Digitalt"
+            >
+              TÚ
+            </SvgText>
+          </G>
+        )}
+      </G>
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={[rankColor, '#8A56FE']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={['#312e81', '#5b21b6', '#a855f7']} style={StyleSheet.absoluteFill} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.05)' }]} />
       <AnimatedMathBackground />
-      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right', 'bottom']}>
+      
+      <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.header}>
           <View>
-            <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>CAMINO</Text>
-            <Text style={[styles.subtitle, { fontFamily: 'Gilroy-Black' }]}>DE RANGO</Text>
+            <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>MAPA DE</Text>
+            <Text style={[styles.subtitle, { fontFamily: 'Gilroy-Black' }]}>PROGRESO</Text>
           </View>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, left: 10, right: 10, bottom: 10 }}>
-            <View style={styles.closeButton}>
-              <X size={20} color="#FFFFFF" weight="bold" />
-            </View>
+          <TouchableOpacity onPress={() => router.back()} style={styles.closeButton}>
+            <X size={20} color="#FFFFFF" weight="bold" />
           </TouchableOpacity>
         </View>
-        <View style={styles.currentStatsBanner}>
-          <View style={styles.statInfo}>
-            <Text style={[styles.statLabel, { fontFamily: 'Gilroy-Black' }]}>PUNTOS ACTUALES</Text>
-            <Text style={[styles.statValue, { fontFamily: 'Digitalt' }]}>{rankInfo?.points ?? 0} PTS</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statInfo}>
-            <Text style={[styles.statLabel, { fontFamily: 'Gilroy-Black' }]}>RANGO ACTUAL</Text>
-            <Text style={[styles.statValue, { fontFamily: 'Digitalt', color: rankColor }]}>
-              {rankInfo?.rank?.name.toUpperCase() ?? 'SIN RANGO'}
-            </Text>
-          </View>
-        </View>
 
-        <View style={styles.listWrap}>
-          <FlatList
-            data={ranks}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item, index }) => {
-              const isCurrent = item.id === currentRankId;
-              const isHigher = index > currentIndex;
-              
-              const frameReward = frames.find(f => f.nombre.toLowerCase().includes(item.name.toLowerCase()));
-              const isFirst = index === 0; // Bronce (Top)
-              const isLast = index === ranks.length - 1; // Maestro (Bottom)
-              const currentPoints = rankInfo?.points ?? 0;
+        <ScrollView 
+          ref={scrollRef}
+          contentContainerStyle={{ height: ranks.length * ISLAND_HEIGHT + 200 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* SVG Layer for Connections */}
+          <Svg style={StyleSheet.absoluteFill}>
+            {ranks.map((_, i) => renderPath(i))}
+          </Svg>
 
-              // Lógica de llenado de línea: El progreso ocurre de ARRIBA hacia ABAJO
-              let segmentProgress = 0;
-              if (!isLast) {
-                const lowerBound = item.min_points;
-                const upperBound = ranks[index + 1].min_points;
-                segmentProgress = Math.max(0, Math.min(1, (currentPoints - lowerBound) / (upperBound - lowerBound)));
-              }
+          {/* Islands Layer */}
+          {ranks.map((rank, index) => {
+            const frameReward = frames.find(f => f.nombre.toLowerCase().includes(rank.name.toLowerCase()));
+            return (
+              <FloatingIsland 
+                key={rank.id}
+                rank={rank}
+                index={index}
+                totalRanks={ranks.length}
+                isCurrent={rank.id === rankInfo?.rank?.id}
+                isUnlocked={index <= currentRankIndex}
+                rewardFrame={frameReward}
+              />
+            );
+          })}
+        </ScrollView>
 
-              return (
-                <View style={styles.rankItemWrapper}>
-                  {/* Tarjeta de Rango (Ocupa todo el ancho) */}
-                  <View style={styles.cardColumn}>
-                    <View style={[
-                      styles.rankCardOuter, 
-                      isCurrent && { borderColor: item.color || '#fff', borderWidth: 2 }
-                    ]}>
-                      <LinearGradient
-                        colors={isHigher ? ['rgba(0,0,0,0.4)', 'rgba(0,0,0,0.6)'] : ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
-                        style={[styles.rankCard, isHigher && styles.lockedCard]}
-                      >
-                        <View style={styles.rankMainInfo}>
-                          <View style={[styles.iconBadge, { backgroundColor: isHigher ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.1)' }]}>
-                            {item.icon_url ? (
-                              <ExpoImage source={{ uri: item.icon_url }} style={styles.rankIcon} contentFit="contain" />
-                            ) : (
-                              <FontAwesome5 name="medal" size={24} color={isHigher ? '#64748B' : '#fff'} />
-                            )}
-                          </View>
-                          <View style={styles.rankTextCol}>
-                            <Text style={[styles.rankName, { fontFamily: 'Digitalt', color: isHigher ? '#94A3B8' : '#fff' }]}>
-                              {item.name.toUpperCase()}
-                            </Text>
-                            <View style={styles.pointsRow}>
-                              <FontAwesome5 name="star" size={10} color={isHigher ? '#64748B' : '#FFD616'} solid />
-                              <Text style={[styles.rankRange, { fontFamily: 'Gilroy-Black', color: isHigher ? '#64748B' : 'rgba(255,255,255,0.7)' }]}>
-                                {item.min_points} - {item.max_points} pts
-                              </Text>
-                            </View>
-                            
-                            {isCurrent && rankInfo && (
-                              <View style={styles.progressContainer}>
-                                <View style={styles.progressBarBg}>
-                                  <View style={[styles.progressBarFill, { width: `${rankInfo.progressPercent * 100}%`, backgroundColor: item.color || '#fff' }]}>
-                                    <View style={styles.progressTip} />
-                                  </View>
-                                </View>
-                                <Text style={[styles.progressText, { fontFamily: 'Gilroy-Black' }]}>
-                                  {Math.round(rankInfo.progressPercent * 100)}% AL SIGUIENTE
-                                </Text>
-                              </View>
-                            )}
-                          </View>
-                        </View>
-
-                        <View style={styles.rewardContainer}>
-                          <Text style={[styles.rewardLabel, { fontFamily: 'Gilroy-Black' }]}>RECOMPENSA</Text>
-                          {frameReward ? (
-                            <View style={styles.framePreviewContainer}>
-                              <ExpoImage 
-                                source={{ uri: (frameReward.imagen_tienda || frameReward.imagen) ?? undefined }} 
-                                style={[styles.framePreview, isHigher && styles.lockedFrame]}
-                                contentFit="contain"
-                              />
-                              {isHigher && (
-                                <View style={styles.lockOverlay}>
-                                  <FontAwesome5 name="lock" size={14} color="#fff" />
-                                </View>
-                              )}
-                            </View>
-                          ) : (
-                            <View style={styles.noRewardPlaceholder}>
-                              <FontAwesome5 name="gift" size={18} color="rgba(255,255,255,0.2)" />
-                            </View>
-                          )}
-                        </View>
-
-                        {isCurrent && (
-                          <View style={styles.activeIndicator}>
-                            <FontAwesome5 name="check-circle" size={20} color="#22C55E" solid />
-                          </View>
-                        )}
-                      </LinearGradient>
-                    </View>
-                    <View style={styles.cardSpacer} />
-                  </View>
-                </View>
-              );
-            }}
-          />
+        {/* Points Banner Bottom */}
+        <View style={styles.footerStats}>
+          <Text style={[styles.footerPoints, { fontFamily: 'Digitalt' }]}>{rankInfo?.points || 0} PTS</Text>
+          <Text style={[styles.footerRank, { fontFamily: 'Gilroy-Black' }]}>
+            TU RANGO: {rankInfo?.rank?.name.toUpperCase() || 'BRONCE'}
+          </Text>
         </View>
       </SafeAreaView>
     </View>
@@ -204,7 +350,7 @@ export default function RankModal() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1E1B4B' },
+  container: { flex: 1, backgroundColor: '#0c0a09' },
   safe: { flex: 1 },
   header: {
     flexDirection: 'row',
@@ -212,310 +358,192 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 24,
     paddingTop: 15,
-    paddingBottom: 10,
+    paddingBottom: 20,
+    zIndex: 10,
   },
-  title: {
-    color: '#FFFFFF',
-    fontSize: 32,
-    letterSpacing: 2,
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-    lineHeight: 34,
-  },
-  subtitle: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 16,
-    letterSpacing: 4,
-    marginTop: -4,
-  },
+  title: { color: '#fff', fontSize: 28, letterSpacing: 2 },
+  subtitle: { color: 'rgba(255,255,255,0.5)', fontSize: 14, letterSpacing: 4 },
   closeButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  currentStatsBanner: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    marginHorizontal: 24,
-    padding: 15,
-    borderRadius: 20,
-    marginTop: 10,
-    alignItems: 'center',
-  },
-  statInfo: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statDivider: {
-    width: 1,
-    height: 30,
     backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  statLabel: {
-    color: 'rgba(255,255,255,0.4)',
-    fontSize: 9,
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  statValue: {
-    color: '#fff',
-    fontSize: 18,
-    letterSpacing: 1,
-  },
-  listWrap: { 
-    flex: 1, 
-    marginTop: 20,
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    overflow: 'hidden',
-  },
-  listContent: { 
-    paddingHorizontal: 20,
-    paddingTop: 30,
-    paddingBottom: 60, 
-  },
-  rankItemWrapper: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    // Eliminamos el margin para que el path sea continuo
-  },
-  pathContainer: {
-    width: 40,
     alignItems: 'center',
-    marginRight: 15,
+    justifyContent: 'center',
   },
-  pathLineContainer: {
-    width: 8, // Un poco más grueso
-    flex: 1,
-    position: 'relative',
-    borderRadius: 0,
-  },
-  pathLineBackground: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  pathLineFill: {
+  islandWrapper: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#fff',
-  },
-  pathNode: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 140,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 4,
-    elevation: 4,
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
+    zIndex: 5,
   },
-  playerMarker: {
+  islandContainer: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  islandGlow: {
     position: 'absolute',
-    left: 8,
-    alignItems: 'center',
-    zIndex: 100,
-  },
-  playerMarkerBadge: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  playerAvatarTiny: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#fff',
-    backgroundColor: '#7C3AED',
-  },
-  playerInitialCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#7C3AED',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  playerInitialText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  playerLabelTag: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 4,
-    marginTop: -4,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-  },
-  playerLabelText: {
-    color: '#7C3AED',
-    fontSize: 7,
-    letterSpacing: 0.5,
-  },
-  playerMarkerArrow: {
-    display: 'none',
-  },
-  finalStarNode: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
-    elevation: 8,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  innerNode: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#fff',
-  },
-  rankCardOuter: {
-    borderRadius: 24,
-    overflow: 'hidden',
-  },
-  cardColumn: {
-    flex: 1,
-  },
-  cardSpacer: {
-    height: 20,
-  },
-  rankCard: {
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  lockedCard: {
-    opacity: 0.8,
-  },
-  rankMainInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  iconBadge: {
-    width: 50,
+    bottom: -15,
+    width: 130,
     height: 50,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: 65,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.9,
+    shadowRadius: 20,
+    elevation: 25,
+  },
+  rockBase: {
+    position: 'absolute',
+    bottom: 0,
+    width: 110,
+    height: 40,
+    backgroundColor: '#0f172a',
+    borderRadius: 55,
+    transform: [{ scaleY: 0.8 }],
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
   },
-  rankIcon: { width: 30, height: 30 },
-  rankTextCol: { flex: 1 },
-  rankName: { fontSize: 18, letterSpacing: 1, marginBottom: 2 },
-  pointsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  rankRange: { fontSize: 10 },
-  progressContainer: {
-    marginTop: 8,
-    width: '100%',
-  },
-  progressBarBg: {
-    height: 6,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 3,
-    marginBottom: 4,
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 3,
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  progressTip: {
-    position: 'absolute',
-    right: -4,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#fff',
-    elevation: 5,
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
+  islandBase: {
+    width: 120,
+    height: 60,
+    borderRadius: 30,
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  progressText: {
-    fontSize: 8,
-    color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 0.5,
-  },
-  rewardContainer: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  rewardLabel: {
-    fontSize: 8,
-    color: 'rgba(255,255,255,0.3)',
-    letterSpacing: 1,
-  },
-  framePreviewContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
+    borderColor: 'rgba(255,255,255,0.2)',
     overflow: 'hidden',
+    elevation: 10,
+    transform: [{ scaleY: 0.6 }],
   },
-  framePreview: {
-    width: '90%',
-    height: '90%',
+  islandSurface: {
+    flex: 1,
   },
-  lockedFrame: {
-    opacity: 0.5,
+  lockedIsland: {
+    opacity: 0.4,
   },
-  lockOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  activeIndicator: {
+  rankBadge: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#0f172a',
+    borderWidth: 2,
     position: 'absolute',
-    top: 10,
-    right: 10,
-  },
-  noRewardPlaceholder: {
-    width: 50,
-    height: 50,
+    top: -45,
     alignItems: 'center',
     justifyContent: 'center',
+    elevation: 30,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+  },
+  rankBadgeBg: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 35,
+    opacity: 0.7,
+  },
+  rankBadgeIcon: {
+    width: 45,
+    height: 45,
+    zIndex: 2,
+  },
+  ornateCard: {
+    position: 'absolute',
+    top: -30,
+    width: 130,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)', 
+    borderRadius: 12,
+    borderWidth: 1.5,
+    padding: 10,
+    alignItems: 'center',
+    elevation: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.6,
+    shadowRadius: 12,
+  },
+  rewardBubble: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderWidth: 1.5,
+    borderColor: '#FFD700',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 50,
+    elevation: 20,
+  },
+  rewardFrameImg: {
+    width: 45,
+    height: 45,
+  },
+  rewardLabelSmall: {
+    position: 'absolute',
+    bottom: -8,
+    backgroundColor: '#FFD700',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    elevation: 5,
+  },
+  rewardTextSmall: {
+    color: '#000',
+    fontSize: 6,
+    fontWeight: 'bold',
+  },
+  ornateTitle: {
+    fontSize: 14,
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  ornatePoints: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  currentTag: {
+    marginTop: 6,
+    backgroundColor: '#fff',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  currentTabText: {
+    color: '#000',
+    fontSize: 7,
+    fontWeight: '900',
+  },
+  miniLockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 35,
+    zIndex: 20,
+  },
+  footerStats: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    padding: 20,
+    borderTopWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+  },
+  footerPoints: {
+    color: '#fff',
+    fontSize: 24,
+    letterSpacing: 2,
+  },
+  footerRank: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 12,
+    letterSpacing: 1,
+    marginTop: 4,
+  },
+  cardSpacer: {
+    height: 0,
   },
 });
 
