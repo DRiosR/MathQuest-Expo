@@ -16,15 +16,28 @@ import { useTutorial, TUTORIAL_STEPS } from '@/contexts/TutorialContext';
 import { usePathname } from 'expo-router';
 
 const { width, height } = Dimensions.get('window');
-const isSmallScreen = height < 750;
+const IS_SMALL_DEVICE = height < 750;
 
 export default function TutorialOverlay() {
-  const { isVisible, currentStepIndex, firstStepIndex, lastStepIndex, dynamicSpotlights, nextStep, skipTutorial } = useTutorial();
+  const { 
+    isVisible, 
+    currentStepIndex, 
+    firstStepIndex, 
+    lastStepIndex, 
+    dynamicSpotlights, 
+    nextStep, 
+    prevStep,
+    skipTutorial 
+  } = useTutorial();
 
   const pathname = usePathname();
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const contentFadeAnim = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const pulseRef = useRef<Animated.CompositeAnimation | null>(null);
+  const lastScreenRef = useRef<string | null>(null);
+  const lastStepIdRef = useRef<string | null>(null);
 
   const currentStep = TUTORIAL_STEPS[currentStepIndex];
   
@@ -48,28 +61,59 @@ export default function TutorialOverlay() {
     : (isStepMeasured ? dynamicSpotlights[currentStep.id] : currentStep.defaultSpotlight);
 
   useEffect(() => {
-    if (isVisible && shouldShowOnThisScreen) {
-      // If we need a measurement, wait for it before showing the card to avoid "flicker"
+    let timeout: any;
+
+    const showCard = () => {
+      // If we need a measurement but don't have it yet, wait a bit
       if (requiresMeasuredSpotlight && !isStepMeasured) {
-        fadeAnim.setValue(0);
+        timeout = setTimeout(showCard, 50);
         return;
       }
 
-      fadeAnim.setValue(0);
-      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+      const isNewScreen = lastScreenRef.current !== normalizedCurrent;
+      const isNewStep = lastStepIdRef.current !== currentStep.id;
 
-      Animated.loop(
+      if (isNewScreen) {
+        // Fade in the whole card
+        fadeAnim.setValue(0);
+        contentFadeAnim.setValue(1);
+        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+      } else if (isNewStep) {
+        // Smooth content transition on the same screen
         Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.08, duration: 600, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+          Animated.timing(contentFadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+          Animated.timing(contentFadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
+        ]).start();
+      }
+
+      lastScreenRef.current = normalizedCurrent;
+      lastStepIdRef.current = currentStep.id;
+
+      if (pulseRef.current) pulseRef.current.stop();
+      pulseRef.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.08, duration: 800, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
         ])
-      ).start();
+      );
+      pulseRef.current.start();
+    };
+
+    const hideCard = () => {
+      Animated.timing(fadeAnim, { toValue: 0, duration: 300, useNativeDriver: true }).start();
+      lastScreenRef.current = null;
+      lastStepIdRef.current = null;
+    };
+
+    if (isVisible && shouldShowOnThisScreen) {
+      showCard();
+    } else {
+      hideCard();
+      if (pulseRef.current) pulseRef.current.stop();
     }
-  }, [currentStepIndex, isVisible, shouldShowOnThisScreen, isStepMeasured]);
+  }, [isVisible, currentStepIndex, shouldShowOnThisScreen, isStepMeasured]);
 
   if (!isVisible || !shouldShowOnThisScreen) return null;
-
-  const spotlight = dynamicSpotlights[currentStep.id] || currentStep.defaultSpotlight;
 
   // Progress calculation
   const totalStepsInSection = lastStepIndex - firstStepIndex + 1;
@@ -79,19 +123,63 @@ export default function TutorialOverlay() {
   const dots = Array.from({ length: totalStepsInSection });
 
   const getAreaStyle = () => {
-    switch (currentStep.area) {
-      case 'top': return { justifyContent: 'flex-start', paddingTop: isSmallScreen ? 30 : 60 };
-      case 'middle': return { justifyContent: 'center' };
-      case 'bottom': return { justifyContent: 'flex-end', paddingBottom: isSmallScreen ? 70 : 110 };
-      default: return { justifyContent: 'center' };
+    // If we have a spotlight, let's try to be smart about positioning
+    if (effectiveSpotlight) {
+      const spotlightCenterY = effectiveSpotlight.y + effectiveSpotlight.h / 2;
+      const threshold = height / 2;
+      
+      // If spotlight is in the bottom half, place card in the top half
+      if (spotlightCenterY > threshold) {
+        return { 
+          justifyContent: 'flex-start' as const, 
+          paddingTop: Math.max(IS_SMALL_DEVICE ? 40 : 60, effectiveSpotlight.y - 300 > 0 ? 60 : 40)
+        };
+      } else {
+        // If spotlight is in the top half, place card in the bottom half
+        return { 
+          justifyContent: 'flex-end' as const, 
+          paddingBottom: IS_SMALL_DEVICE ? 80 : 120 
+        };
+      }
     }
+
+    // Fallback to static area if no spotlight is measured yet
+    switch (currentStep.area) {
+      case 'top': return { justifyContent: 'flex-start' as const, paddingTop: IS_SMALL_DEVICE ? 50 : 90 };
+      case 'middle': return { justifyContent: 'center' as const };
+      case 'bottom': return { justifyContent: 'flex-end' as const, paddingBottom: IS_SMALL_DEVICE ? 100 : 140 };
+      default: return { justifyContent: 'center' as const };
+    }
+  };
+
+  const renderArrow = () => {
+    if (!effectiveSpotlight) return null;
+    
+    const spotlightCenterY = effectiveSpotlight.y + effectiveSpotlight.h / 2;
+    const threshold = height / 2;
+    const isSpotlightBelow = spotlightCenterY > threshold;
+
+    return (
+      <View style={[
+        styles.arrowContainer,
+        isSpotlightBelow ? styles.arrowBottom : styles.arrowTop
+      ]}>
+        <View style={[
+          styles.arrow, 
+          { 
+            borderBottomColor: 'rgba(30, 30, 45, 0.98)',
+            transform: [{ rotate: isSpotlightBelow ? '180deg' : '0deg' }]
+          }
+        ]} />
+      </View>
+    );
   };
 
   return (
     <Modal transparent visible={isVisible} animationType="none">
       <View style={styles.overlay}>
         {/* Spotlight Layer */}
-        {effectiveSpotlight && isStepMeasured && (
+        {effectiveSpotlight ? (
           <View style={StyleSheet.absoluteFill}>
             <View style={[styles.maskBase, { top: 0, left: 0, right: 0, height: effectiveSpotlight.y }]} />
             <View style={[styles.maskBase, { top: effectiveSpotlight.y + effectiveSpotlight.h, left: 0, right: 0, bottom: 0 }]} />
@@ -118,11 +206,11 @@ export default function TutorialOverlay() {
               ]} />
             </View>
           </View>
+        ) : (
+          <View style={styles.dimBg} />
         )}
-
-        {(!effectiveSpotlight || !isStepMeasured) && <View style={styles.dimBg} />}
         
-        <SafeAreaView style={[styles.contentContainer, getAreaStyle() as any]} pointerEvents="box-none">
+        <SafeAreaView style={[styles.contentContainer, getAreaStyle()]} pointerEvents="box-none">
           <Animated.View style={[
             styles.cardContainer, 
             { 
@@ -130,59 +218,75 @@ export default function TutorialOverlay() {
               transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] 
             }
           ]}>
+            {renderArrow()}
             <LinearGradient
-              colors={['rgba(30, 30, 45, 0.95)', 'rgba(15, 15, 25, 0.98)']}
+              colors={['rgba(30, 30, 45, 0.98)', 'rgba(10, 10, 20, 1)']}
               style={styles.cardGradient}
             >
-              {/* Decorative side accent */}
+              {/* Decorative side accent - Moved outside Animated.View for absolute edge positioning */}
               <View style={[styles.sideAccent, { backgroundColor: currentStep.color }]} />
 
-              <View style={styles.headerRow}>
-                <View style={[styles.iconBox, { backgroundColor: currentStep.color + '25' }]}>
-                  <FontAwesome5 name={currentStep.icon} size={20} color={currentStep.color} />
+              <Animated.View style={{ opacity: contentFadeAnim }}>
+                <View style={styles.headerRow}>
+                  <View style={[styles.iconBox, { backgroundColor: currentStep.color + '25' }]}>
+                    <FontAwesome5 name={currentStep.icon} size={IS_SMALL_DEVICE ? 16 : 20} color={currentStep.color} />
+                  </View>
+                  <Text style={[styles.title, { fontFamily: 'Digitalt' }]} numberOfLines={1}>{currentStep.title}</Text>
                 </View>
-                <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>{currentStep.title}</Text>
-              </View>
 
-              <Text style={[styles.description, { fontFamily: 'Gilroy-Black' }]}>
-                {currentStep.description}
-              </Text>
+                <Text style={[styles.description, { fontFamily: 'Gilroy-Black' }]}>
+                  {currentStep.description}
+                </Text>
 
-              {/* Progress Dot Indicator */}
-              <View style={styles.progressContainer}>
-                {dots.map((_, i) => {
-                  const isActive = currentStepInSection >= i;
-                  return (
-                    <View 
-                      key={i} 
-                      style={[
-                        styles.progressDot, 
-                        { 
-                          backgroundColor: isActive ? currentStep.color : 'rgba(255,255,255,0.1)',
-                          width: totalStepsInSection > 6 ? (width - 150) / totalStepsInSection : 24
-                        }
-                      ]} 
-                    />
-                  );
-                })}
-              </View>
+                {/* Progress Dot Indicator */}
+                <View style={styles.progressContainer}>
+                  {dots.map((_, i) => {
+                    const isActive = currentStepInSection >= i;
+                    return (
+                      <View 
+                        key={i} 
+                        style={[
+                          styles.progressDot, 
+                          { 
+                            backgroundColor: isActive ? currentStep.color : 'rgba(255,255,255,0.1)',
+                            width: totalStepsInSection > 8 ? (width - 120) / totalStepsInSection : 20
+                          }
+                        ]} 
+                      />
+                    );
+                  })}
+                </View>
+              </Animated.View>
 
               <View style={styles.footer}>
-                <TouchableOpacity onPress={skipTutorial} style={styles.skipBtn}>
+                <View style={styles.leftFooter}>
+                  {currentStepIndex > firstStepIndex && (
+                    <TouchableOpacity onPress={prevStep} style={styles.footerBtn} activeOpacity={0.7}>
+                      <FontAwesome5 name="chevron-left" size={12} color="rgba(255,255,255,0.7)" />
+                      <Text style={[styles.footerBtnText, { fontFamily: 'Digitalt' }]}>ATRÁS</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <TouchableOpacity onPress={skipTutorial} style={styles.skipBtn} activeOpacity={0.7}>
                   <Text style={[styles.skipText, { fontFamily: 'Digitalt' }]}>SALTAR</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={nextStep} style={styles.nextBtn}>
-                  <LinearGradient
-                    colors={[currentStep.color, currentStep.color]}
-                    style={styles.nextGradient}
-                  >
-                    <Text style={[styles.nextText, { fontFamily: 'Digitalt' }]}>
-                      {currentStepIndex >= lastStepIndex ? '¡ENTENDIDO!' : 'SIGUIENTE'}
-                    </Text>
-                    <FontAwesome5 name="chevron-right" size={14} color="#fff" />
-                  </LinearGradient>
-                </TouchableOpacity>
+                <View style={styles.rightFooter}>
+                  <TouchableOpacity onPress={nextStep} style={styles.nextBtn} activeOpacity={0.8}>
+                    <LinearGradient
+                      colors={[currentStep.color, currentStep.color + 'CC']}
+                      style={styles.nextGradient}
+                      start={{x: 0, y: 0}}
+                      end={{x: 1, y: 0}}
+                    >
+                      <Text style={[styles.nextText, { fontFamily: 'Digitalt' }]}>
+                        {currentStepIndex >= lastStepIndex ? '¡LISTO!' : 'SIGUIENTE'}
+                      </Text>
+                      {currentStepIndex < lastStepIndex && <FontAwesome5 name="chevron-right" size={12} color="#fff" />}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
               </View>
             </LinearGradient>
           </Animated.View>
@@ -199,11 +303,11 @@ const styles = StyleSheet.create({
   },
   dimBg: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    backgroundColor: 'rgba(0,0,0,0.88)',
   },
   maskBase: {
     position: 'absolute',
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    backgroundColor: 'rgba(0,0,0,0.88)',
   },
   hole: {
     position: 'absolute',
@@ -216,28 +320,52 @@ const styles = StyleSheet.create({
     left: -8,
     right: -8,
     bottom: -8,
-    borderWidth: 2.5,
+    borderWidth: 3,
     backgroundColor: 'transparent',
   },
   contentContainer: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     zIndex: 10002,
   },
   cardContainer: {
     width: '100%',
+    position: 'relative',
+  },
+  arrowContainer: {
+    position: 'absolute',
+    width: '100%',
+    alignItems: 'center',
+    zIndex: 10003,
+  },
+  arrowTop: {
+    top: -12,
+  },
+  arrowBottom: {
+    bottom: -12,
+  },
+  arrow: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 12,
+    borderRightWidth: 12,
+    borderBottomWidth: 12,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
   },
   cardGradient: {
-    borderRadius: isSmallScreen ? 20 : 28,
-    padding: isSmallScreen ? 16 : 24,
-    paddingLeft: isSmallScreen ? 20 : 30,
-    elevation: 20,
+    borderRadius: IS_SMALL_DEVICE ? 24 : 32,
+    padding: IS_SMALL_DEVICE ? 20 : 30,
+    paddingLeft: IS_SMALL_DEVICE ? 28 : 38,
+    elevation: 25,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 15 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    shadowOpacity: 0.7,
+    shadowRadius: 25,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.18)',
     position: 'relative',
     overflow: 'hidden',
   },
@@ -251,66 +379,90 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: isSmallScreen ? 8 : 16,
-    gap: isSmallScreen ? 8 : 12,
+    marginBottom: IS_SMALL_DEVICE ? 12 : 18,
+    gap: IS_SMALL_DEVICE ? 10 : 14,
   },
   iconBox: {
-    width: isSmallScreen ? 32 : 42,
-    height: isSmallScreen ? 32 : 42,
-    borderRadius: isSmallScreen ? 8 : 12,
+    width: IS_SMALL_DEVICE ? 36 : 48,
+    height: IS_SMALL_DEVICE ? 36 : 48,
+    borderRadius: IS_SMALL_DEVICE ? 10 : 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
   title: {
     color: '#fff',
-    fontSize: isSmallScreen ? 16 : 20,
+    fontSize: IS_SMALL_DEVICE ? 18 : 24,
     flex: 1,
-    letterSpacing: 0.5,
+    letterSpacing: 1.2,
   },
   description: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: isSmallScreen ? 13 : 15,
-    lineHeight: isSmallScreen ? 18 : 22,
-    marginBottom: isSmallScreen ? 12 : 20,
+    color: 'rgba(255,255,255,0.95)',
+    fontSize: IS_SMALL_DEVICE ? 14 : 17,
+    lineHeight: IS_SMALL_DEVICE ? 22 : 26,
+    marginBottom: IS_SMALL_DEVICE ? 18 : 26,
   },
   progressContainer: {
     flexDirection: 'row',
     gap: 6,
-    marginBottom: isSmallScreen ? 12 : 20,
+    marginBottom: IS_SMALL_DEVICE ? 20 : 30,
+    alignItems: 'center',
   },
   progressDot: {
-    height: 4,
-    width: 20,
-    borderRadius: 2,
+    height: 5,
+    borderRadius: 3,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  skipBtn: {
-    padding: 8,
-  },
-  skipText: {
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: isSmallScreen ? 11 : 13,
-    letterSpacing: 1,
-  },
-  nextBtn: {
-    borderRadius: isSmallScreen ? 12 : 16,
-    overflow: 'hidden',
-    elevation: 8,
-  },
-  nextGradient: {
-    paddingHorizontal: isSmallScreen ? 16 : 24,
-    paddingVertical: isSmallScreen ? 10 : 14,
+  leftFooter: {
+    width: 80,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: isSmallScreen ? 6 : 10,
+  },
+  rightFooter: {
+    width: IS_SMALL_DEVICE ? 110 : 130,
+    alignItems: 'flex-end',
+  },
+  footerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  footerBtnText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: IS_SMALL_DEVICE ? 11 : 13,
+    letterSpacing: 1,
+  },
+  skipBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  skipText: {
+    color: 'rgba(255,255,255,0.35)',
+    fontSize: IS_SMALL_DEVICE ? 11 : 13,
+    letterSpacing: 1.5,
+  },
+  nextBtn: {
+    borderRadius: IS_SMALL_DEVICE ? 14 : 18,
+    overflow: 'hidden',
+    elevation: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+  },
+  nextGradient: {
+    paddingHorizontal: IS_SMALL_DEVICE ? 14 : 20,
+    paddingVertical: IS_SMALL_DEVICE ? 10 : 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   nextText: {
     color: '#fff',
-    fontSize: isSmallScreen ? 13 : 15,
-    letterSpacing: 1,
+    fontSize: IS_SMALL_DEVICE ? 13 : 15,
+    letterSpacing: 1.5,
   },
 });

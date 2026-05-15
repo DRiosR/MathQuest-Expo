@@ -10,7 +10,7 @@ import {
   UserIcon,
   CheckCircle,
 } from 'phosphor-react-native';
-import React from 'react';
+import React, { useCallback } from 'react';
 import { FontAwesome5 } from '@expo/vector-icons';
 
 import {
@@ -42,43 +42,68 @@ export default function StoreScreen() {
   const { fontsLoaded } = useFontContext();
   const { avatar: userAvatar, updateAvatar } = useAvatar();
   const { items: allItems, isLoadingItems, coins, setCoins, refreshCoins } = useItemStore();
-  const { setDynamicSpotlight, startTutorial } = useTutorial();
+  const { isVisible: isTutorialVisible, setDynamicSpotlight, startTutorial, currentStepIndex } = useTutorial();
 
   const categoryRefs = React.useRef<Record<string, any>>({});
   const coinsRef = React.useRef<View>(null);
+  const itemsRef = React.useRef<View>(null);
   
-  const measureCategory = (key: string) => {
-    const ref = key === 'coins' ? coinsRef.current : categoryRefs.current[key];
+  const measureCategory = useCallback((key: string) => {
+    const ref = 
+      key === 'coins' ? coinsRef.current : 
+      key === 'items' ? itemsRef.current :
+      categoryRefs.current[key];
+
     if (ref) {
-      // Use measureInWindow for more reliable absolute coordinates
-      ref.measureInWindow((x: number, y: number, w: number, h: number) => {
-        if (w > 0 && h > 0) {
-          const id = key === 'coins' ? 'store_coins' : `store_${key}`;
-          setDynamicSpotlight(id, { x, y, w, h, radius: 24 });
-        } else {
-          // Retry once if measurement failed
-          setTimeout(() => {
-            ref.measureInWindow((rx: number, ry: number, rw: number, rh: number) => {
-              if (rw > 0) {
-                const id = key === 'coins' ? 'store_coins' : `store_${key}`;
-                setDynamicSpotlight(id, { x: rx, y: ry, w: rw, h: rh, radius: 24 });
-              }
-            });
-          }, 200);
-        }
-      });
+      const performMeasure = (retries = 5) => {
+        ref.measure((x: number, y: number, w: number, h: number, pageX: number, pageY: number) => {
+          if ((w === 0 || h === 0) && retries > 0) {
+            setTimeout(() => performMeasure(retries - 1), 200);
+            return;
+          }
+          if (w > 0 && h > 0) {
+            const id = 
+              key === 'coins' ? 'store_coins' : 
+              key === 'items' ? 'store_items' :
+              `store_${key}`;
+            
+            const radius = key === 'items' ? 32 : 24;
+            setDynamicSpotlight(id, { x: pageX, y: pageY, w, h, radius });
+          }
+        });
+      };
+      performMeasure();
     }
-  };
+  }, [setDynamicSpotlight]);
+
+  const measureAll = useCallback(() => {
+    ['skin', 'hair', 'eyes', 'mouth', 'clothes', 'coins', 'items'].forEach(key => measureCategory(key));
+  }, [measureCategory]);
 
   useFocusEffect(
     React.useCallback(() => {
       setPreviewAvatar(userAvatar);
-      const timer = setTimeout(() => {
-        ['skin', 'hair', 'eyes', 'mouth', 'clothes', 'coins'].forEach(key => measureCategory(key));
-      }, 1500);
+      const timer = setTimeout(measureAll, 1500);
       return () => clearTimeout(timer);
-    }, [userAvatar])
+    }, [userAvatar, measureAll])
   );
+
+  // Sincronizar mediciones con el cambio de paso del tutorial
+  React.useEffect(() => {
+    if (isTutorialVisible) {
+      const timer = setTimeout(measureAll, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [currentStepIndex, isTutorialVisible, measureAll]);
+
+  // RE-MEDIR cuando el tutorial se hace visible
+  React.useEffect(() => {
+    if (isTutorialVisible) {
+      const timer = setTimeout(measureAll, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [isTutorialVisible, measureAll]);
+
 
   const [previewAvatar, setPreviewAvatar] = React.useState<Avatar>(userAvatar);
   const [showMoneyCalc, setShowMoneyCalc] = React.useState<boolean>(false);
@@ -424,16 +449,28 @@ export default function StoreScreen() {
               <Text style={{ color: '#fff' }}>Cargando tienda…</Text>
             </View>
           ) : (
-            <FadeInView key={`${selectedCategory}-loaded`} from="bottom" delay={120} duration={450} style={{ flex: 1 }}>
-              <FlatList
-                data={items}
-                keyExtractor={(it) => it.id}
-                numColumns={3}
-                renderItem={renderItem}
-                columnWrapperStyle={{ justifyContent: 'flex-start' }}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.gridContent}
-              />
+            <FadeInView 
+              key={`${selectedCategory}-loaded`} 
+              from="bottom" 
+              delay={120} 
+              duration={450} 
+              style={{ flex: 1 }}
+            >
+              <View 
+                ref={itemsRef} 
+                onLayout={() => measureCategory('items')}
+                style={{ flex: 1 }}
+              >
+                <FlatList
+                  data={items}
+                  keyExtractor={(it) => it.id}
+                  numColumns={3}
+                  renderItem={renderItem}
+                  columnWrapperStyle={{ justifyContent: 'flex-start' }}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.gridContent}
+                />
+              </View>
             </FadeInView>
           )}
         </View>
@@ -787,6 +824,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 6,
+    zIndex: 50,
   },
   headerLeft: {
     flexDirection: 'row',

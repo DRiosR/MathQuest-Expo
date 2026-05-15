@@ -29,8 +29,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   // --- SECCIÓN 1: 1vs1 (Pestaña Play) ---
   {
     id: 'welcome',
-    title: '¡BIENVENIDO!',
-    description: 'Vamos a conocer las funciones clave de MathQuest para que domines el juego.',
+    title: '¡HOLA!',
+    description: 'Te enseñaremos lo básico para que puedas empezar a jugar y mejorar tus habilidades matemáticas.',
     icon: 'hand-paper',
     color: '#8A56FE',
     area: 'middle',
@@ -39,8 +39,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'play_tab',
-    title: 'PANTALLA DE 1vs1',
-    description: 'Este es el acceso principal. Púlsalo en cualquier momento para volver a la zona de duelos competitivos.',
+    title: 'DUELOS 1vs1',
+    description: 'Aquí encontrarás el acceso principal a los duelos competitivos contra otros jugadores.',
     icon: 'gamepad',
     color: '#FF3D3D',
     area: 'middle',
@@ -50,49 +50,49 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'competitive',
     title: 'MODO COMPETITIVO',
-    description: 'Entra aquí para buscar un oponente en tiempo real y demostrar tu agilidad mental.',
+    description: 'Busca un oponente en tiempo real y resuelve operaciones rápidamente para ganar puntos.',
     icon: 'fire',
     color: '#FF3D3D',
     area: 'top',
     targetScreen: '/(tabs)/play',
-    defaultSpotlight: { x: 20, y: height * 0.45, w: width - 40, h: 100, radius: 30 }
+    defaultSpotlight: null
   },
   {
     id: 'my_rank',
-    title: 'SISTEMA DE LIGAS',
-    description: 'Toca tu medalla para conocer todas las divisiones y ver cuánto te falta para subir de nivel.',
+    title: 'TU LIGA',
+    description: 'Consulta tu división actual y los puntos que necesitas para subir al siguiente nivel.',
     icon: 'medal',
     color: '#FFD45E',
     area: 'bottom',
     targetScreen: '/(tabs)/play',
-    defaultSpotlight: { x: 20, y: 150, w: 220, h: 60, radius: 25 }
+    defaultSpotlight: null
   },
   {
     id: 'global_ranking',
-    title: 'TABLA DE POSICIONES',
-    description: 'Presiona la sección de Ranking para ver el Top 100 mundial y comparar tus puntos ELO.',
+    title: 'RANKING GLOBAL',
+    description: 'Mira quiénes son los mejores jugadores del mundo y compara tu posición en la tabla.',
     icon: 'trophy',
     color: '#FFD61E',
     area: 'top',
     targetScreen: '/(tabs)/play',
-    defaultSpotlight: { x: width - 140, y: height - 100, w: 120, h: 50, radius: 25 }
+    defaultSpotlight: null
   },
   {
     id: 'how_to_play',
-    title: 'REGLAS Y MECÁNICAS',
-    description: 'Si tienes dudas, consulta este apartado para aprender cómo funcionan las rondas.',
+    title: 'CÓMO JUGAR',
+    description: 'Si tienes dudas sobre las reglas o mecánicas de los duelos, consulta esta sección.',
     icon: 'question-circle',
     color: '#AD1DEB',
     area: 'top',
     targetScreen: '/(tabs)/play',
-    defaultSpotlight: { x: 20, y: height * 0.45 + 120, w: width - 40, h: 50, radius: 15 }
+    defaultSpotlight: null
   },
 
   // --- SECCIÓN 2: MODO INFINITO (Pestaña Extras) ---
   {
     id: 'extras',
-    title: 'CENTRO DE ENTRENAMIENTO',
-    description: '¡Aquí es donde se forjan los campeones! Entra para pulir tus habilidades antes del próximo gran duelo.',
+    title: 'ENTRENAMIENTO',
+    description: 'Practica sin presión para mejorar tu velocidad antes de entrar a un duelo real.',
     icon: 'dumbbell',
     color: '#31C45A',
     area: 'middle',
@@ -101,18 +101,18 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'infinite_operation',
-    title: '¿CUÁL ES TU ESPECIALIDAD?',
-    description: 'Cada operación tiene su propio maestro. Elige Suma, Resta, Multiplicación o División para empezar a practicar.',
+    title: 'OPERACIÓN',
+    description: 'Elige el tipo de operación que quieres practicar: suma, resta, multiplicación o división.',
     icon: 'magic',
     color: '#8A56FE',
     area: 'bottom', 
     targetScreen: '/(tabs)/extras',
-    defaultSpotlight: null // Remove default to prevent flicker
+    defaultSpotlight: null
   },
   {
     id: 'infinite_time',
-    title: '¡CONTRA EL RELOJ!',
-    description: 'Tú decides cuánto dura el desafío. Recuerda: ¡cada segundo cuenta y solo tienes 3 vidas!',
+    title: 'TIEMPO',
+    description: 'Selecciona la duración de tu sesión de práctica. Tienes 3 vidas por cada intento.',
     icon: 'hourglass-start',
     color: '#FFD45E',
     area: 'top',
@@ -121,8 +121,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'infinite_difficulty',
-    title: 'ELIGE TU RANGO',
-    description: '¿Eres Principiante (números del 1-12) o un Experto (números de dos dígitos)? ¡Pruébate a ti mismo!',
+    title: 'DIFICULTAD',
+    description: 'Elige entre nivel Principiante o Experto para ajustar el rango de los números.',
     icon: 'medal',
     color: '#F97316',
     area: 'top',
@@ -131,11 +131,11 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'infinite_start',
-    title: '¡A LA ACCIÓN!',
-    description: 'Cuando estés listo, pulsa "¡A JUGAR!" y demuestra que eres el más rápido de MathQuest.',
+    title: 'INICIAR',
+    description: 'Cuando estés listo, presiona el botón para empezar tu práctica.',
     icon: 'rocket',
     color: '#22C55E',
-    area: 'top', // Moved to top since the button is at the very bottom
+    area: 'top', 
     targetScreen: '/(tabs)/extras',
     defaultSpotlight: null
   },
@@ -143,8 +143,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   // --- SECCIÓN 3: TIENDA (Pestaña Store) ---
   {
     id: 'store',
-    title: 'TIENDA DE OBJETOS',
-    description: 'Visita la tienda para canjear tus monedas por nuevos avatares y efectos exclusivos.',
+    title: 'TIENDA',
+    description: 'Usa las monedas que ganes en tus partidas para personalizar tu avatar.',
     icon: 'shopping-cart',
     color: '#FFD45E',
     area: 'middle',
@@ -153,70 +153,80 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'store_coins',
-    title: 'TUS MONEDAS',
-    description: 'Aquí puedes ver tu saldo actual de MathCoins. ¡Gana partidas para conseguir más!',
+    title: 'MONEDAS',
+    description: 'Aquí aparece tu saldo actual. Ganarás monedas al completar partidas y desafíos.',
     icon: 'coins',
     color: '#FFD45E',
-    area: 'bottom',
+    area: 'bottom', // Coins are top, card should be bottom
     targetScreen: '/(tabs)/store',
-    defaultSpotlight: { x: width - 100, y: 50, w: 80, h: 40, radius: 20 }
+    defaultSpotlight: null
   },
   {
     id: 'store_skin',
     title: 'COLOR DE PIEL',
-    description: 'Toca este icono para elegir entre diferentes tonos y colores de piel para tu avatar.',
+    description: 'Cambia el tono de piel de tu avatar seleccionando entre las opciones disponibles.',
     icon: 'user',
     color: '#EBDDFF',
-    area: 'bottom',
+    area: 'top', // Categories are bottom, card should be top
     targetScreen: '/(tabs)/store',
-    defaultSpotlight: { x: 20, y: 350, w: 50, h: 50, radius: 25 }
+    defaultSpotlight: null
   },
   {
     id: 'store_hair',
-    title: 'CORTES DE PELO',
-    description: 'Aquí puedes probarte diferentes peinados y estilos de cabello.',
+    title: 'CABELLO',
+    description: 'Personaliza el estilo y color de cabello de tu personaje.',
     icon: 'cut',
     color: '#EBDDFF',
-    area: 'bottom',
+    area: 'top',
     targetScreen: '/(tabs)/store',
-    defaultSpotlight: { x: 80, y: 350, w: 50, h: 50, radius: 25 }
+    defaultSpotlight: null
   },
   {
     id: 'store_eyes',
-    title: 'ESTILO DE OJOS',
-    description: 'Cambia la mirada de tu personaje seleccionando diferentes tipos de ojos.',
+    title: 'OJOS',
+    description: 'Cambia la forma y el color de los ojos para darle más personalidad a tu avatar.',
     icon: 'eye',
     color: '#EBDDFF',
-    area: 'bottom',
+    area: 'top',
     targetScreen: '/(tabs)/store',
-    defaultSpotlight: { x: 140, y: 350, w: 50, h: 50, radius: 25 }
+    defaultSpotlight: null
   },
   {
     id: 'store_mouth',
-    title: 'EXPRESIÓN DE BOCA',
-    description: 'Personaliza la sonrisa o la expresión facial de tu avatar desde aquí.',
+    title: 'EXPRESIÓN',
+    description: 'Elige diferentes expresiones faciales para tu personaje.',
     icon: 'smile',
     color: '#EBDDFF',
-    area: 'bottom',
+    area: 'top',
     targetScreen: '/(tabs)/store',
-    defaultSpotlight: { x: 200, y: 350, w: 50, h: 50, radius: 25 }
+    defaultSpotlight: null
   },
   {
     id: 'store_clothes',
-    title: 'ROPA Y CAMISAS',
-    description: '¡Viste a tu avatar con las mejores camisas y atuendos de la tienda!',
+    title: 'VESTIMENTA',
+    description: 'Equipa a tu avatar con diferentes camisas y accesorios de la tienda.',
     icon: 'tshirt',
     color: '#EBDDFF',
-    area: 'bottom',
+    area: 'top',
     targetScreen: '/(tabs)/store',
-    defaultSpotlight: { x: 260, y: 350, w: 50, h: 50, radius: 25 }
+    defaultSpotlight: null
+  },
+  {
+    id: 'store_items',
+    title: 'COSMÉTICOS',
+    description: 'Aquí puedes ver los artículos disponibles. Toca uno para ver cómo le queda a tu avatar antes de comprarlo.',
+    icon: 'th',
+    color: '#EBDDFF',
+    area: 'top',
+    targetScreen: '/(tabs)/store',
+    defaultSpotlight: null
   },
 
   // --- SECCIÓN 4: PERFIL (Pestaña User) ---
   {
     id: 'profile',
-    title: 'GESTIÓN DE PERFIL',
-    description: 'Accede a tu cuenta para personalizar tu nombre y configurar tu identidad.',
+    title: 'TU PERFIL',
+    description: 'Aquí puedes ver tus estadísticas, racha y cambiar tu configuración personal.',
     icon: 'user-cog',
     color: '#FF46A5',
     area: 'middle',
@@ -225,28 +235,28 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'profile_settings',
-    title: 'CONFIGURACIÓN',
-    description: 'En este menú podrás cambiar tu nombre de usuario y actualizar tu contraseña de forma segura.',
+    title: 'AJUSTES',
+    description: 'Cambia tu nombre de usuario o actualiza tu contraseña desde este menú.',
     icon: 'cog',
     color: '#A855F7',
     area: 'bottom',
     targetScreen: '/(tabs)/user',
-    defaultSpotlight: { x: width - 60, y: 30, w: 50, h: 50, radius: 25 }
+    defaultSpotlight: null
   },
   {
     id: 'profile_avatar',
-    title: 'TU AVATAR',
-    description: 'Toca tu foto de perfil para volver a la pantalla de edición y cambiar tu look cuando quieras.',
+    title: 'PERSONALIZAR',
+    description: 'Toca tu foto para volver a la tienda y cambiar el aspecto de tu avatar.',
     icon: 'user-circle',
     color: '#A855F7',
     area: 'bottom',
     targetScreen: '/(tabs)/user',
-    defaultSpotlight: { x: width / 2 - 60, y: 150, w: 120, h: 120, radius: 60 }
+    defaultSpotlight: null
   },
   {
     id: 'profile_streak',
     title: 'RACHA DIARIA',
-    description: '¡Mantén vivo el fuego! Al jugar una partida se activa tu racha. Tienes que jugar a diario para mantenerla y que no se apague.',
+    description: 'Lleva la cuenta de cuántos días seguidos has practicado matemáticas.',
     icon: 'fire',
     color: '#FF9500',
     area: 'bottom',
@@ -255,13 +265,13 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'profile_matches',
-    title: 'PARTIDAS RECIENTES',
-    description: 'Consulta aquí el historial de tus últimos duelos, tus victorias y tus derrotas contra otros jugadores.',
+    title: 'HISTORIAL',
+    description: 'Revisa los resultados de tus partidas más recientes y tu progreso.',
     icon: 'history',
     color: '#A855F7',
     area: 'top',
     targetScreen: '/(tabs)/user',
-    defaultSpotlight: { x: 20, y: 400, w: width - 40, h: 100, radius: 20 }
+    defaultSpotlight: null
   }
 ];
 
@@ -276,6 +286,7 @@ interface TutorialContextType {
   setDynamicSpotlight: (id: string, pos: SpotlightPos) => void;
   startTutorial: (section?: TutorialSection) => void;
   nextStep: () => void;
+  prevStep: () => void;
   skipTutorial: () => void;
 }
 
@@ -376,6 +387,23 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const prevStep = () => {
+    if (currentStepIndex > firstStepIndex && currentStepIndex > 0) {
+      const prevIndex = currentStepIndex - 1;
+      const currentStepData = TUTORIAL_STEPS[currentStepIndex];
+      const prevStepData = TUTORIAL_STEPS[prevIndex];
+
+      if (prevStepData && prevStepData.targetScreen !== currentStepData.targetScreen) {
+        router.push(prevStepData.targetScreen as any);
+        setTimeout(() => {
+          setCurrentStepIndex(prevIndex);
+        }, 800);
+      } else {
+        setCurrentStepIndex(prevIndex);
+      }
+    }
+  };
+
   const skipTutorial = () => {
     finish();
   };
@@ -398,6 +426,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
       setDynamicSpotlight,
       startTutorial, 
       nextStep, 
+      prevStep,
       skipTutorial 
     }}>
       {children}

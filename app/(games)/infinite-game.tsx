@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import LottieView from 'lottie-react-native';
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import {
   Animated,
   Dimensions,
@@ -298,14 +298,10 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
     selectionScrollRef.current.scrollTo({ y: nextY, animated: true });
   };
 
-  // When a tutorial step is on the selection screen, measure the highlighted control.
-  useEffect(() => {
-    if (!isVisible || gameMode) return;
-
+  const measureAll = useCallback(() => {
     const stepId = TUTORIAL_STEPS?.[currentStepIndex]?.id as string | undefined;
     if (!stepId) return;
 
-    // Only for steps in the infinite-mode setup
     if (
       stepId !== 'infinite_operation' &&
       stepId !== 'infinite_time' &&
@@ -313,21 +309,34 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
       stepId !== 'infinite_start'
     ) return;
 
-    // Wait a tick so layouts settle, then measure.
-    const t = setTimeout(() => {
-      const ref = getSectionRef(stepId);
-      if (!ref) return;
+    const ref = getSectionRef(stepId);
+    if (!ref) return;
 
-      const pad = stepId === 'infinite_start' ? 14 : 12;
-      const rad =
-        stepId === 'infinite_operation' ? 24 :
-        stepId === 'infinite_start' ? 30 :
-        20;
+    const pad = stepId === 'infinite_start' ? 14 : 12;
+    const rad =
+      stepId === 'infinite_operation' ? 24 :
+      stepId === 'infinite_start' ? 30 :
+      20;
 
-      measureRef(stepId, ref, rad, pad);
-    }, 150); // Minimal delay for settled layout
+    measureRef(stepId, ref, rad, pad);
+    ensureSectionVisible(stepId);
+  }, [currentStepIndex, isVisible]);
+
+  // When a tutorial step is on the selection screen, measure the highlighted control.
+  useEffect(() => {
+    if (!isVisible || gameMode) return;
+    const t = setTimeout(measureAll, 200);
     return () => clearTimeout(t);
-  }, [isVisible, currentStepIndex, gameMode]);
+  }, [isVisible, currentStepIndex, gameMode, measureAll]);
+
+  // Re-measure on tutorial visibility change
+  useEffect(() => {
+    if (isVisible) {
+      const t = setTimeout(measureAll, 600);
+      return () => clearTimeout(t);
+    }
+  }, [isVisible, measureAll]);
+
 
   useEffect(() => {
     return () => {
