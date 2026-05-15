@@ -105,7 +105,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     description: 'Primero selecciona qué tipo de ejercicios quieres practicar: sumas, restas, multiplicación, división o “todo en uno”.',
     icon: 'calculator',
     color: '#FF6B9D',
-    area: 'bottom',
+    area: 'top', // Changed to top as header is smaller now
     targetScreen: '/(tabs)/extras',
     defaultSpotlight: { x: 20, y: 180, w: width - 40, h: 190, radius: 24 }
   },
@@ -135,7 +135,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     description: 'Cuando tengas todo listo, pulsa “EMPEZAR”. Recuerda: tienes 3 vidas y gana quien más acierte antes de que termine el tiempo.',
     icon: 'play',
     color: '#FF6B9D',
-    area: 'top',
+    area: 'middle', // Changed from top to middle/center for better positioning
     targetScreen: '/(tabs)/extras',
     defaultSpotlight: null
   },

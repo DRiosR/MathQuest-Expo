@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import LottieView from 'lottie-react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   Animated,
   Dimensions,
@@ -22,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AnimatedMathBackground from '@/components/ui/AnimatedMathBackground';
 import InfiniteGameModeButton from '@/components/ui/InfiniteGameModeButton';
+import { LayeredAvatar } from '@/components/LayeredAvatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAvatar } from '@/contexts/AvatarContext';
 import { useFontContext } from '@/contexts/FontsContext';
@@ -73,9 +74,8 @@ const TIMES = [
 ];
 
 const DIFFICULTIES = [
-  { id: 1, name: 'FÁCIL', colors: ['#4ade80', '#16a34a'] },
-  { id: 2, name: 'MEDIO', colors: ['#fbbf24', '#d97706'] },
-  { id: 3, name: 'DIFICIL', colors: ['#f87171', '#dc2626'] },
+  { id: 1, name: 'PRINCIPIANTE' },
+  { id: 2, name: 'EXPERTO' }
 ];
 
 type InfiniteGameProps = {
@@ -110,8 +110,8 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
 
   const { avatar: userAvatar } = useAvatar();
   const { user } = useAuth();
-  const { addHighScore, getTopScores, getTopScoresToday } = useOfflineStorage();
-  const { setDynamicSpotlight, isVisible, currentStepIndex } = useTutorial();
+  const { addHighScore, getTopScores, getTopScoresToday, highScores } = useOfflineStorage();
+  const { setDynamicSpotlight, isVisible, currentStepIndex, startTutorial } = useTutorial();
 
   // Tutorial spotlights (Modo Infinito)
   // Use section-level refs (title + controls) for stable, "fixed" spotlights.
@@ -159,6 +159,9 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
   const [isExiting, setIsExiting] = useState(false);
   const [gameOverStats, setGameOverStats] = useState({ score: 0, questionsAnswered: 0, accuracy: 0 });
 
+  const [newRankData, setNewRankData] = useState<{ name: string; icon: string | null; color: string } | null>(null);
+  const [unlockedFrameImage, setUnlockedFrameImage] = useState<string | null>(null);
+
   // Countdown state
   const [countdown, setCountdown] = useState(3);
   const [isCountingDown, setIsCountingDown] = useState(false);
@@ -169,6 +172,53 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const flashOpacity = useRef(new Animated.Value(0)).current;
+  const mascotPulse = useRef(new Animated.Value(1)).current;
+  const ringRotation = useRef(new Animated.Value(0)).current;
+
+  // Mascot Animations
+  useEffect(() => {
+    // Pulse
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(mascotPulse, { toValue: 1.15, duration: 2500, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
+        Animated.timing(mascotPulse, { toValue: 1, duration: 2500, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
+      ])
+    ).start();
+
+    // Rotation
+    Animated.loop(
+      Animated.timing(ringRotation, { toValue: 1, duration: 10000, useNativeDriver: true, easing: Easing.linear })
+    ).start();
+  }, []);
+
+  const spin = ringRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+  const spinRev = ringRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['360deg', '0deg'],
+  });
+
+  // Theme based on selection
+  const currentTheme = useMemo(() => {
+    const cat = CATEGORIES.find(c => c.id === selectedCategory);
+    return cat?.colors || ['#31C45A', '#8A56FE'];
+  }, [selectedCategory]);
+
+  const themeColor = useMemo(() => {
+    return currentTheme[0];
+  }, [currentTheme]);
+
+  const bestScore = useMemo(() => {
+    const relevant = highScores.filter((s: any) => 
+      s.category === selectedCategory && 
+      s.difficulty === selectedDifficulty &&
+      s.mode === selectedTime
+    );
+    if (relevant.length === 0) return 0;
+    return Math.max(...relevant.map((s: any) => s.score));
+  }, [highScores, selectedCategory, selectedDifficulty, selectedTime]);
 
   // Timer ref
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -248,11 +298,9 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
     selectionScrollRef.current.scrollTo({ y: nextY, animated: true });
   };
 
-  // When a tutorial step is on the selection screen, scroll *only if needed*
-  // so the highlighted control is visible. Minimal movement avoids "descuadre".
+  // When a tutorial step is on the selection screen, measure the highlighted control.
   useEffect(() => {
-    if (!isVisible) return;
-    if (gameMode) return; // only selection screen
+    if (!isVisible || gameMode) return;
 
     const stepId = TUTORIAL_STEPS?.[currentStepIndex]?.id as string | undefined;
     if (!stepId) return;
@@ -265,32 +313,21 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
       stepId !== 'infinite_start'
     ) return;
 
-    // Avoid repeated loops for same step.
-    if (lastEnsureKeyRef.current === stepId) return;
-    lastEnsureKeyRef.current = stepId;
-
-    // Wait a tick so layouts settle, then scroll (if needed), then measure once.
+    // Wait a tick so layouts settle, then measure.
     const t = setTimeout(() => {
-      if (stepId !== 'infinite_operation') {
-        ensureSectionVisible(stepId);
-      }
-
       const ref = getSectionRef(stepId);
       if (!ref) return;
 
-      const pad = stepId === 'infinite_start' ? 14 : 10;
+      const pad = stepId === 'infinite_start' ? 14 : 12;
       const rad =
-        stepId === 'infinite_operation' ? 26 :
+        stepId === 'infinite_operation' ? 24 :
         stepId === 'infinite_start' ? 30 :
-        22;
+        20;
 
-      // Measure after scroll animation has time to settle.
-      setTimeout(() => measureRef(stepId, ref, rad, pad), 420);
-    }, 60);
+      measureRef(stepId, ref, rad, pad);
+    }, 150); // Minimal delay for settled layout
     return () => clearTimeout(t);
-  }, [isVisible, currentStepIndex, gameMode, scrollViewportH, sectionLayout]);
-
-
+  }, [isVisible, currentStepIndex, gameMode]);
 
   useEffect(() => {
     return () => {
@@ -447,10 +484,7 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
     // Progressive difficulty logic
     let dynamicDiff = baseDiff;
     if (baseDiff === 1) {
-      if (score >= 20) dynamicDiff = 3;
-      else if (score >= 10) dynamicDiff = 2;
-    } else if (baseDiff === 2) {
-      if (score >= 10) dynamicDiff = 3;
+      if (score >= 20) dynamicDiff = 2;
     }
 
     setCurrentDifficulty(dynamicDiff);
@@ -660,171 +694,173 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
     return (
       <View style={styles.container}>
         <LinearGradient
-          colors={['#31C45A', '#8A56FE']}
+          colors={[themeColor, '#8A56FE']}
           style={styles.gradientBackground}
         />
         <AnimatedMathBackground />
 
-        <SafeAreaView style={styles.safeArea}>
-
-          
-
-          {/* Center title */}
-          <View style={styles.titleWrap}>
-            <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>DESAFÍO INFINITO</Text>
-            <Text style={[styles.subtitle, { fontFamily: 'Gilroy-Medium' }]}>
-              ¿Cuántas podrás resolver en {selectedTime ? selectedTime * 60 : 30} segundos?
-            </Text>
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
+          {/* 1. Top Section: Title & Mascot */}
+          <View style={styles.topSection}>
+            <View style={styles.titleInfo}>
+              <Text style={[styles.mainTitleSmall, { fontFamily: 'Digitalt' }]}>MODO INFINITO</Text>
+            </View>
+            
+            {/* Mascot Stage: Styled like Avatar Container */}
+            <View style={styles.headerMascot}>
+               {/* Background Glow */}
+               <Animated.View style={[
+                 styles.mascotGlowMini, 
+                 { 
+                   backgroundColor: themeColor,
+                   shadowColor: themeColor,
+                   transform: [{ scale: mascotPulse }],
+                   opacity: 0.15
+                 }
+               ]} />
+               
+               {/* Avatar-style circular container */}
+               <View style={[styles.avatarStyleContainer, { borderColor: themeColor + '60' }]}>
+                  <LinearGradient
+                    colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.05)']}
+                    style={styles.avatarStyleGradient}
+                  />
+               </View>
+               
+               {CATEGORIES.find(c => c.id === selectedCategory)?.lottie ? (
+                  <Animated.View style={{ transform: [{ scale: mascotPulse }], zIndex: 3 }}>
+                    <LottieView
+                      source={CATEGORIES.find(c => c.id === selectedCategory)?.lottie}
+                      autoPlay
+                      loop
+                      style={styles.miniMascot}
+                    />
+                  </Animated.View>
+               ) : CATEGORIES.find(c => c.id === selectedCategory)?.icon ? (
+                  <Animated.View style={{ transform: [{ scale: mascotPulse }], zIndex: 3 }}>
+                    <FontAwesome5 
+                      name={CATEGORIES.find(c => c.id === selectedCategory)?.icon} 
+                      size={32} 
+                      color="#fff" 
+                      style={{ textShadowColor: themeColor, textShadowRadius: 10 }}
+                    />
+                  </Animated.View>
+               ) : null}
+            </View>
           </View>
 
-          {/* Leaderboard Button 
-          <TouchableOpacity
-            style={styles.leaderboardButton}
-            onPress={() => {
-              console.log('Leaderboard button pressed');
-              router.push('/(games)/leaderboard');
-            }}
-          >
-            <FontAwesome5 name="trophy" size={20} color="#fff" />
-            <Text style={[styles.leaderboardButtonText, { fontFamily: 'Digitalt' }]}>
-              TABLA DE CLASIFICACIÓN
-            </Text>
-          </TouchableOpacity>
-          */}
-          {/* Selection UI */}
-          <ScrollView 
-            ref={selectionScrollRef}
-            onLayout={(e) => {
-              setScrollViewportH(e.nativeEvent.layout.height);
-            }}
-            onScroll={(e) => {
-              scrollOffsetYRef.current = e.nativeEvent.contentOffset.y;
-            }}
-            scrollEventThrottle={16}
-            style={styles.selectionScrollView}
-            contentContainerStyle={styles.selectionContent}
-            showsVerticalScrollIndicator={false}
-          >
-            <View
-              ref={operationSectionRef}
-              onLayout={() => setTimeout(() => measureRef('infinite_operation', operationSectionRef, 26, 10), 250)}
-            >
-              <Text style={[styles.selectionTitle, { fontFamily: 'Digitalt' }]}>1. ELIGE TU OPERACIÓN</Text>
-              <View style={styles.categoryGrid}>
-                {CATEGORIES.map((cat) => (
-                  <TouchableOpacity
-                    key={cat.id}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSelectedCategory(cat.id);
-                    }}
-                    style={styles.categoryCardWrapper}
-                  >
-                    <View style={[
-                      styles.categoryCard,
-                      selectedCategory === cat.id && { borderColor: cat.colors[0], backgroundColor: 'rgba(255,255,255,0.15)' }
-                    ]}>
-                      <View style={styles.mascotContainer}>
-                        {cat.lottie ? (
-                          <LottieView
-                            source={cat.lottie}
-                            autoPlay
-                            loop
-                            style={styles.categoryMascot}
-                          />
-                        ) : (
-                          <FontAwesome5 name={cat.icon} size={30 * scaleFactor} color={selectedCategory === cat.id ? "#fff" : "#A78BFA"} />
-                        )}
-                      </View>
-                      <Text style={[
-                        styles.categoryName, 
-                        { fontFamily: 'Digitalt' },
-                        selectedCategory === cat.id && { color: '#fff' }
-                      ]}>{cat.name}</Text>
+          {/* 2. Selection Area (Flex-Grow to fill space) */}
+          <View style={styles.centerSection}>
+            <View style={styles.glassCard}>
+               <LinearGradient
+                  colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.05)']}
+                  style={styles.glassGradient}
+               >
+                  {/* Operations Grid */}
+                  <View style={styles.sectionInner} ref={operationSectionRef}>
+                    <Text style={[styles.miniLabel, { fontFamily: 'Gilroy-Black' }]}>¿QUÉ VAMOS A PRACTICAR?</Text>
+                    <View style={styles.operationGrid}>
+                      {CATEGORIES.map(cat => (
+                         <TouchableOpacity 
+                          key={cat.id}
+                          onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                            setSelectedCategory(cat.id);
+                          }}
+                          style={[
+                            styles.opCard,
+                            selectedCategory === cat.id && { backgroundColor: themeColor, borderColor: '#fff' }
+                          ]}
+                         >
+                            <Text style={[styles.opText, { fontFamily: 'Digitalt' }]}>{cat.name}</Text>
+                         </TouchableOpacity>
+                      ))}
                     </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+                  </View>
 
-            {/* 2. Tiempo */}
-            <View
-              ref={timeSectionRef}
-              onLayout={(e) => {
-                const y = e.nativeEvent.layout.y;
-                const h = e.nativeEvent.layout.height;
-                setSectionLayout(prev => ({ ...prev, infinite_time: { y, h } }));
-              }}
-            >
-              <Text style={[styles.selectionTitle, { fontFamily: 'Digitalt', marginTop: 20 }]}>2. ¿CUÁNTO TIEMPO?</Text>
-              <View style={styles.chipsRow}>
-                {TIMES.map((t) => (
-                  <TouchableOpacity
-                    key={t.id}
-                    style={[
-                      styles.chip,
-                      selectedTime === t.id && styles.chipActive
-                    ]}
-                    onPress={() => setSelectedTime(t.id)}
-                  >
-                    <Text style={[styles.chipText, { fontFamily: 'Digitalt' }]}>{t.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+                  <View style={styles.dividerHorizontal} />
 
-            {/* 3. Dificultad */}
-            <View
-              ref={difficultySectionRef}
-              onLayout={(e) => {
-                const y = e.nativeEvent.layout.y;
-                const h = e.nativeEvent.layout.height;
-                setSectionLayout(prev => ({ ...prev, infinite_difficulty: { y, h } }));
-              }}
-            >
-              <Text style={[styles.selectionTitle, { fontFamily: 'Digitalt', marginTop: 20 }]}>3. NIVEL DE DIFICULTAD</Text>
-              <View style={styles.chipsRow}>
-                {DIFFICULTIES.map((d) => (
-                  <TouchableOpacity
-                    key={d.id}
-                    style={[
-                      styles.difficultyChip,
-                      selectedDifficulty === d.id && { backgroundColor: d.colors[0] }
-                    ]}
-                    onPress={() => setSelectedDifficulty(d.id)}
-                  >
-                    <Text style={[styles.chipText, { fontFamily: 'Digitalt' }]}>{d.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+                  {/* Settings Panel */}
+                  <View style={styles.settingsPanel}>
+                     <View style={styles.setGroup} ref={timeSectionRef}>
+                        <Text style={[styles.miniLabel, { fontFamily: 'Gilroy-Black' }]}>TIEMPO</Text>
+                        <View style={styles.chipRow}>
+                           {TIMES.map(t => (
+                              <TouchableOpacity 
+                               key={t.id}
+                               onPress={() => {
+                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                 setSelectedTime(t.id);
+                               }}
+                               style={[styles.chipLarge, selectedTime === t.id && { backgroundColor: themeColor }]}
+                              >
+                                 <Text style={[styles.chipTextLarge, { fontFamily: 'Digitalt', color: selectedTime === t.id ? '#fff' : 'rgba(255,255,255,0.7)' }]}>{t.name}</Text>
+                              </TouchableOpacity>
+                           ))}
+                        </View>
+                     </View>
 
-            {/* Start Button */}
-            <View
+                     <View style={styles.dividerSpacer} />
+
+                     <View style={styles.setGroup} ref={difficultySectionRef}>
+                        <Text style={[styles.miniLabel, { fontFamily: 'Gilroy-Black' }]}>NIVEL</Text>
+                        <View style={styles.chipRow}>
+                          {DIFFICULTIES.map(d => {
+                            const isSelected = selectedDifficulty === d.id;
+                            let diffColor = '#22C55E'; // Default Principiante (id: 1)
+                            if (d.id === 2) diffColor = '#F97316'; // Experto (Orange)
+
+                            return (
+                              <TouchableOpacity 
+                                key={d.id}
+                                onPress={() => {
+                                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                  setSelectedDifficulty(d.id);
+                                  setCurrentDifficulty(d.id);
+                                }}
+                                style={[
+                                  styles.chipLarge, 
+                                  isSelected && { backgroundColor: diffColor, borderColor: '#fff' }
+                                ]}
+                              >
+                                  <Text style={[
+                                    styles.chipTextLarge, 
+                                    { fontFamily: 'Digitalt', color: isSelected ? '#fff' : 'rgba(255,255,255,0.7)' }
+                                  ]}>{d.name}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                     </View>
+                  </View>
+               </LinearGradient>
+            </View>
+          </View>
+
+          {/* 3. Bottom Section: Action & Footer */}
+          <View style={styles.bottomSection}>
+            <TouchableOpacity 
+              style={styles.actionBtn}
+              onPress={() => selectedTime && startGame(selectedTime)}
+              activeOpacity={0.8}
               ref={startSectionRef}
-              onLayout={(e) => {
-                const y = e.nativeEvent.layout.y;
-                const h = e.nativeEvent.layout.height;
-                setSectionLayout(prev => ({ ...prev, infinite_start: { y, h } }));
-              }}
             >
-              <TouchableOpacity
-                style={styles.mainStartButton}
-                onPress={() => selectedTime && startGame(selectedTime)}
-                activeOpacity={0.8}
+              <LinearGradient 
+                colors={['#22C55E', '#16A34A']} 
+                style={styles.actionGradient}
               >
-                <LinearGradient
-                  colors={['#22C55E', '#16A34A']}
-                  style={styles.mainStartButtonGradient}
-                >
-                  <Text style={[styles.mainStartButtonText, { fontFamily: 'Digitalt' }]}>
-                    ¡COMENZAR!
-                  </Text>
-                  <FontAwesome5 name="rocket" size={20} color="#fff" />
-                </LinearGradient>
+                <FontAwesome5 name="play" size={18} color="#fff" />
+                <Text style={[styles.actionBtnText, { fontFamily: 'Digitalt' }]}>¡A JUGAR!</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <View style={styles.utilFooter}>
+              <TouchableOpacity style={styles.utilIconBtn} onPress={() => startTutorial('infinite')}>
+                <FontAwesome5 name="info-circle" size={20} color="#fff" />
+                <Text style={[styles.utilIconText, { fontFamily: 'Gilroy-Bold' }]}>CÓMO JUGAR</Text>
               </TouchableOpacity>
             </View>
-          </ScrollView>
+          </View>
         </SafeAreaView>
       </View>
     );
@@ -1232,19 +1268,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  modeSelectionBackButton: {
-    position: 'absolute',
-    top: 10,
-    left: 20,
-    zIndex: 1000,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 10,
-  },
   pauseButton: {
     width: 44,
     height: 44,
@@ -1258,46 +1281,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  title: {
-    color: '#fff',
-    fontSize: 34,
-    letterSpacing: 2,
-    textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 4 },
-    textShadowRadius: 6,
-  },
-  subtitle: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 10,
-    paddingHorizontal: 20,
-    lineHeight: 22,
-  },
-  topBar: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    alignItems: 'flex-end',
-  },
-  avatarBlock: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  avatarCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#A855F7',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    marginTop: 20,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
   },
   countdownOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -1313,33 +1296,6 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: { width: 4, height: 4 },
     textShadowRadius: 15,
-  },
-  layeredAvatar: {
-    borderRadius: 34,
-  },
-  coinsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 14,
-  },
-  coinsText: {
-    color: '#FFD45E',
-    fontWeight: 'bold',
-  },
-  titleWrap: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 12,
-  },
-  modeButtonsWrap: {
-    flex: 1,
-    paddingHorizontal: 20,
-    gap: 16,
-    justifyContent: 'center',
   },
   gameTopBar: {
     flexDirection: 'row',
@@ -1373,18 +1329,13 @@ const styles = StyleSheet.create({
     fontSize: 22,
     letterSpacing: 1,
   },
-  questionAreaWrapper: {
-    alignItems: 'center',
-    width: '100%',
-    position: 'relative',
-  },
   mascotsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'flex-end',
     paddingHorizontal: 10,
     position: 'absolute',
-    top: isSmallScreen ? 20 : 35, // More integrated into the card for all screens
+    top: isSmallScreen ? 20 : 35,
     left: 0,
     right: 0,
     zIndex: 10,
@@ -1425,7 +1376,7 @@ const styles = StyleSheet.create({
   },
   questionContainer: {
     width: '100%',
-    paddingTop: isSmallScreen ? 15 : 25, // Menos espacio arriba para que las mascotas toquen la tarjeta
+    paddingTop: isSmallScreen ? 15 : 25,
   },
   questionBox: {
     backgroundColor: 'rgba(255,255,255,0.12)',
@@ -1540,143 +1491,12 @@ const styles = StyleSheet.create({
     fontSize: 22,
     letterSpacing: 2,
   },
-  // Leaderboard Button Styles
-  leaderboardButton: {
-    width: '85%',
-    height: 50,
-    borderRadius: 25,
-    overflow: 'hidden',
-    marginHorizontal: 'auto',
-    marginBottom: 15,
-    alignSelf: 'center',
-  },
-  leaderboardButtonGradient: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 10,
-  },
-  leaderboardButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  },
-  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // Leaderboard Modal Styles
-  leaderboardModal: {
-    width: '90%',
-    maxHeight: '80%',
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  leaderboardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#A855F7',
-    padding: 20,
-  },
-  leaderboardTitle: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  leaderboardContent: {
-    flex: 1,
-    padding: 20,
-  },
-  leaderboardSection: {
-    marginBottom: 25,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
-  },
-  scoreRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
-  },
-  scoreRank: {
-    width: 35,
-    height: 35,
-    borderRadius: 17.5,
-    backgroundColor: '#A855F7',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  rankText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  scoreInfo: {
-    flex: 1,
-  },
-  scoreName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 2,
-  },
-  scoreDetail: {
-    fontSize: 12,
-    color: '#666',
-  },
-  scoreBadge: {
-    marginLeft: 8,
-  },
-  modeBadge: {
-    backgroundColor: '#A855F7',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginLeft: 8,
-  },
-  modeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#999',
-    fontSize: 14,
-    marginTop: 10,
-  },
-  closeLeaderboardButton: {
-    margin: 15,
-    height: 50,
-    borderRadius: 25,
-    overflow: 'hidden',
-  },
-  closeButtonGradient: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  },
-  // Game Over Modal Styles
   gameOverModal: {
     width: '85%',
     backgroundColor: '#fff',
@@ -1714,17 +1534,6 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 10,
     alignSelf: 'flex-start',
-  },
-  aliasInput: {
-    width: '100%',
-    height: 50,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    fontSize: 16,
-    marginBottom: 20,
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
   },
   gameOverButtons: {
     width: '100%',
@@ -1765,109 +1574,210 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 9999,
   },
-  // New Selection Styles
-  selectionScrollView: {
+  aliasInput: {
+    width: '100%',
+    height: 50,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    fontSize: 16,
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+  },
+  topSection: {
+    flex: 0.12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 25,
+    paddingTop: 10,
+  },
+  titleInfo: {
     flex: 1,
-    marginTop: 10,
   },
-  selectionContent: {
-    paddingBottom: 30,
-    paddingHorizontal: 16,
-  },
-  selectionTitle: {
+  mainTitleSmall: {
     color: '#fff',
-    fontSize: 20 * scaleFactor,
-    marginBottom: 12 * scaleFactor,
-    letterSpacing: 1,
+    fontSize: isSmallScreen ? 20 : 26,
+    letterSpacing: 2,
+  },
+  recordPillSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: isSmallScreen ? 4 : 8,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: isSmallScreen ? 8 : 12,
+    paddingVertical: isSmallScreen ? 2 : 4,
+    borderRadius: 12,
+    marginTop: isSmallScreen ? 2 : 6,
+  },
+  recordTextSmall: {
+    color: '#FFD45E',
+    fontSize: isSmallScreen ? 10 : 12,
+  },
+  headerMascot: {
+    width: isSmallScreen ? 60 : 80,
+    height: isSmallScreen ? 60 : 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  avatarStyleContainer: {
+    position: 'absolute',
+    width: isSmallScreen ? 50 : 70,
+    height: isSmallScreen ? 50 : 70,
+    borderRadius: isSmallScreen ? 25 : 35,
+    overflow: 'hidden',
+    borderWidth: isSmallScreen ? 1.5 : 2,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    zIndex: 1,
+  },
+  avatarStyleGradient: {
+    flex: 1,
+  },
+  mascotGlowMini: {
+    position: 'absolute',
+    width: isSmallScreen ? 40 : 60,
+    height: isSmallScreen ? 40 : 60,
+    borderRadius: isSmallScreen ? 20 : 30,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: isSmallScreen ? 15 : 25,
+    elevation: 20,
+  },
+  miniMascot: {
+    width: isSmallScreen ? 75 : 100,
+    height: isSmallScreen ? 75 : 100,
+    zIndex: 3,
+  },
+  centerSection: {
+    flex: 0.65,
+    paddingHorizontal: isSmallScreen ? 12 : 16,
+    justifyContent: 'center',
+  },
+  glassCard: {
+    borderRadius: isSmallScreen ? 20 : 28,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.25)',
+    elevation: 15,
+  },
+  glassGradient: {
+    padding: isSmallScreen ? 12 : 22,
+  },
+  sectionInner: {
+    marginBottom: isSmallScreen ? 10 : 20,
+  },
+  miniLabel: {
+    color: '#fff',
+    fontSize: isSmallScreen ? 11 : 13,
+    letterSpacing: 2,
+    marginBottom: isSmallScreen ? 8 : 12,
+    textAlign: 'center',
     opacity: 0.9,
   },
-  categoryGrid: {
+  operationGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    justifyContent: 'space-between',
-    paddingVertical: 5,
-  },
-  categoryCardWrapper: {
-    width: '48%',
-    marginBottom: 12,
-  },
-  categoryCard: {
-    width: '100%',
-    borderRadius: 20 * scaleFactor,
-    padding: 10 * scaleFactor,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.05)',
-    overflow: 'hidden',
-  },
-  mascotContainer: {
-    width: 70 * scaleFactor,
-    height: 70 * scaleFactor,
+    gap: isSmallScreen ? 6 : 10,
     justifyContent: 'center',
+  },
+  opCard: {
+    paddingHorizontal: isSmallScreen ? 10 : 16,
+    paddingVertical: isSmallScreen ? 8 : 12,
+    borderRadius: isSmallScreen ? 12 : 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.15)',
+    minWidth: '45%',
     alignItems: 'center',
   },
-  categoryMascot: {
-    width: 80 * scaleFactor,
-    height: 80 * scaleFactor,
-  },
-  categoryName: {
+  opText: {
     color: '#fff',
-    fontSize: 11 * scaleFactor,
-    textAlign: 'center',
+    fontSize: isSmallScreen ? 14 : 16,
+    letterSpacing: 1,
   },
-  chipsRow: {
+  dividerHorizontal: {
+    height: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    marginVertical: isSmallScreen ? 10 : 20,
+  },
+  settingsPanel: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  setGroup: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: isSmallScreen ? 4 : 8,
+    justifyContent: 'center',
   },
-  chip: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 15,
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderWidth: 2,
-    borderColor: 'transparent',
+  chipLarge: {
+    paddingHorizontal: isSmallScreen ? 8 : 12,
+    paddingVertical: isSmallScreen ? 6 : 8,
+    borderRadius: isSmallScreen ? 10 : 12,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.1)',
+    minWidth: isSmallScreen ? 45 : 55,
+    alignItems: 'center',
   },
-  chipActive: {
-    borderColor: '#FFA65A',
-    backgroundColor: 'rgba(255,166,90,0.2)',
+  chipTextLarge: {
+    fontSize: isSmallScreen ? 10 : 12,
+    letterSpacing: 1,
   },
-  chipText: {
-    color: '#fff',
-    fontSize: 15 * scaleFactor,
+  dividerSpacer: {
+    width: 1.5,
+    height: '100%',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    marginHorizontal: isSmallScreen ? 8 : 12,
   },
-  difficultyChip: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 18,
-    paddingVertical: 12 * scaleFactor,
-    paddingHorizontal: 18 * scaleFactor,
+  bottomSection: {
+    flex: 0.23,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+    gap: isSmallScreen ? 10 : 15,
   },
-  mainStartButton: {
-    marginTop: 30 * scaleFactor,
-    height: 65 * scaleFactor,
-    borderRadius: 32 * scaleFactor,
+  actionBtn: {
+    height: isSmallScreen ? 50 : 68,
+    borderRadius: isSmallScreen ? 16 : 22,
     overflow: 'hidden',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
+    elevation: 12,
+    shadowColor: '#22C55E',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
   },
-  mainStartButtonDisabled: {
-    opacity: 0.5,
-  },
-  mainStartButtonGradient: {
+  actionGradient: {
     flex: 1,
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'center',
+    gap: isSmallScreen ? 10 : 14,
   },
-  mainStartButtonText: {
+  actionBtnText: {
     color: '#fff',
-    fontSize: 20 * scaleFactor,
-    fontWeight: 'bold',
+    fontSize: isSmallScreen ? 18 : 24,
     letterSpacing: 2,
+  },
+  utilFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  utilIconBtn: {
+    alignItems: 'center',
+    gap: 4,
+    padding: 6,
+  },
+  utilIconText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: isSmallScreen ? 8 : 10,
+    letterSpacing: 1,
   },
 });
