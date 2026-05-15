@@ -50,8 +50,18 @@ export default function UserScreen() {
 
   const measureUser = (ref: React.RefObject<any>, id: string, radius: number) => {
     if (ref.current) {
-      ref.current.measure((x: number, y: number, w: number, h: number, pageX: number, pageY: number) => {
-        setDynamicSpotlight(id, { x: pageX, y: pageY, w, h, radius });
+      // Use measureInWindow for more reliable absolute coordinates
+      ref.current.measureInWindow((x: number, y: number, w: number, h: number) => {
+        if (w > 0 && h > 0) {
+          setDynamicSpotlight(id, { x, y, w, h, radius });
+        } else {
+          // Retry once if measurement failed
+          setTimeout(() => {
+            ref.current?.measureInWindow((rx: number, ry: number, rw: number, rh: number) => {
+              if (rw > 0) setDynamicSpotlight(id, { x: rx, y: ry, w: rw, h: rh, radius });
+            });
+          }, 100);
+        }
       });
     }
   };
@@ -168,13 +178,13 @@ export default function UserScreen() {
         scrollTargetY = 0;
       }
 
-      // Wait for scroll animation to settle (like in infinite mode)
+      // Wait for scroll animation to settle
       const timer = setTimeout(() => {
         if (step?.id === 'profile_settings') measureUser(settingsRef, 'profile_settings', 25);
-        if (step?.id === 'profile_avatar') measureUser(avatarRef, 'profile_avatar', 60);
-        if (step?.id === 'profile_streak') measureUser(streakRef, 'profile_streak', 24);
-        if (step?.id === 'profile_matches') measureUser(matchesRef, 'profile_matches', 15);
-      }, 500);
+        if (step?.id === 'profile_avatar') measureUser(avatarRef, 'profile_avatar', 65);
+        if (step?.id === 'profile_streak') measureUser(streakRef, 'profile_streak', 28);
+        if (step?.id === 'profile_matches') measureUser(matchesRef, 'profile_matches', 20);
+      }, 600); // Slightly longer to ensure scroll is done
 
       return () => clearTimeout(timer);
     }

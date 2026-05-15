@@ -50,9 +50,22 @@ export default function StoreScreen() {
   const measureCategory = (key: string) => {
     const ref = key === 'coins' ? coinsRef.current : categoryRefs.current[key];
     if (ref) {
-      ref.measure((x: number, y: number, w: number, h: number, pageX: number, pageY: number) => {
-        const id = key === 'coins' ? 'store_coins' : `store_${key}`;
-        setDynamicSpotlight(id, { x: pageX, y: pageY, w, h, radius: 20 });
+      // Use measureInWindow for more reliable absolute coordinates
+      ref.measureInWindow((x: number, y: number, w: number, h: number) => {
+        if (w > 0 && h > 0) {
+          const id = key === 'coins' ? 'store_coins' : `store_${key}`;
+          setDynamicSpotlight(id, { x, y, w, h, radius: 24 });
+        } else {
+          // Retry once if measurement failed
+          setTimeout(() => {
+            ref.measureInWindow((rx: number, ry: number, rw: number, rh: number) => {
+              if (rw > 0) {
+                const id = key === 'coins' ? 'store_coins' : `store_${key}`;
+                setDynamicSpotlight(id, { x: rx, y: ry, w: rw, h: rh, radius: 24 });
+              }
+            });
+          }, 200);
+        }
       });
     }
   };

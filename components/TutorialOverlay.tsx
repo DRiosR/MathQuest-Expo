@@ -16,9 +16,10 @@ import { useTutorial, TUTORIAL_STEPS } from '@/contexts/TutorialContext';
 import { usePathname } from 'expo-router';
 
 const { width, height } = Dimensions.get('window');
+const isSmallScreen = height < 750;
 
 export default function TutorialOverlay() {
-  const { isVisible, currentStepIndex, lastStepIndex, dynamicSpotlights, nextStep, skipTutorial } = useTutorial();
+  const { isVisible, currentStepIndex, firstStepIndex, lastStepIndex, dynamicSpotlights, nextStep, skipTutorial } = useTutorial();
 
   const pathname = usePathname();
   
@@ -33,47 +34,55 @@ export default function TutorialOverlay() {
   
   const shouldShowOnThisScreen = normalizedCurrent === normalizedTarget;
 
+  const requiresMeasuredSpotlight = 
+    currentStep.id.startsWith('profile_') || 
+    currentStep.id.startsWith('infinite_') ||
+    currentStep.id.startsWith('store_');
+
+  // Strict check: only show spotlight if it belongs to the CURRENT step
+  const isStepMeasured = !!(dynamicSpotlights[currentStep.id]);
+  
+  // NEVER show default for dynamic steps, and only show dynamic if it's for the current ID
+  const effectiveSpotlight = requiresMeasuredSpotlight
+    ? (isStepMeasured ? dynamicSpotlights[currentStep.id] : null)
+    : (isStepMeasured ? dynamicSpotlights[currentStep.id] : currentStep.defaultSpotlight);
+
   useEffect(() => {
     if (isVisible && shouldShowOnThisScreen) {
+      // If we need a measurement, wait for it before showing the card to avoid "flicker"
+      if (requiresMeasuredSpotlight && !isStepMeasured) {
+        fadeAnim.setValue(0);
+        return;
+      }
+
       fadeAnim.setValue(0);
-      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
+      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
 
       Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.1, duration: 800, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1.08, duration: 600, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
         ])
       ).start();
     }
-  }, [currentStepIndex, isVisible, shouldShowOnThisScreen]);
+  }, [currentStepIndex, isVisible, shouldShowOnThisScreen, isStepMeasured]);
 
   if (!isVisible || !shouldShowOnThisScreen) return null;
 
   const spotlight = dynamicSpotlights[currentStep.id] || currentStep.defaultSpotlight;
 
-  // Avoid "flash": for these steps, don't show a fallback spotlight.
-  // Still render the tutorial card (text + buttons) so the user can continue.
-  const requiresMeasuredSpotlight =
-    currentStep.id === 'infinite_time' ||
-    currentStep.id === 'infinite_difficulty' ||
-    currentStep.id === 'infinite_start' ||
-    currentStep.id === 'profile_streak' ||
-    currentStep.id === 'profile_matches' ||
-    currentStep.id === 'profile_avatar' ||
-    currentStep.id === 'profile_settings';
+  // Progress calculation
+  const totalStepsInSection = lastStepIndex - firstStepIndex + 1;
+  const currentStepInSection = currentStepIndex - firstStepIndex;
+  
+  // Array for dots
+  const dots = Array.from({ length: totalStepsInSection });
 
-  const effectiveSpotlight = requiresMeasuredSpotlight
-    ? (dynamicSpotlights[currentStep.id] || null)
-    : spotlight;
-
-  // Position the tutorial card so it doesn't cover the UI.
-  // For some steps we prefer a fixed position (area) to avoid overlap on small screens.
   const getAreaStyle = () => {
     switch (currentStep.area) {
-      case 'top': return { justifyContent: 'flex-start', paddingTop: 80 };
+      case 'top': return { justifyContent: 'flex-start', paddingTop: isSmallScreen ? 30 : 60 };
       case 'middle': return { justifyContent: 'center' };
-      case 'bottom': return { justifyContent: 'flex-end', paddingBottom: 150 };
-      case 'tabs': return { justifyContent: 'center' };
+      case 'bottom': return { justifyContent: 'flex-end', paddingBottom: isSmallScreen ? 70 : 110 };
       default: return { justifyContent: 'center' };
     }
   };
@@ -81,16 +90,14 @@ export default function TutorialOverlay() {
   return (
     <Modal transparent visible={isVisible} animationType="none">
       <View style={styles.overlay}>
-        {/* Spotlight Effect Layer */}
-        {effectiveSpotlight && (
+        {/* Spotlight Layer */}
+        {effectiveSpotlight && isStepMeasured && (
           <View style={StyleSheet.absoluteFill}>
-            {/* Dark areas around the spotlight */}
             <View style={[styles.maskBase, { top: 0, left: 0, right: 0, height: effectiveSpotlight.y }]} />
             <View style={[styles.maskBase, { top: effectiveSpotlight.y + effectiveSpotlight.h, left: 0, right: 0, bottom: 0 }]} />
             <View style={[styles.maskBase, { top: effectiveSpotlight.y, left: 0, width: effectiveSpotlight.x, height: effectiveSpotlight.h }]} />
             <View style={[styles.maskBase, { top: effectiveSpotlight.y, left: effectiveSpotlight.x + effectiveSpotlight.w, right: 0, height: effectiveSpotlight.h }]} />
             
-            {/* The actual hole (Spotlight) with pulse ring */}
             <View style={[styles.hole, { 
               top: effectiveSpotlight.y, 
               left: effectiveSpotlight.x, 
@@ -101,26 +108,38 @@ export default function TutorialOverlay() {
               <Animated.View style={[
                 styles.pulseRing, 
                 { 
-                  borderRadius: effectiveSpotlight.radius + 5,
+                  borderRadius: effectiveSpotlight.radius + 8,
                   borderColor: currentStep.color,
-                  transform: [{ scale: pulseAnim }]
+                  transform: [{ scale: pulseAnim }],
+                  shadowColor: currentStep.color,
+                  shadowOpacity: 0.8,
+                  shadowRadius: 15,
                 }
               ]} />
             </View>
           </View>
         )}
 
-        {!effectiveSpotlight && <View style={styles.dimBg} />}
+        {(!effectiveSpotlight || !isStepMeasured) && <View style={styles.dimBg} />}
         
         <SafeAreaView style={[styles.contentContainer, getAreaStyle() as any]} pointerEvents="box-none">
-          <Animated.View style={[styles.cardContainer, { opacity: fadeAnim }]}>
+          <Animated.View style={[
+            styles.cardContainer, 
+            { 
+              opacity: fadeAnim, 
+              transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] 
+            }
+          ]}>
             <LinearGradient
-              colors={[currentStep.color, 'rgba(0,0,0,0.98)']}
+              colors={['rgba(30, 30, 45, 0.95)', 'rgba(15, 15, 25, 0.98)']}
               style={styles.cardGradient}
             >
+              {/* Decorative side accent */}
+              <View style={[styles.sideAccent, { backgroundColor: currentStep.color }]} />
+
               <View style={styles.headerRow}>
-                <View style={styles.iconBox}>
-                  <FontAwesome5 name={currentStep.icon} size={22} color="#fff" />
+                <View style={[styles.iconBox, { backgroundColor: currentStep.color + '25' }]}>
+                  <FontAwesome5 name={currentStep.icon} size={20} color={currentStep.color} />
                 </View>
                 <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>{currentStep.title}</Text>
               </View>
@@ -129,16 +148,40 @@ export default function TutorialOverlay() {
                 {currentStep.description}
               </Text>
 
+              {/* Progress Dot Indicator */}
+              <View style={styles.progressContainer}>
+                {dots.map((_, i) => {
+                  const isActive = currentStepInSection >= i;
+                  return (
+                    <View 
+                      key={i} 
+                      style={[
+                        styles.progressDot, 
+                        { 
+                          backgroundColor: isActive ? currentStep.color : 'rgba(255,255,255,0.1)',
+                          width: totalStepsInSection > 6 ? (width - 150) / totalStepsInSection : 24
+                        }
+                      ]} 
+                    />
+                  );
+                })}
+              </View>
+
               <View style={styles.footer}>
                 <TouchableOpacity onPress={skipTutorial} style={styles.skipBtn}>
                   <Text style={[styles.skipText, { fontFamily: 'Digitalt' }]}>SALTAR</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity onPress={nextStep} style={styles.nextBtn}>
-                  <Text style={[styles.nextText, { color: currentStep.color, fontFamily: 'Digitalt' }]}>
-                    {currentStepIndex >= lastStepIndex ? '¡LISTO!' : 'SIGUIENTE'}
-                  </Text>
-
+                  <LinearGradient
+                    colors={[currentStep.color, currentStep.color]}
+                    style={styles.nextGradient}
+                  >
+                    <Text style={[styles.nextText, { fontFamily: 'Digitalt' }]}>
+                      {currentStepIndex >= lastStepIndex ? '¡ENTENDIDO!' : 'SIGUIENTE'}
+                    </Text>
+                    <FontAwesome5 name="chevron-right" size={14} color="#fff" />
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             </LinearGradient>
@@ -156,70 +199,89 @@ const styles = StyleSheet.create({
   },
   dimBg: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: 'rgba(0,0,0,0.75)',
   },
   maskBase: {
     position: 'absolute',
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: 'rgba(0,0,0,0.75)',
   },
   hole: {
     position: 'absolute',
     backgroundColor: 'transparent',
-    borderWidth: 0,
     overflow: 'visible',
   },
   pulseRing: {
     position: 'absolute',
-    top: -5,
-    left: -5,
-    right: -5,
-    bottom: -5,
-    borderWidth: 3,
+    top: -8,
+    left: -8,
+    right: -8,
+    bottom: -8,
+    borderWidth: 2.5,
     backgroundColor: 'transparent',
   },
   contentContainer: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     zIndex: 10002,
   },
   cardContainer: {
     width: '100%',
   },
   cardGradient: {
-    borderRadius: 24,
-    padding: 24,
-    elevation: 10,
+    borderRadius: isSmallScreen ? 20 : 28,
+    padding: isSmallScreen ? 16 : 24,
+    paddingLeft: isSmallScreen ? 20 : 30,
+    elevation: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 15 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: 'rgba(255,255,255,0.12)',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  sideAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 6,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    gap: 12,
+    marginBottom: isSmallScreen ? 8 : 16,
+    gap: isSmallScreen ? 8 : 12,
   },
   iconBox: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    width: isSmallScreen ? 32 : 42,
+    height: isSmallScreen ? 32 : 42,
+    borderRadius: isSmallScreen ? 8 : 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
   title: {
     color: '#fff',
-    fontSize: 22,
+    fontSize: isSmallScreen ? 16 : 20,
     flex: 1,
+    letterSpacing: 0.5,
   },
   description: {
-    color: '#eee',
-    fontSize: 16,
-    lineHeight: 24,
-    marginBottom: 24,
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: isSmallScreen ? 13 : 15,
+    lineHeight: isSmallScreen ? 18 : 22,
+    marginBottom: isSmallScreen ? 12 : 20,
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: isSmallScreen ? 12 : 20,
+  },
+  progressDot: {
+    height: 4,
+    width: 20,
+    borderRadius: 2,
   },
   footer: {
     flexDirection: 'row',
@@ -230,17 +292,25 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   skipText: {
-    color: 'rgba(255,255,255,0.4)',
-    fontSize: 14,
+    color: 'rgba(255,255,255,0.3)',
+    fontSize: isSmallScreen ? 11 : 13,
+    letterSpacing: 1,
   },
   nextBtn: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 18,
+    borderRadius: isSmallScreen ? 12 : 16,
+    overflow: 'hidden',
+    elevation: 8,
+  },
+  nextGradient: {
+    paddingHorizontal: isSmallScreen ? 16 : 24,
+    paddingVertical: isSmallScreen ? 10 : 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: isSmallScreen ? 6 : 10,
   },
   nextText: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: '#fff',
+    fontSize: isSmallScreen ? 13 : 15,
+    letterSpacing: 1,
   },
 });

@@ -91,9 +91,9 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   // --- SECCIÓN 2: MODO INFINITO (Pestaña Extras) ---
   {
     id: 'extras',
-    title: 'PRÁCTICA Y DESAFÍOS',
-    description: 'Explora modos de juego adicionales diseñados para mejorar tu velocidad mental.',
-    icon: 'plus-circle',
+    title: 'CENTRO DE ENTRENAMIENTO',
+    description: '¡Aquí es donde se forjan los campeones! Entra para pulir tus habilidades antes del próximo gran duelo.',
+    icon: 'dumbbell',
     color: '#31C45A',
     area: 'middle',
     targetScreen: '/(tabs)/extras',
@@ -101,41 +101,41 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'infinite_operation',
-    title: '1. ELIGE LA OPERACIÓN',
-    description: 'Primero selecciona qué tipo de ejercicios quieres practicar: sumas, restas, multiplicación, división o “todo en uno”.',
-    icon: 'calculator',
-    color: '#FF6B9D',
-    area: 'top', // Changed to top as header is smaller now
+    title: '¿CUÁL ES TU ESPECIALIDAD?',
+    description: 'Cada operación tiene su propio maestro. Elige Suma, Resta, Multiplicación o División para empezar a practicar.',
+    icon: 'magic',
+    color: '#8A56FE',
+    area: 'bottom', 
     targetScreen: '/(tabs)/extras',
-    defaultSpotlight: { x: 20, y: 180, w: width - 40, h: 190, radius: 24 }
+    defaultSpotlight: null // Remove default to prevent flicker
   },
   {
     id: 'infinite_time',
-    title: '2. SELECCIONA EL TIEMPO',
-    description: 'Ahora elige cuánto durará la partida. El juego termina cuando se acaba el tiempo o cometes 3 errores.',
-    icon: 'stopwatch',
-    color: '#FF6B9D',
+    title: '¡CONTRA EL RELOJ!',
+    description: 'Tú decides cuánto dura el desafío. Recuerda: ¡cada segundo cuenta y solo tienes 3 vidas!',
+    icon: 'hourglass-start',
+    color: '#FFD45E',
     area: 'top',
     targetScreen: '/(tabs)/extras',
     defaultSpotlight: null
   },
   {
     id: 'infinite_difficulty',
-    title: '3. AJUSTA LA DIFICULTAD',
-    description: 'Escoge el nivel: fácil, medio o difícil. En difícil podrás usar números negativos.',
-    icon: 'signal',
-    color: '#FF6B9D',
+    title: 'ELIGE TU RANGO',
+    description: '¿Eres Principiante (números del 1-12) o un Experto (números de dos dígitos)? ¡Pruébate a ti mismo!',
+    icon: 'medal',
+    color: '#F97316',
     area: 'top',
     targetScreen: '/(tabs)/extras',
     defaultSpotlight: null
   },
   {
     id: 'infinite_start',
-    title: '¡INICIA EL DESAFÍO!',
-    description: 'Cuando tengas todo listo, pulsa “EMPEZAR”. Recuerda: tienes 3 vidas y gana quien más acierte antes de que termine el tiempo.',
-    icon: 'play',
-    color: '#FF6B9D',
-    area: 'middle', // Changed from top to middle/center for better positioning
+    title: '¡A LA ACCIÓN!',
+    description: 'Cuando estés listo, pulsa "¡A JUGAR!" y demuestra que eres el más rápido de MathQuest.',
+    icon: 'rocket',
+    color: '#22C55E',
+    area: 'top', // Moved to top since the button is at the very bottom
     targetScreen: '/(tabs)/extras',
     defaultSpotlight: null
   },
@@ -270,7 +270,8 @@ export type TutorialSection = 'initial' | '1vs1' | 'infinite' | 'store' | 'profi
 interface TutorialContextType {
   isVisible: boolean;
   currentStepIndex: number;
-  lastStepIndex: number; // Added to help UI logic
+  firstStepIndex: number;
+  lastStepIndex: number; 
   dynamicSpotlights: Record<string, SpotlightPos>;
   setDynamicSpotlight: (id: string, pos: SpotlightPos) => void;
   startTutorial: (section?: TutorialSection) => void;
@@ -283,6 +284,7 @@ const TutorialContext = createContext<TutorialContextType | undefined>(undefined
 export function TutorialProvider({ children }: { children: React.ReactNode }) {
   const [isVisible, setIsVisible] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [firstStepIndex, setFirstStepIndex] = useState(0);
   const [lastStepIndex, setLastStepIndex] = useState(TUTORIAL_STEPS.length - 1);
   const [dynamicSpotlights, setDynamicSpotlights] = useState<Record<string, SpotlightPos>>({});
   const { user } = useAuth();
@@ -337,7 +339,11 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
         break;
     }
 
+    // Clear ALL dynamic spotlights on start to prevent stale positions from previous runs
+    setDynamicSpotlights({});
+    
     setCurrentStepIndex(start);
+    setFirstStepIndex(start);
     setLastStepIndex(end);
     setIsVisible(true);
     router.push(TUTORIAL_STEPS[start].targetScreen as any);
@@ -346,8 +352,16 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
   const nextStep = () => {
     if (currentStepIndex < lastStepIndex && currentStepIndex < TUTORIAL_STEPS.length - 1) {
       const nextIndex = currentStepIndex + 1;
+      const nextStepId = TUTORIAL_STEPS[nextIndex].id;
       const currentStepData = TUTORIAL_STEPS[currentStepIndex];
       const nextStepData = TUTORIAL_STEPS[nextIndex];
+      
+      // Clear the dynamic spotlight for the next step to ensure a fresh measurement
+      setDynamicSpotlights(prev => {
+        const next = { ...prev };
+        delete next[nextStepId];
+        return next;
+      });
       
       if (nextStepData && nextStepData.targetScreen !== currentStepData.targetScreen) {
         router.push(nextStepData.targetScreen as any);
@@ -378,6 +392,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     <TutorialContext.Provider value={{ 
       isVisible, 
       currentStepIndex, 
+      firstStepIndex,
       lastStepIndex,
       dynamicSpotlights, 
       setDynamicSpotlight,
