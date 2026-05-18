@@ -232,7 +232,15 @@ export default function TutorialOverlay() {
                   <View style={[styles.iconBox, { backgroundColor: currentStep.color + '25' }]}>
                     <FontAwesome5 name={currentStep.icon} size={IS_SMALL_DEVICE ? 16 : 20} color={currentStep.color} />
                   </View>
-                  <Text style={[styles.title, { fontFamily: 'Digitalt' }]} numberOfLines={1}>{currentStep.title}</Text>
+                  <Text style={[styles.title, { fontFamily: 'Digitalt' }]} numberOfLines={1}>
+                    {currentStep.title.toLowerCase().includes('1vs1') ? (
+                      <>
+                        {currentStep.title.split(/1vs1/i)[0]}1<Text style={{ fontFamily: 'Gilroy-Black', textTransform: 'lowercase' }}>vs</Text>1{currentStep.title.split(/1vs1/i)[1]}
+                      </>
+                    ) : (
+                      currentStep.title
+                    )}
+                  </Text>
                 </View>
 
                 <Text style={[styles.description, { fontFamily: 'Gilroy-Black' }]}>

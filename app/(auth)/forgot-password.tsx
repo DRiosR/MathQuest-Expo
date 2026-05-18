@@ -24,7 +24,8 @@ import { useFontContext } from '@/contexts/FontsContext';
 export default function ForgotPasswordScreen() {
   const { fontsLoaded } = useFontContext();
 
-  const { resetPassword, loading } = useAuth();
+  const { resetPassword } = useAuth();
+  const [loading, setLoading] = useState(false);
   
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
@@ -56,6 +57,7 @@ export default function ForgotPasswordScreen() {
     }
 
     try {
+      setLoading(true);
       // Security: Ensure no session is active before requesting recovery
       try {
         await AuthService.signOut();
@@ -87,6 +89,8 @@ export default function ForgotPasswordScreen() {
     } catch (error) {
       setError('Error inesperado. Intenta de nuevo.');
       Alert.alert('Error', 'Error inesperado. Intenta de nuevo.');
+    } finally {
+      setLoading(false);
     }
   };
 

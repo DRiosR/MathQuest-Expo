@@ -25,10 +25,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useFontContext } from '@/contexts/FontsContext';
 import AuthService from '@/Core/Services/AuthService/AuthService';
 
-  export default function SignUpScreen() {
+export default function SignUpScreen() {
   const { fontsLoaded } = useFontContext();
 
-  const { signUp, loading } = useAuth();
+  const { signUp } = useAuth();
+  const [loading, setLoading] = useState(false);
   
   const normalizeEmail = (value: string) =>
     value
@@ -105,10 +106,55 @@ import AuthService from '@/Core/Services/AuthService/AuthService';
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleUsernameChange = (text: string) => {
+    setFormData((prev) => ({ ...prev, username: text }));
+    if (errors.username) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.username;
+        return next;
+      });
+    }
+  };
+
+  const handleEmailChange = (text: string) => {
+    setFormData((prev) => ({ ...prev, email: text }));
+    if (errors.email) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.email;
+        return next;
+      });
+    }
+  };
+
+  const handlePasswordChange = (text: string) => {
+    setFormData((prev) => ({ ...prev, password: text }));
+    if (errors.password) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.password;
+        return next;
+      });
+    }
+  };
+
+  const handleConfirmPasswordChange = (text: string) => {
+    setFormData((prev) => ({ ...prev, confirmPassword: text }));
+    if (errors.confirmPassword) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.confirmPassword;
+        return next;
+      });
+    }
+  };
+
   const handleSignUp = async () => {
     if (!validateForm()) return;
 
     try {
+      setLoading(true);
       const { user, error } = await signUp({
         username: formData.username.trim(),
         email: normalizeEmail(formData.email),
@@ -141,6 +187,8 @@ import AuthService from '@/Core/Services/AuthService/AuthService';
       }
     } catch (error: any) {
       setErrors({ general: 'Error inesperado. Intenta de nuevo.' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -189,7 +237,7 @@ import AuthService from '@/Core/Services/AuthService/AuthService';
                 icon="at"
                 placeholder="Nombre de usuario"
                 value={formData.username}
-                onChangeText={(text) => setFormData({ ...formData, username: text })}
+                onChangeText={handleUsernameChange}
                 autoCapitalize="none"
                 autoCorrect={false}
                 error={errors.username}
@@ -224,7 +272,7 @@ import AuthService from '@/Core/Services/AuthService/AuthService';
                 icon="user"
                 placeholder="Email"
                 value={formData.email}
-                onChangeText={(text) => setFormData({ ...formData, email: text })}
+                onChangeText={handleEmailChange}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -235,8 +283,11 @@ import AuthService from '@/Core/Services/AuthService/AuthService';
                 icon="lock"
                 placeholder="Contraseña"
                 value={formData.password}
-                onChangeText={(text) => setFormData({ ...formData, password: text })}
+                onChangeText={handlePasswordChange}
                 secureTextEntry
+                showTogglePassword={true}
+                textContentType="oneTimeCode"
+                autoComplete="off"
                 error={errors.password}
               />
 
@@ -244,8 +295,11 @@ import AuthService from '@/Core/Services/AuthService/AuthService';
                 icon="lock"
                 placeholder="Confirmar contraseña"
                 value={formData.confirmPassword}
-                onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
+                onChangeText={handleConfirmPasswordChange}
                 secureTextEntry
+                showTogglePassword={true}
+                textContentType="oneTimeCode"
+                autoComplete="off"
                 error={errors.confirmPassword}
               />
 

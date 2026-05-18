@@ -22,7 +22,8 @@ import { useFontContext } from '@/contexts/FontsContext';
 
 export default function ResetPasswordScreen() {
   const { fontsLoaded } = useFontContext();
-  const { updatePassword, loading, isRecovering } = useAuth();
+  const { updatePassword, isRecovering } = useAuth();
+  const [loading, setLoading] = useState(false);
   
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -68,23 +69,25 @@ export default function ResetPasswordScreen() {
       return;
     }
 
-    // Check if we have a session (user should be signed in via the link)
-    const { data: { session } } = await AuthService.getClient().auth.getSession();
-    if (!session) {
-      setError('Sesión de recuperación no encontrada. Por favor, usa el enlace del correo de nuevo.');
-      Alert.alert('Error', 'Sesión expirada o no encontrada.');
-      return;
-    }
-
-    const translateError = (msg: string) => {
-      if (msg.toLowerCase().includes('different from the old password')) return 'La nueva contraseña debe ser diferente a la anterior.';
-      if (msg.toLowerCase().includes('at least 6 characters')) return 'La contraseña debe tener al menos 6 caracteres.';
-      if (msg.toLowerCase().includes('session missing')) return 'Sesión expirada o no encontrada. Usa el enlace del correo de nuevo.';
-      if (msg.toLowerCase().includes('expired')) return 'El enlace ha expirado. Por favor solicita uno nuevo.';
-      return 'Ocurrió un error inesperado. Intenta de nuevo.';
-    };
-
     try {
+      setLoading(true);
+      // Check if we have a session (user should be signed in via the link)
+      const { data: { session } } = await AuthService.getClient().auth.getSession();
+      if (!session) {
+        setError('Sesión de recuperación no encontrada. Por favor, usa el enlace del correo de nuevo.');
+        Alert.alert('Error', 'Sesión expirada o no encontrada.');
+        setLoading(false);
+        return;
+      }
+
+      const translateError = (msg: string) => {
+        if (msg.toLowerCase().includes('different from the old password')) return 'La nueva contraseña debe ser diferente a la anterior.';
+        if (msg.toLowerCase().includes('at least 6 characters')) return 'La contraseña debe tener al menos 6 caracteres.';
+        if (msg.toLowerCase().includes('session missing')) return 'Sesión expirada o no encontrada. Usa el enlace del correo de nuevo.';
+        if (msg.toLowerCase().includes('expired')) return 'El enlace ha expirado. Por favor solicita uno nuevo.';
+        return 'Ocurrió un error inesperado. Intenta de nuevo.';
+      };
+
       const { error } = await updatePassword(password);
 
       if (error) {
@@ -110,6 +113,8 @@ export default function ResetPasswordScreen() {
     } catch (error) {
       setError('Error inesperado. Intenta de nuevo.');
       Alert.alert('Error', 'Error inesperado. Intenta de nuevo.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -182,8 +187,11 @@ export default function ResetPasswordScreen() {
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry
+                    showTogglePassword={true}
                     autoCapitalize="none"
                     autoCorrect={false}
+                    textContentType="oneTimeCode"
+                    autoComplete="off"
                     error={error}
                   />
 
@@ -193,8 +201,11 @@ export default function ResetPasswordScreen() {
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
                     secureTextEntry
+                    showTogglePassword={true}
                     autoCapitalize="none"
                     autoCorrect={false}
+                    textContentType="oneTimeCode"
+                    autoComplete="off"
                   />
 
                   {/* Submit Button */}

@@ -192,7 +192,9 @@ export default function PlayScreen() {
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
         {/* Top View Title */}
         <View style={styles.viewHeader}>
-          <Text style={[styles.viewTitle, { fontFamily: 'Digitalt', fontSize: IS_SMALL_DEVICE ? 22 : normalize(28) }]}>DUELOS 1vs1</Text>
+          <Text style={[styles.viewTitle, { fontFamily: 'Digitalt', fontSize: IS_SMALL_DEVICE ? 22 : normalize(28) }]}>
+            DUELOS 1<Text style={{ fontFamily: 'Gilroy-Black', textTransform: 'lowercase' }}>vs</Text>1
+          </Text>
         </View>
 
         {/* 1. Dashboard Header: League Info Card */}

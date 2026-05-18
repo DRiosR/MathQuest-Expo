@@ -21,7 +21,8 @@ import { useFontContext } from '@/contexts/FontsContext';
 
 export default function VerifyOtpScreen() {
   const { fontsLoaded } = useFontContext();
-  const { verifyOtp, loading } = useAuth();
+  const { verifyOtp } = useAuth();
+  const [loading, setLoading] = useState(false);
   const { email } = useLocalSearchParams<{ email: string }>();
   
   const [code, setCode] = useState(['', '', '', '', '', '']);
@@ -76,19 +77,27 @@ export default function VerifyOtpScreen() {
       return;
     }
 
-    setError('');
-    const { error: otpError } = await verifyOtp(email as string, fullCode, 'recovery');
+    try {
+      setLoading(true);
+      setError('');
+      const { error: otpError } = await verifyOtp(email as string, fullCode, 'recovery');
 
-    if (otpError) {
-      console.error('OTP Error:', otpError);
-      let msg = 'Código inválido o expirado.';
-      if (otpError.message.includes('expired')) msg = 'El código ha expirado. Solicita uno nuevo.';
-      
-      setError(msg);
-      Alert.alert('Error', msg);
-    } else {
-      // Éxito: isRecovering ya se puso en true en el context
-      router.replace('/(auth)/reset-password');
+      if (otpError) {
+        console.error('OTP Error:', otpError);
+        let msg = 'Código inválido o expirado.';
+        if (otpError.message.includes('expired')) msg = 'El código ha expirado. Solicita uno nuevo.';
+        
+        setError(msg);
+        Alert.alert('Error', msg);
+      } else {
+        // Éxito: isRecovering ya se puso en true en el context
+        router.replace('/(auth)/reset-password');
+      }
+    } catch (e) {
+      setError('Error inesperado. Intenta de nuevo.');
+      Alert.alert('Error', 'Error inesperado. Intenta de nuevo.');
+    } finally {
+      setLoading(false);
     }
   };
 

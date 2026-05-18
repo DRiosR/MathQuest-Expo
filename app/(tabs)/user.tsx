@@ -846,7 +846,13 @@ export default function UserScreen() {
                         >
                           <FontAwesome5 name={item.icon} size={14} color="#fff" style={{ marginRight: 8 }} />
                           <Text style={[styles.replayTutorialText, { fontFamily: 'Digitalt' }]}>
-                            {item.label}
+                            {item.label.toLowerCase().includes('1vs1') ? (
+                              <>
+                                TUTORIAL 1<Text style={{ fontFamily: 'Gilroy-Black', textTransform: 'lowercase' }}>vs</Text>1
+                              </>
+                            ) : (
+                              item.label
+                            )}
                           </Text>
                         </LinearGradient>
                       </TouchableOpacity>

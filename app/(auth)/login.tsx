@@ -22,7 +22,8 @@ import { useFontContext } from '@/contexts/FontsContext';
 export default function LoginScreen() {
   const { fontsLoaded } = useFontContext();
 
-  const { signIn, loading } = useAuth();
+  const { signIn } = useAuth();
+  const [loading, setLoading] = useState(false);
 
   const normalizeEmail = (value: string) =>
     value
@@ -56,18 +57,39 @@ export default function LoginScreen() {
 
     if (!formData.password.trim()) {
       newErrors.password = 'La contraseña es requerida';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'La contraseña debe tener al menos 6 caracteres';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleEmailChange = (text: string) => {
+    setFormData((prev) => ({ ...prev, email: text }));
+    if (errors.email) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.email;
+        return next;
+      });
+    }
+  };
+
+  const handlePasswordChange = (text: string) => {
+    setFormData((prev) => ({ ...prev, password: text }));
+    if (errors.password) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.password;
+        return next;
+      });
+    }
+  };
+
   const handleLogin = async () => {
     if (!validateForm()) return;
 
     try {
+      setLoading(true);
       const { user, error } = await signIn({
         email: normalizeEmail(formData.email),
         password: formData.password,
@@ -75,7 +97,14 @@ export default function LoginScreen() {
 
       if (error) {
         let msg = 'Error inesperado. Intenta de nuevo.';
-        if (error.message.includes('Invalid login credentials')) msg = 'Email o contraseña incorrectos.';
+        if (error.message.includes('Invalid login credentials')) {
+          setErrors({
+            email: 'Email o contraseña incorrectos.',
+            password: 'Email o contraseña incorrectos.',
+          });
+          setLoading(false);
+          return;
+        }
         if (error.message.includes('Email not confirmed')) msg = 'Debes verificar tu email primero.';
 
         setErrors({ general: msg });
@@ -87,6 +116,8 @@ export default function LoginScreen() {
     } catch (error) {
       setErrors({ general: 'Error inesperado. Intenta de nuevo.' });
       Alert.alert('Error', 'Error inesperado. Intenta de nuevo.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -139,7 +170,7 @@ export default function LoginScreen() {
                 icon="user"
                 placeholder="Email"
                 value={formData.email}
-                onChangeText={(text) => setFormData((prev) => ({ ...prev, email: text }))}
+                onChangeText={handleEmailChange}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -152,10 +183,11 @@ export default function LoginScreen() {
                 icon="lock"
                 placeholder="Contraseña"
                 value={formData.password}
-                onChangeText={(text) => setFormData((prev) => ({ ...prev, password: text }))}
+                onChangeText={handlePasswordChange}
                 secureTextEntry
-                textContentType="password"
-                autoComplete="password"
+                showTogglePassword={true}
+                textContentType="oneTimeCode"
+                autoComplete="off"
                 error={errors.password}
               />
 
