@@ -866,7 +866,7 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
             <View style={styles.utilFooter}>
               <TouchableOpacity style={styles.utilIconBtn} onPress={() => startTutorial('infinite')}>
                 <FontAwesome5 name="info-circle" size={20} color="#fff" />
-                <Text style={[styles.utilIconText, { fontFamily: 'Gilroy-Bold' }]}>CÓMO JUGAR</Text>
+                <Text style={[styles.utilIconText, { fontFamily: 'Gilroy-Black' }]}>CÓMO JUGAR</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1609,6 +1609,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: isSmallScreen ? 20 : 26,
     letterSpacing: 2,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 3 },
+    textShadowRadius: 8,
   },
   recordPillSmall: {
     flexDirection: 'row',

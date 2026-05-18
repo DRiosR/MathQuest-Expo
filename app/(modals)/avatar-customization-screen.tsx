@@ -26,6 +26,17 @@ const safeHaptic = (style: Haptics.ImpactFeedbackStyle) => {
   }
 };
 
+const getRarityDisplayName = (rarity: string | null) => {
+  if (!rarity) return '';
+  switch (rarity.toLowerCase()) {
+    case 'comun': return 'COMÚN';
+    case 'raro': return 'RARO';
+    case 'epico': return 'ÉPICO';
+    case 'legendario': return 'LEGENDARIO';
+    default: return rarity.toUpperCase();
+  }
+};
+
 const PlatformModal = Platform.OS === 'web'
   ? ({ visible, children, transparent, animationType, onRequestClose, ...props }: any) => {
       if (!visible) return null;
@@ -405,7 +416,7 @@ export default function AvatarCustomizationScreen() {
               {isSaving ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={[styles.saveButtonText, { fontFamily: 'Digitalt' }]}>LISTO</Text>
+                <Text style={[styles.saveButtonText, { fontFamily: 'Digitalt' }]}>GUARDAR</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
@@ -531,7 +542,7 @@ export default function AvatarCustomizationScreen() {
                             { fontFamily: 'Digitalt' },
                             opt.rarity === 'legendario' && styles.rarityTextLegendary,
                           ]}>
-                            {opt.rarity?.toUpperCase()}
+                            {getRarityDisplayName(opt.rarity)}
                           </Text>
                         </View>
                       )}

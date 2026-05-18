@@ -252,6 +252,17 @@ export default function StoreScreen() {
     }
   };
 
+  const getRarityDisplayName = (rarity: string | null) => {
+    if (!rarity) return '';
+    switch (rarity.toLowerCase()) {
+      case 'comun': return 'COMÚN';
+      case 'raro': return 'RARO';
+      case 'epico': return 'ÉPICO';
+      case 'legendario': return 'LEGENDARIO';
+      default: return rarity.toUpperCase();
+    }
+  };
+
 
   const closeModal = () => {
     setSelectedItem(null);
@@ -330,7 +341,7 @@ export default function StoreScreen() {
             item.rarity === 'raro' && styles.rarityBadgeTextRaro,
             item.rarity === 'comun' && styles.rarityBadgeTextComun
           ]}>
-            {item.rarity?.toUpperCase()}
+            {getRarityDisplayName(item.rarity)}
           </Text>
         </View>
         <View pointerEvents="none" style={[styles.cardInnerStroke, { borderRadius: CARD_RADIUS }]} />
@@ -395,7 +406,7 @@ export default function StoreScreen() {
                 activeOpacity={0.7}
                 style={styles.helpButton}
               >
-                <FontAwesome5 name="question-circle" size={24} color="#fff" />
+                <FontAwesome5 name="info-circle" size={24} color="#fff" />
               </TouchableOpacity>
               <View 
                 ref={coinsRef}
@@ -532,7 +543,7 @@ export default function StoreScreen() {
                   selectedItem.rarity === 'raro' && styles.rarityBadgeTextRaro,
                   selectedItem.rarity === 'comun' && styles.rarityBadgeTextComun
                 ]}>
-                  {selectedItem.rarity.toUpperCase()}
+                  {getRarityDisplayName(selectedItem.rarity)}
                 </Text>
               </View>
             )}
@@ -612,10 +623,10 @@ export default function StoreScreen() {
             >
               <Text style={styles.buyButtonText}>
                 {ownedProductIds.includes(Number(selectedItem?.id))
-                  ? 'COMPRADO!'
+                  ? '¡COMPRADO!'
                   : (coins < (selectedItem?.price ?? 0)
                       ? 'SIN MONEDAS'
-                      : (isPurchasing ? 'COMPRANDO...' : 'COMPRAR!'))}
+                      : (isPurchasing ? 'COMPRANDO...' : '¡COMPRAR!'))}
               </Text>
             </TouchableOpacity>
             {isPurchasing && (

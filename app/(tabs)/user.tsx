@@ -26,6 +26,7 @@ import { getUserMatchesDetailed, getUserStats, UserMatchItem, getStreakWarning, 
 import AuthService from '@/Core/Services/AuthService/AuthService';
 import { AuthButton } from '@/components/ui/AuthButton';
 import { AuthInput } from '@/components/ui/AuthInput';
+import { validateUsername } from '@/utils/profanityFilter';
 import TutorialOverlay from '@/components/TutorialOverlay';
 import { useTutorial, TUTORIAL_STEPS } from '@/contexts/TutorialContext';
 import { useFocusEffect } from '@react-navigation/native';
@@ -245,12 +246,9 @@ export default function UserScreen() {
   const handleSaveUsername = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const candidate = (newUsername || '').trim();
-    if (candidate.length < 3 || candidate.length > 20) {
-      setUsernameError('El usuario debe tener entre 3 y 20 caracteres.');
-      return;
-    }
-    if (!/^[a-zA-Z0-9_\.]+$/.test(candidate)) {
-      setUsernameError('Solo letras, números, guión bajo o punto.');
+    const usernameValidation = validateUsername(candidate);
+    if (!usernameValidation.isValid) {
+      setUsernameError(usernameValidation.error || 'Nombre de usuario inválido.');
       return;
     }
     const translateError = (msg: string) => {
@@ -1071,6 +1069,9 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     letterSpacing: 2,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 3 },
+    textShadowRadius: 8,
   },
   headerAction: {
     position: 'absolute',

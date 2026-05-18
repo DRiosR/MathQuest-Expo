@@ -43,7 +43,7 @@ export default function MatchEndView({
   const isPlayer1CurrentUser = (player1Username ?? '').trim().toLowerCase() === currentUsername && currentUsername.length > 0;
   const isPlayer2CurrentUser = (player2Username ?? '').trim().toLowerCase() === currentUsername && currentUsername.length > 0;
   
-  const title = winByForfeit ? '¡RIVAL ABANDONÓ!' : (didWin ? '¡GANASTE!' : 'PERDISTE');
+  const title = winByForfeit ? '¡RIVAL ABANDONÓ!' : (didWin ? '¡GANASTE!' : '¡PERDISTE!');
   const subtitle = winByForfeit ? '¡GANASTE POR DEFAULT!' : '';
   const deltaPrefix = pointsDelta > 0 ? '+' : '-';
   const deltaColor = didWin ? '#10B981' : '#EF4444';

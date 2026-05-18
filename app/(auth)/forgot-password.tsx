@@ -136,7 +136,7 @@ export default function ForgotPasswordScreen() {
             {/* Title */}
             <View style={styles.titleContainer}>
               <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>
-                OLVIDASTE TU{'\n'}CONTRASEÑA?
+                ¿OLVIDASTE TU{'\n'}CONTRASEÑA?
               </Text>
               <Text style={[styles.subtitle, { fontFamily: 'Gilroy-Black' }]}>
                 No te preocupes, te ayudamos a recuperarla

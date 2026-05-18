@@ -24,6 +24,7 @@ import { LogoHeader } from '@/components/ui/LogoHeader';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFontContext } from '@/contexts/FontsContext';
 import AuthService from '@/Core/Services/AuthService/AuthService';
+import { validateUsername, containsProfanity } from '@/utils/profanityFilter';
 
 export default function SignUpScreen() {
   const { fontsLoaded } = useFontContext();
@@ -76,10 +77,9 @@ export default function SignUpScreen() {
   const validateForm = () => {
     const newErrors: typeof errors = {};
 
-    if (!formData.username.trim()) {
-      newErrors.username = 'El nombre de usuario es requerido';
-    } else if (formData.username.length < 3) {
-      newErrors.username = 'El nombre de usuario debe tener al menos 3 caracteres';
+    const usernameValidation = validateUsername(formData.username);
+    if (!usernameValidation.isValid) {
+      newErrors.username = usernameValidation.error;
     }
 
     const trimmedEmail = formData.email.trim();
@@ -108,6 +108,13 @@ export default function SignUpScreen() {
 
   const handleUsernameChange = (text: string) => {
     setFormData((prev) => ({ ...prev, username: text }));
+    
+    const cleanText = text.trim();
+    if (cleanText.length >= 3 && containsProfanity(cleanText)) {
+      setErrors((prev) => ({ ...prev, username: 'Nombre de usuario inapropiado o no permitido' }));
+      return;
+    }
+
     if (errors.username) {
       setErrors((prev) => {
         const next = { ...prev };
