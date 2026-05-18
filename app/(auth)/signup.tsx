@@ -1,9 +1,14 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
+import { BlurView } from 'expo-blur';
+import { FontAwesome5 } from '@expo/vector-icons';
 import {
   Alert,
+  Animated,
+  Dimensions,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -50,6 +55,22 @@ import AuthService from '@/Core/Services/AuthService/AuthService';
   
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [checkingUsername, setCheckingUsername] = useState(false);
+
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const scaleAnim = React.useRef(new Animated.Value(0.8)).current;
+  const opacityAnim = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    if (showWelcomeModal) {
+      Animated.parallel([
+        Animated.spring(scaleAnim, { toValue: 1, friction: 8, tension: 40, useNativeDriver: true }),
+        Animated.timing(opacityAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      ]).start();
+    } else {
+      scaleAnim.setValue(0.8);
+      opacityAnim.setValue(0);
+    }
+  }, [showWelcomeModal]);
 
   const validateForm = () => {
     const newErrors: typeof errors = {};
@@ -116,16 +137,7 @@ import AuthService from '@/Core/Services/AuthService/AuthService';
           setErrors({ general: 'Hubo un problema al crear tu cuenta. Revisa que el correo y usuario sean nuevos.' });
         }
       } else if (user) {
-        Alert.alert(
-          '¡Cuenta creada!',
-          'Bienvenido a MathQuest!',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/(tabs)' as any),
-            },
-          ]
-        );
+        setShowWelcomeModal(true);
       }
     } catch (error: any) {
       setErrors({ general: 'Error inesperado. Intenta de nuevo.' });
@@ -273,6 +285,48 @@ import AuthService from '@/Core/Services/AuthService/AuthService';
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
+
+      {/* Modal de Bienvenida */}
+      <Modal visible={showWelcomeModal} transparent animationType="none">
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={20} style={StyleSheet.absoluteFill} tint="dark" />
+          
+          <Animated.View
+            style={[
+              styles.modalContainer,
+              {
+                opacity: opacityAnim,
+                transform: [{ scale: scaleAnim }],
+              },
+            ]}
+          >
+            <View style={styles.modalIconCircle}>
+              <FontAwesome5 name="check-circle" size={40} color="#4ADE80" />
+            </View>
+            
+            <Text style={[styles.modalTitleText, fontsLoaded ? { fontFamily: 'Digitalt' } : null]}>
+              ¡CUENTA CREADA!
+            </Text>
+
+            <Text style={[styles.modalMessage, fontsLoaded ? { fontFamily: 'Digitalt' } : null]}>
+              Bienvenido a MathQuest. ¡Prepárate para la aventura!
+            </Text>
+
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => {
+                setShowWelcomeModal(false);
+                router.replace('/(tabs)' as any);
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.modalButtonText, fontsLoaded ? { fontFamily: 'Digitalt' } : null]}>
+                COMENZAR
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -384,5 +438,66 @@ const styles = StyleSheet.create({
   suggestionText: {
     color: '#fff',
     fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: Dimensions.get('window').width * 0.85,
+    backgroundColor: '#1A1A2E',
+    borderRadius: 30,
+    padding: 25,
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#4ADE80',
+    shadowColor: '#4ADE80',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 15,
+    elevation: 20,
+  },
+  modalIconCircle: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  modalTitleText: {
+    fontSize: 26,
+    color: '#4ADE80',
+    textAlign: 'center',
+    marginBottom: 10,
+    letterSpacing: 1,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#D6CCFF',
+    textAlign: 'center',
+    marginBottom: 25,
+    lineHeight: 22,
+    opacity: 0.9,
+  },
+  modalButton: {
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 18,
+    alignItems: 'center',
+    backgroundColor: '#4ADE80',
+    borderBottomWidth: 4,
+    borderBottomColor: '#166534',
+  },
+  modalButtonText: {
+    fontSize: 16,
+    letterSpacing: 1,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
   },
 });

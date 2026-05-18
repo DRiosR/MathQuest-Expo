@@ -672,7 +672,7 @@ export default function StoreScreen() {
                    setPurchasedItem(null);
                  }}
                >
-                 <Text style={styles.equipButtonText}>DESPUÉS</Text>
+                 <Text style={[styles.equipButtonText, styles.equipLaterText]}>DESPUÉS</Text>
                </TouchableOpacity>
              </View>
           </View>
@@ -1088,7 +1088,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   equipLaterButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.4)',
+  },
+  equipLaterText: {
+    color: '#fff',
   },
   equipButtonText: {
     color: '#10B981',
