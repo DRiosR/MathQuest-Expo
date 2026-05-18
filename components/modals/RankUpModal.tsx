@@ -49,7 +49,7 @@ export function RankUpModal({ visible, rankName, rankIcon, rankColor, onClose, u
               source={require('@/assets/lotties/extras/Confetti_quick.json')}
               autoPlay
               loop={false}
-              style={StyleSheet.absoluteFill}
+              style={{ width: width, height: height, position: 'absolute' }}
             />
           </View>
           

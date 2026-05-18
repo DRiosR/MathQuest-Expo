@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
     justifyContent: 'center',
   },
-  lottie: { width: '100%', height: '100%' },
+  lottie: { width: 120, height: 120 },
   footer: { 
     width: '100%', 
     paddingBottom: IS_SMALL_DEVICE ? 20 : 40, 

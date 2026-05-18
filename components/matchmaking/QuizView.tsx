@@ -2,7 +2,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View, Vibration, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
+import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View, Vibration, Dimensions, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LayeredAvatar } from '@/components/LayeredAvatar';
 import { Avatar } from '@/types/avatar';
@@ -161,27 +161,25 @@ export default function QuizView({
       }
 
       const opacity = new Animated.Value(0);
-      const scale = new Animated.Value(0.2); // Empezar más pequeña para efecto pop
-      const translateY = new Animated.Value(15); // Empezar un poco más abajo
+      const translateY = new Animated.Value(30); // Empezar más abajo para un recorrido spring dinámico
       
       setActiveEmotes(prev => ({
         ...prev,
-        [userId]: { emote, opacity, scale, translateY }
+        [userId]: { emote, opacity, translateY }
       }));
 
-      // Animación de entrada (Pop)
+      // Animación de entrada (Pop con bounce spring en translateY)
       Animated.parallel([
         Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-        Animated.spring(scale, { toValue: 1, friction: 5, useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: 0, duration: 200, useNativeDriver: true }),
+        Animated.spring(translateY, { toValue: 0, tension: 60, friction: 6, useNativeDriver: true }),
       ]).start();
 
       // Configurar el nuevo timeout de 3 segundos
       emoteTimeouts.current[userId] = setTimeout(() => {
-        // Animación de salida (Fade Out)
+        // Animación de salida (Fade Out + slide up ligero)
         Animated.parallel([
           Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-          Animated.timing(scale, { toValue: 0.8, duration: 300, useNativeDriver: true }),
+          Animated.timing(translateY, { toValue: -15, duration: 300, useNativeDriver: true }),
         ]).start(() => {
           // Eliminar del estado una vez terminada la animación
           setActiveEmotes(prev => {
@@ -240,6 +238,15 @@ export default function QuizView({
           },
         ]}
       />
+
+      {/* Global dismiss overlay for emotes menu during quiz */}
+      {showEmoteMenu && !disabled && (
+        <Pressable 
+          style={styles.globalDismissOverlay} 
+          onPress={() => setShowEmoteMenu(false)}
+        />
+      )}
+
       {/* Header with Player Info */}
       <View style={styles.header}>
         <View style={styles.topInfoRow}>
@@ -258,7 +265,6 @@ export default function QuizView({
                       opacity: activeEmotes['me'].opacity, 
                       left: 60,
                       transform: [
-                        { scale: activeEmotes['me'].scale },
                         { translateY: activeEmotes['me'].translateY }
                       ]
                     }
@@ -283,11 +289,11 @@ export default function QuizView({
               <Text style={[styles.playerTotalScore, { fontFamily: 'Digitalt' }]}>{myTotalScore} pts</Text>
             </View>
           </View>
-
+ 
           <View style={styles.roundInfoCenter}>
             <Text style={[styles.roundTitle, { fontFamily: 'Digitalt' }]}>RONDA {roundNumber || 1}</Text>
           </View>
-
+ 
           {/* Opponent Info */}
           <View style={[styles.playerInfoBlock, { flexDirection: 'row-reverse' }]}>
             <View style={styles.avatarWrapperWithEmote}>
@@ -303,7 +309,6 @@ export default function QuizView({
                       opacity: activeEmotes['opponent'].opacity, 
                       right: 60,
                       transform: [
-                        { scale: activeEmotes['opponent'].scale },
                         { translateY: activeEmotes['opponent'].translateY }
                       ]
                     }
@@ -396,11 +401,15 @@ export default function QuizView({
           ['1', '2', '3'],
           ['4', '5', '6'],
           ['7', '8', '9'],
-          ['−', '0', '⌫']
+          ['', '0', '⌫']
         ].map((row, i) => (
           <View key={`row-${i}`} style={styles.numpadRow}>
             {row.map((val, j) => {
-              const isNegative = val === '−';
+              if (val === '') {
+                return (
+                  <View key={`val-empty-${j}`} style={[styles.numpadButton, { opacity: 0 }]} />
+                );
+              }
               
               return (
                 <TouchableOpacity
@@ -409,8 +418,6 @@ export default function QuizView({
                   onPress={() => {
                     if (val === '⌫') {
                       onDigit('⌫');
-                    } else if (isNegative) {
-                      onDigit('−');
                     } else {
                       onDigit(val);
                     }
@@ -542,6 +549,14 @@ export default function QuizView({
           colors={['rgba(0,0,0,0.85)', 'rgba(0,0,0,0.95)']}
           style={StyleSheet.absoluteFill}
         />
+
+        {/* Global dismiss overlay for emotes menu during wait screen */}
+        {showEmoteMenu && (
+          <Pressable 
+            style={styles.globalDismissOverlay} 
+            onPress={() => setShowEmoteMenu(false)}
+          />
+        )}
         {getMascotIdleSource(category?.emoji) && (
           <View style={styles.waitingMascotWrapperFixed}>
             <LottieView
@@ -562,6 +577,72 @@ export default function QuizView({
             </Text>
           </View>
         )}
+
+        {/* Bottom Actions Row during waiting screen */}
+        <View style={[styles.waitingBottomActions, { paddingBottom: Math.max(insets.bottom, 15) }]}>
+          {/* Botón de Emotes */}
+          <TouchableOpacity 
+            style={styles.emoteBtn} 
+            onPress={() => setShowEmoteMenu(!showEmoteMenu)}
+            activeOpacity={0.7}
+          >
+            <LinearGradient
+              colors={['#8B5CF6', '#6D28D9']}
+              style={styles.actionBtnGradient}
+            >
+              <FontAwesome5 name="comment-dots" size={20} color="#FFF" />
+            </LinearGradient>
+          </TouchableOpacity>
+
+          {/* Menú de Emotes en espera */}
+          {showEmoteMenu && (
+            <View style={[styles.emoteMenuContainer, { bottom: 65 + Math.max(insets.bottom, 15) }]}>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.emoteMenuScroll}
+              >
+                {QUICK_CHAT.map(chat => (
+                  <TouchableOpacity 
+                    key={chat.id} 
+                    style={styles.emoteOptionHorizontal} 
+                    onPress={() => handleSendEmote(chat.id)}
+                  >
+                    <View style={styles.mascotMenuIconWrap}>
+                      <LottieView
+                        source={getChatLottieSource(chat.id)}
+                        autoPlay
+                        loop
+                        style={styles.mascotMenuIcon}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          <View style={{ flex: 1 }} />
+
+          {/* Botón de Abandonar en espera */}
+          {onForfeit && (
+            <TouchableOpacity 
+              style={styles.forfeitBtn} 
+              onPress={onForfeit}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#EF4444', '#B91C1C']}
+                style={styles.actionBtnGradient}
+              >
+                <FontAwesome5 name="door-open" size={16} color="#FFF" />
+                <Text style={[styles.forfeitBtnText, { fontFamily: 'Digitalt' }]}>
+                  ABANDONAR
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+        </View>
       </Animated.View>
     )}
     </KeyboardAvoidingView>
@@ -648,8 +729,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mascotLottieWeb: {
-    width: '100%',
-    height: '100%',
+    width: 100,
+    height: 100,
   },
   questionCard: { marginTop: 0, backgroundColor: 'rgba(0,0,0,0.15)', paddingVertical: IS_SMALL_DEVICE ? 15 : 25, paddingHorizontal: 20, borderRadius: 24, alignItems: 'center' },
   questionText: { color: '#FFFFFF', fontSize: IS_SMALL_DEVICE ? 24 : 32, fontWeight: '800', letterSpacing: 1, textAlign: 'center' },
@@ -788,8 +869,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   waitingMascotLottieWeb: {
-    width: '100%',
-    height: '100%',
+    width: 240,
+    height: 240,
   },
   waitingTitle: {
     color: '#FFFFFF',
@@ -915,16 +996,16 @@ const styles = StyleSheet.create({
     fontSize: 32,
   },
   mascotEmojiLarge: {
-    width: '100%',
-    height: '100%',
+    width: 70,
+    height: 70,
   },
   mascotMenuIconWrap: {
     width: 50,
     height: 50,
   },
   mascotMenuIcon: {
-    width: '100%',
-    height: '100%',
+    width: 50,
+    height: 50,
   },
   bubbleArrowLeft: {
     position: 'absolute',
@@ -952,6 +1033,15 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
     borderLeftColor: '#FFD45E',
   },
+  waitingBottomActions: {
+    position: 'absolute',
+    bottom: 0,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 2001,
+  },
   flashOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 9998,
@@ -961,6 +1051,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 9999,
+  },
+  globalDismissOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1999,
+    backgroundColor: 'transparent',
   },
 });
 

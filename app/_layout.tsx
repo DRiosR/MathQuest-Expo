@@ -10,7 +10,24 @@ import { Slot } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import LottieView from 'lottie-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, LogBox } from 'react-native';
+import { Animated, StyleSheet, LogBox, Platform } from 'react-native';
+
+// Force sharp rendering for Lottie SVG animations on web by overriding blurry CSS transforms
+if (Platform.OS === 'web') {
+  try {
+    const style = document.createElement('style');
+    style.textContent = `
+      svg {
+        transform: none !important;
+        will-change: auto !important;
+      }
+    `;
+    document.head.appendChild(style);
+  } catch (e) {
+    console.error('Failed to inject global sharp SVG styles:', e);
+  }
+}
+
 import StreakWarningModal from '@/components/StreakWarningModal';
 
 // Ignorar errores ruidosos que no son fatales (como el refresh token de Supabase al iniciar)

@@ -401,9 +401,12 @@ export type UserMatchItem = {
   opponentId: string | null;
   opponentUsername: string;
   opponentPoints: number;
+  opponentAvatar?: Avatar | null;
+  myScore: number;
+  opponentScore: number;
 };
 
-// Devuelve partidas enriquecidas con datos del oponente (username, points)
+// Devuelve partidas enriquecidas con datos del oponente (username, points, avatar) y puntajes obtenidos
 export async function getUserMatchesDetailed(
   userId: string,
   options: { status?: string; limit?: number } = {}
@@ -413,7 +416,7 @@ export async function getUserMatchesDetailed(
   const { data, error } = await supabase
     .from('matches')
     .select(`
-      id, winner_id, player1_id, player2_id, status, created_at,
+      id, winner_id, player1_id, player2_id, status, created_at, player1_points, player2_points,
       player1:profiles!matches_player1_id_fkey(id, username, points),
       player2:profiles!matches_player2_id_fkey(id, username, points)
     `)
@@ -429,6 +432,19 @@ export async function getUserMatchesDetailed(
 
   const rows = (data || []) as any[];
 
+  // Obtener los avatares de los oponentes en un solo batch query para optimizar rendimiento
+  const opponentIds = rows
+    .map((m) => {
+      const isPlayer1 = m.player1_id === userId;
+      const opponent = isPlayer1 ? m.player2 : m.player1;
+      return opponent?.id;
+    })
+    .filter(Boolean) as string[];
+
+  const avatarMap = opponentIds.length > 0 
+    ? await getAvatarsForProfileIds(opponentIds)
+    : {} as Record<string, Avatar>;
+
   return rows.map((m) => {
     const isPlayer1 = m.player1_id === userId;
     const opponent = isPlayer1 ? m.player2 : m.player1;
@@ -436,6 +452,11 @@ export async function getUserMatchesDetailed(
     const opponentPoints: number = opponent?.points ?? 0;
     const opponentId: string | null = opponent?.id ?? null;
     const didWin = m.winner_id === userId;
+    
+    const myScore = isPlayer1 ? (m.player1_points ?? 0) : (m.player2_points ?? 0);
+    const opponentScore = isPlayer1 ? (m.player2_points ?? 0) : (m.player1_points ?? 0);
+    const opponentAvatar = opponentId ? avatarMap[opponentId] ?? null : null;
+
     return {
       id: m.id as string,
       created_at: m.created_at as string | null,
@@ -443,6 +464,9 @@ export async function getUserMatchesDetailed(
       opponentId,
       opponentUsername,
       opponentPoints,
+      opponentAvatar,
+      myScore,
+      opponentScore,
     } as UserMatchItem;
   });
 }

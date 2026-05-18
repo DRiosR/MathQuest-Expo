@@ -1237,8 +1237,8 @@ const styles = StyleSheet.create({
     height: 160,
   },
   centerLottie: {
-    width: '100%',
-    height: '100%',
+    width: 160,
+    height: 160,
   },
   countdownStage: {
     flex: 1,
