@@ -649,7 +649,21 @@ export default function MatchmakingScreen() {
   };
 
   const handleDigit = (d: string) => {
-    setAnswerText((prev) => (prev.length >= 8 ? prev : (prev === '0' ? d : prev + d)));
+    if (d === '⌫') {
+      setAnswerText((prev) => prev.slice(0, -1));
+    } else if (d === '−' || d === '-') {
+      setAnswerText((prev) => {
+        if (prev.startsWith('-')) {
+          return prev.slice(1);
+        } else if (prev === '') {
+          return '-';
+        } else {
+          return '-' + prev;
+        }
+      });
+    } else {
+      setAnswerText((prev) => (prev.length >= 8 ? prev : (prev === '0' ? d : prev + d)));
+    }
   };
   const handleClear = () => setAnswerText('');
   const handleOk = () => {

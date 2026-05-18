@@ -16,7 +16,8 @@ import {
   TouchableOpacity,
   Vibration,
   View,
-  Easing
+  Easing,
+  Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -107,6 +108,12 @@ async function recordPlayDay(): Promise<void> {
 
 export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps) {
   const { fontsLoaded } = useFontContext();
+
+  const safeHaptic = (style: Haptics.ImpactFeedbackStyle) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(style).catch(() => {});
+    }
+  };
 
   const { avatar: userAvatar } = useAvatar();
   const { user } = useAuth();
@@ -595,7 +602,9 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
         Animated.timing(shakeAnim, { toValue: 0, duration: 40, useNativeDriver: true }),
       ]).start();
 
-      Vibration.vibrate([0, 100, 50, 100]);
+      if (Platform.OS !== 'web') {
+        Vibration.vibrate([0, 100, 50, 100]);
+      }
       setTimeout(() => setIncorrectFlash(false), 600);
 
       // Check if game should end (3 wrong answers)
@@ -666,7 +675,7 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
   };
 
   const handleNumpadPress = (val: string | number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    safeHaptic(Haptics.ImpactFeedbackStyle.Light);
     
     if (val === '⌫') {
       // Backspace
@@ -773,7 +782,7 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
                          <TouchableOpacity 
                           key={cat.id}
                           onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                            safeHaptic(Haptics.ImpactFeedbackStyle.Medium);
                             setSelectedCategory(cat.id);
                           }}
                           style={[
@@ -782,7 +791,7 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
                           ]}
                          >
                             <Text style={[styles.opText, { fontFamily: 'Digitalt' }]}>{cat.name}</Text>
-                         </TouchableOpacity>
+                          </TouchableOpacity>
                       ))}
                     </View>
                   </View>
@@ -798,7 +807,7 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
                               <TouchableOpacity 
                                key={t.id}
                                onPress={() => {
-                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                 safeHaptic(Haptics.ImpactFeedbackStyle.Light);
                                  setSelectedTime(t.id);
                                }}
                                style={[styles.chipLarge, selectedTime === t.id && { backgroundColor: themeColor }]}
@@ -823,7 +832,7 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
                               <TouchableOpacity 
                                 key={d.id}
                                 onPress={() => {
-                                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                  safeHaptic(Haptics.ImpactFeedbackStyle.Medium);
                                   setSelectedDifficulty(d.id);
                                   setCurrentDifficulty(d.id);
                                 }}
@@ -988,16 +997,19 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
           {/* Question area (Proportional) */}
           <View style={styles.gameQuestionSection}>
             <View style={styles.mascotsRow}>
-              {Object.entries(mascotAnimations).map(([key, animation]) => (
-                <View key={key} style={styles.mascotWrapper}>
-                  <LottieView
-                    source={animation}
-                    autoPlay
-                    loop
-                    style={styles.mascotAnimation}
-                  />
-                </View>
-              ))}
+              {Object.entries(mascotAnimations).map(([key, animation]) => {
+                const isActive = key === selectedCategory || (selectedCategory === 'mix' && (key === 'Totalin' || key === currentQuestion?.category));
+                return (
+                  <View key={key} style={styles.mascotWrapper}>
+                    <LottieView
+                      source={animation}
+                      autoPlay={Platform.OS === 'web' ? isActive : true}
+                      loop={Platform.OS === 'web' ? isActive : true}
+                      style={styles.mascotAnimation}
+                    />
+                  </View>
+                );
+              })}
             </View>
 
             <View style={styles.questionContainer}>
@@ -1057,7 +1069,7 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
                         ]}
                         onPress={() => {
                           if (!isDisabledNegative) {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            safeHaptic(Haptics.ImpactFeedbackStyle.Light);
                             handleNumpadPress(val);
                           }
                         }}

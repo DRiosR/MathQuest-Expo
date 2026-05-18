@@ -391,26 +391,59 @@ export default function QuizView({
       </View>
 
       {/* Keypad */}
-      <View style={styles.keypad}>
-        {[['1','2','3'],['4','5','6'],['7','8','9'],['C','0','OK']].map((row, rIdx) => (
-          <View key={`row-${rIdx}`} style={styles.keypadRow}>
-            {row.map(key => (
-              <TouchableOpacity
-                key={key}
-                style={[styles.keypadBtn, key === 'OK' ? styles.keypadOk : key === 'C' ? styles.keypadClear : null]}
-                onPress={() => {
-                  if (key === 'OK') return onOk();
-                  if (key === 'C') return onClear();
-                  onDigit(key);
-                }}
-                disabled={disabled}
-              >
-                <Text style={[styles.keypadBtnText, { fontFamily: 'Digitalt' }]}>{key}</Text>
-              </TouchableOpacity>
-            ))}
+      <View style={styles.numpadContainer}>
+        {[
+          ['1', '2', '3'],
+          ['4', '5', '6'],
+          ['7', '8', '9'],
+          ['−', '0', '⌫']
+        ].map((row, i) => (
+          <View key={`row-${i}`} style={styles.numpadRow}>
+            {row.map((val, j) => {
+              const isNegative = val === '−';
+              
+              return (
+                <TouchableOpacity
+                  key={`val-${val}-${j}`}
+                  style={styles.numpadButton}
+                  onPress={() => {
+                    if (val === '⌫') {
+                      onDigit('⌫');
+                    } else if (isNegative) {
+                      onDigit('−');
+                    } else {
+                      onDigit(val);
+                    }
+                  }}
+                  disabled={disabled}
+                >
+                  <View style={styles.numpadButtonInner}>
+                    <Text style={[styles.numpadButtonText, { fontFamily: 'Digitalt' }]}>
+                      {val}
+                    </Text>
+                  </View>
+                  <View style={styles.numpadButtonShadow} />
+                </TouchableOpacity>
+              );
+            })}
           </View>
         ))}
       </View>
+
+      <TouchableOpacity
+        style={[styles.submitButton, (!answerText.trim() || disabled) && styles.submitButtonDisabled]}
+        onPress={onOk}
+        disabled={!answerText.trim() || disabled}
+      >
+        <LinearGradient
+          colors={(answerText.trim() && !disabled) ? ['#FFA65A', '#FF5EA3'] : ['#666', '#444']}
+          style={styles.submitButtonGradient}
+        >
+          <Text style={[styles.submitButtonText, { fontFamily: 'Digitalt' }]}>
+            ENVIAR
+          </Text>
+        </LinearGradient>
+      </TouchableOpacity>
 
       {/* Score moved to header next to progress */}
       
@@ -535,8 +568,9 @@ export default function QuizView({
   );
 }
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const IS_SMALL_DEVICE = SCREEN_HEIGHT < 750;
+const scaleFactor = IS_SMALL_DEVICE ? 0.82 : 1.0;
 
 const styles = StyleSheet.create({
   quizContainer: { 
@@ -621,22 +655,74 @@ const styles = StyleSheet.create({
   questionText: { color: '#FFFFFF', fontSize: IS_SMALL_DEVICE ? 24 : 32, fontWeight: '800', letterSpacing: 1, textAlign: 'center' },
   answerDisplay: { marginTop: 10, backgroundColor: '#FFFFFF', paddingVertical: IS_SMALL_DEVICE ? 10 : 16, borderRadius: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10, elevation: 5 },
   answerText: { color: '#000000', fontSize: IS_SMALL_DEVICE ? 28 : 36, fontWeight: '900' },
-  keypad: { marginTop: 10, width: '100%', paddingBottom: 5 },
-  keypadRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: IS_SMALL_DEVICE ? 6 : 12 },
-  keypadBtn: { 
-    flex: 1, 
-    marginHorizontal: 5, 
-    backgroundColor: 'rgba(255,255,255,0.22)', 
-    paddingVertical: IS_SMALL_DEVICE ? 15 : 22, 
-    borderRadius: 20, 
+  numpadContainer: {
+    width: '100%',
+    paddingHorizontal: 10,
+    marginTop: 10,
+  },
+  numpadRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 10,
+    gap: 10,
+  },
+  numpadButton: {
+    width: SCREEN_WIDTH * 0.26,
+    height: 50 * scaleFactor,
+    position: 'relative',
+  },
+  numpadButtonInner: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 18,
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    borderBottomWidth: 4,
-    borderBottomColor: 'rgba(0,0,0,0.15)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    zIndex: 2,
   },
-  keypadBtnText: { color: '#FFFFFF', fontSize: IS_SMALL_DEVICE ? 22 : 28, fontWeight: '900' },
-  keypadOk: { backgroundColor: '#FF46A5', borderBottomColor: '#C0267D' },
-  keypadClear: { backgroundColor: 'rgba(255,255,255,0.3)', borderBottomColor: 'rgba(0,0,0,0.2)' },
+  numpadButtonShadow: {
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: 18,
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+    bottom: -4,
+    left: 0,
+    zIndex: 1,
+  },
+  numpadButtonText: {
+    color: '#fff',
+    fontSize: 28,
+  },
+  submitButton: {
+    width: '85%',
+    height: 54 * scaleFactor,
+    borderRadius: 18,
+    overflow: 'hidden',
+    marginTop: 15 * scaleFactor,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    alignSelf: 'center',
+    marginBottom: 5,
+  },
+  submitButtonDisabled: {
+    opacity: 0.5,
+  },
+  submitButtonGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 22,
+    letterSpacing: 2,
+  },
   bottomActionsArea: {
     flexDirection: 'row',
     alignItems: 'center',
