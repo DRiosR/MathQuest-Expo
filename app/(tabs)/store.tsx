@@ -38,6 +38,9 @@ import TutorialOverlay from '@/components/TutorialOverlay';
 import { useTutorial } from '@/contexts/TutorialContext';
 import { useFocusEffect } from '@react-navigation/native';
 
+const { width, height } = Dimensions.get('window');
+const isSmallScreen = height < 750;
+
 export default function StoreScreen() {
   const { fontsLoaded } = useFontContext();
   const { avatar: userAvatar, updateAvatar } = useAvatar();
@@ -177,8 +180,8 @@ export default function StoreScreen() {
     }
   }, [isPurchasing, rotateValue]);
 
-  const { width, height } = Dimensions.get('window');
   const SIDE_PAD = 14;
+
   const CARD_GAP = 10;
   const CARD_SIZE = Math.floor((width - SIDE_PAD * 2 - CARD_GAP * 2) / 3); 
   const CARD_HEIGHT = CARD_SIZE + 16; 
@@ -370,9 +373,11 @@ export default function StoreScreen() {
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         {/* Top section with cyan bg and Calc sitting on sheet */}
         <View style={[styles.topSection, { height: TOP_SECTION_HEIGHT }]}>
-          {/* Header: avatar left, coins right */}
+          {/* Header: title left, coins right */}
           <View style={styles.header}>
-            <View style={{ flex: 1 }} />
+            <View style={styles.titleInfo}>
+              <Text style={[styles.mainTitleSmall, { fontFamily: 'Digitalt' }]}>TIENDA</Text>
+            </View>
             <View style={styles.headerRight}>
               <TouchableOpacity 
                 onPress={() => startTutorial('store')}
@@ -825,6 +830,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 6,
     zIndex: 50,
+  },
+  titleInfo: {
+    flex: 1,
+  },
+  mainTitleSmall: {
+    color: '#fff',
+    fontSize: isSmallScreen ? 20 : 26,
+    letterSpacing: 2,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   headerLeft: {
     flexDirection: 'row',

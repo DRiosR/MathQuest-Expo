@@ -2,7 +2,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import LottieView from 'lottie-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View, Vibration, Dimensions } from 'react-native';
+import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View, Vibration, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LayeredAvatar } from '@/components/LayeredAvatar';
 import { Avatar } from '@/types/avatar';
@@ -220,7 +220,11 @@ export default function QuizView({
   }, [lastAnswerResult]);
 
   return (
-    <View style={styles.quizContainer}>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+    >
+      <View style={styles.quizContainer}>
 
       <LinearGradient
         colors={["#5643B3", category?.color || '#8A56FE']}
@@ -408,90 +412,67 @@ export default function QuizView({
 
       {/* Score moved to header next to progress */}
       
-      {/* Forfeit Button at the bottom right */}
-      <TouchableOpacity 
-        style={styles.forfeitBtnBottomRight} 
-        onPress={onForfeit}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={['#EF4444', '#B91C1C']}
-          style={styles.actionBtnGradient}
+      {/* Bottom Actions Row */}
+      <View style={[styles.bottomActionsArea, { paddingBottom: Math.max(insets.bottom, 15) }]}>
+        {/* Botón de Emotes */}
+        <TouchableOpacity 
+          style={styles.emoteBtn} 
+          onPress={() => setShowEmoteMenu(!showEmoteMenu)}
+          activeOpacity={0.7}
         >
-          <FontAwesome5 name="door-open" size={16} color="#FFF" />
-          <Text style={[styles.forfeitBtnText, { fontFamily: 'Digitalt' }]}>
-            ABANDONAR
-          </Text>
-        </LinearGradient>
-      </TouchableOpacity>
-
-      {/* Pantalla de espera si yo ya terminé */}
-      {disabled && (
-        <Animated.View style={[styles.waitingOverlay, { opacity: waitingFadeAnim }]}>
           <LinearGradient
-            colors={['rgba(0,0,0,0.85)', 'rgba(0,0,0,0.95)']}
-            style={StyleSheet.absoluteFill}
-          />
-          {getMascotIdleSource(category?.emoji) && (
-            <LottieView
-              source={getMascotIdleSource(category?.emoji)}
-              autoPlay
-              loop
-              style={styles.waitingMascotLottie}
-            />
-          )}
-          <Text style={[styles.waitingTitle, { fontFamily: 'Digitalt' }]}>¡TERMINASTE!</Text>
-          <Text style={[styles.waitingSubtitle, { fontFamily: 'Digitalt' }]}>Esperando a que el rival finalice...</Text>
-          
-          {localCountdown !== null && (
-            <View style={styles.waitingTimerContainer}>
-              <Text style={[styles.waitingTimerText, { fontFamily: 'Digitalt' }]}>
-                La ronda termina en: {localCountdown}s
-              </Text>
-            </View>
-          )}
-        </Animated.View>
-      )}
-
-      {/* Botón de Emotes (Ahora siempre encima) */}
-      <TouchableOpacity 
-        style={styles.emoteBtnBottomLeft} 
-        onPress={() => setShowEmoteMenu(!showEmoteMenu)}
-        activeOpacity={0.7}
-      >
-        <LinearGradient
-          colors={['#8B5CF6', '#6D28D9']}
-          style={styles.actionBtnGradient}
-        >
-          <FontAwesome5 name="comment-dots" size={20} color="#FFF" />
-        </LinearGradient>
-      </TouchableOpacity>
-
-      {/* Menú de Emotes (Ahora siempre encima) */}
-      {showEmoteMenu && (
-        <View style={styles.emoteMenuContainer}>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.emoteMenuScroll}
+            colors={['#8B5CF6', '#6D28D9']}
+            style={styles.actionBtnGradient}
           >
-            {QUICK_CHAT.map(chat => (
-              <TouchableOpacity 
-                key={chat.id} 
-                style={styles.emoteOptionHorizontal} 
-                onPress={() => handleSendEmote(chat.id)}
-              >
-                <LottieView
-                  source={getChatLottieSource(chat.id)}
-                  autoPlay
-                  loop
-                  style={styles.mascotMenuIcon}
-                />
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      )}
+            <FontAwesome5 name="comment-dots" size={20} color="#FFF" />
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* Menú de Emotes (Absolute but anchored to the button area) */}
+        {showEmoteMenu && (
+          <View style={[styles.emoteMenuContainer, { bottom: 65 + Math.max(insets.bottom, 15) }]}>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.emoteMenuScroll}
+            >
+              {QUICK_CHAT.map(chat => (
+                <TouchableOpacity 
+                  key={chat.id} 
+                  style={styles.emoteOptionHorizontal} 
+                  onPress={() => handleSendEmote(chat.id)}
+                >
+                  <LottieView
+                    source={getChatLottieSource(chat.id)}
+                    autoPlay
+                    loop
+                    style={styles.mascotMenuIcon}
+                  />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        <View style={{ flex: 1 }} />
+
+        {/* Forfeit Button */}
+        <TouchableOpacity 
+          style={styles.forfeitBtn} 
+          onPress={onForfeit}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={['#EF4444', '#B91C1C']}
+            style={styles.actionBtnGradient}
+          >
+            <FontAwesome5 name="door-open" size={16} color="#FFF" />
+            <Text style={[styles.forfeitBtnText, { fontFamily: 'Digitalt' }]}>
+              ABANDONAR
+            </Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
 
       {/* Visual Feedback Overlays */}
       <Animated.View 
@@ -516,6 +497,35 @@ export default function QuizView({
         </View>
       )}
     </View>
+    
+    {/* Pantalla de espera si yo ya terminé - Moved outside quizContainer to be truly absolute */}
+    {disabled && (
+      <Animated.View style={[styles.waitingOverlay, { opacity: waitingFadeAnim }]}>
+        <LinearGradient
+          colors={['rgba(0,0,0,0.85)', 'rgba(0,0,0,0.95)']}
+          style={StyleSheet.absoluteFill}
+        />
+        {getMascotIdleSource(category?.emoji) && (
+          <LottieView
+            source={getMascotIdleSource(category?.emoji)}
+            autoPlay
+            loop
+            style={styles.waitingMascotLottie}
+          />
+        )}
+        <Text style={[styles.waitingTitle, { fontFamily: 'Digitalt' }]}>¡TERMINASTE!</Text>
+        <Text style={[styles.waitingSubtitle, { fontFamily: 'Digitalt' }]}>Esperando a que el rival finalice...</Text>
+        
+        {localCountdown !== null && (
+          <View style={styles.waitingTimerContainer}>
+            <Text style={[styles.waitingTimerText, { fontFamily: 'Digitalt' }]}>
+              La ronda termina en: {localCountdown}s
+            </Text>
+          </View>
+        )}
+      </Animated.View>
+    )}
+    </KeyboardAvoidingView>
   );
 }
 
@@ -527,7 +537,7 @@ const styles = StyleSheet.create({
     flex: 1, 
     paddingHorizontal: 20, 
     justifyContent: 'space-between', 
-    paddingBottom: IS_SMALL_DEVICE ? 75 : 95 // Aumentado para evitar solapamiento con botones absolutos
+    paddingBottom: 0
   },
   header: { alignItems: 'center', marginTop: 8, alignSelf: 'stretch' },
   topInfoRow: {
@@ -609,14 +619,27 @@ const styles = StyleSheet.create({
   keypadBtnText: { color: '#FFFFFF', fontSize: IS_SMALL_DEVICE ? 22 : 28, fontWeight: '900' },
   keypadOk: { backgroundColor: '#FF46A5', borderBottomColor: '#C0267D' },
   keypadClear: { backgroundColor: 'rgba(255,255,255,0.3)', borderBottomColor: 'rgba(0,0,0,0.2)' },
-  forfeitBtnBottomRight: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    width: 140,
+  bottomActionsArea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginTop: 5,
+    zIndex: 2001,
+  },
+  forfeitBtn: {
+    width: 130,
     height: 44,
     borderRadius: 22,
-    zIndex: 2001,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
+  },
+  emoteBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -710,26 +733,10 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
   },
-  // Emote Styles
-  emoteBtnBottomLeft: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    zIndex: 2001,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 8,
-  },
   emoteMenuContainer: {
     position: 'absolute',
-    bottom: 80,
-    left: 20,
-    right: 20,
+    left: 0,
+    right: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.85)',
     borderRadius: 20,
     padding: 10,
