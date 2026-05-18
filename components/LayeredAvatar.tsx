@@ -138,8 +138,6 @@ export const LayeredAvatar: React.FC<LayeredAvatarProps> = ({
             source={{ uri: normalizedUri }} 
             style={{ width: baseSize, height: baseSize }} 
             contentFit="contain" 
-            cachePolicy="memory-disk"
-            transition={200}
           />
         );
       }

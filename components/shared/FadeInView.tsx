@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, ViewProps } from 'react-native';
+import { Animated, ViewProps, Platform } from 'react-native';
 
 interface FadeInViewProps extends ViewProps {
   delay?: number;
@@ -53,19 +53,19 @@ export function FadeInView({
         toValue: 1,
         duration,
         delay,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.timing(translateX, {
         toValue: 0,
         duration,
         delay,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.timing(translateY, {
         toValue: 0,
         duration,
         delay,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
     ]).start();
   }, [delay, duration, distance, from]);

@@ -7,6 +7,7 @@ import {
   TouchableOpacity, 
   Dimensions, 
   Animated,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -63,10 +64,10 @@ export default function TutorialOverlay() {
   useEffect(() => {
     let timeout: any;
 
-    const showCard = () => {
+    const showCard = (retries = 10) => {
       // If we need a measurement but don't have it yet, wait a bit
-      if (requiresMeasuredSpotlight && !isStepMeasured) {
-        timeout = setTimeout(showCard, 50);
+      if (requiresMeasuredSpotlight && !isStepMeasured && retries > 0) {
+        timeout = setTimeout(() => showCard(retries - 1), 50);
         return;
       }
 
@@ -77,12 +78,12 @@ export default function TutorialOverlay() {
         // Fade in the whole card
         fadeAnim.setValue(0);
         contentFadeAnim.setValue(1);
-        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: Platform.OS !== 'web' }).start();
       } else if (isNewStep) {
         // Smooth content transition on the same screen
         Animated.sequence([
-          Animated.timing(contentFadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
-          Animated.timing(contentFadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
+          Animated.timing(contentFadeAnim, { toValue: 0, duration: 150, useNativeDriver: Platform.OS !== 'web' }),
+          Animated.timing(contentFadeAnim, { toValue: 1, duration: 250, useNativeDriver: Platform.OS !== 'web' }),
         ]).start();
       }
 
@@ -92,21 +93,21 @@ export default function TutorialOverlay() {
       if (pulseRef.current) pulseRef.current.stop();
       pulseRef.current = Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.08, duration: 800, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1.08, duration: 800, useNativeDriver: Platform.OS !== 'web' }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: Platform.OS !== 'web' }),
         ])
       );
       pulseRef.current.start();
     };
 
     const hideCard = () => {
-      Animated.timing(fadeAnim, { toValue: 0, duration: 300, useNativeDriver: true }).start();
+      Animated.timing(fadeAnim, { toValue: 0, duration: 300, useNativeDriver: Platform.OS !== 'web' }).start();
       lastScreenRef.current = null;
       lastStepIdRef.current = null;
     };
 
     if (isVisible && shouldShowOnThisScreen) {
-      showCard();
+      showCard(10);
     } else {
       hideCard();
       if (pulseRef.current) pulseRef.current.stop();

@@ -236,11 +236,12 @@ const styles = StyleSheet.create({
   },
   rankText: { color: '#000', fontSize: 10, fontWeight: 'bold' },
   lottieWrap: { 
-    height: 100, 
+    width: 120,
+    height: 120, 
     alignItems: 'center', 
     justifyContent: 'center',
   },
-  lottie: { width: 120, height: 120 },
+  lottie: { width: '100%', height: '100%' },
   footer: { 
     width: '100%', 
     paddingBottom: IS_SMALL_DEVICE ? 20 : 40, 

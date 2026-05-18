@@ -23,7 +23,8 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
+  Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -40,6 +41,17 @@ import { useFocusEffect } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
 const isSmallScreen = height < 750;
+
+const PlatformModal = Platform.OS === 'web'
+  ? ({ visible, children, transparent, animationType, onRequestClose, ...props }: any) => {
+      if (!visible) return null;
+      return (
+        <View style={[{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999 } as any]} {...props}>
+          {children}
+        </View>
+      );
+    }
+  : Modal;
 
 export default function StoreScreen() {
   const { fontsLoaded } = useFontContext();
@@ -85,10 +97,9 @@ export default function StoreScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-      setPreviewAvatar(userAvatar);
       const timer = setTimeout(measureAll, 1500);
       return () => clearTimeout(timer);
-    }, [userAvatar, measureAll])
+    }, [measureAll])
   );
 
   // Sincronizar mediciones con el cambio de paso del tutorial
@@ -146,8 +157,8 @@ export default function StoreScreen() {
   React.useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(idleAnim, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(idleAnim, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(idleAnim, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(idleAnim, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
       ])
     ).start();
   }, []);
@@ -158,7 +169,7 @@ export default function StoreScreen() {
       toValue: 1,
       friction: 3,
       tension: 40,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
     }).start();
   };
 
@@ -170,7 +181,7 @@ export default function StoreScreen() {
           toValue: 1,
           duration: 900,
           easing: Easing.linear,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         })
       );
       animation.start();
@@ -386,18 +397,19 @@ export default function StoreScreen() {
               >
                 <FontAwesome5 name="question-circle" size={24} color="#fff" />
               </TouchableOpacity>
-
-              <TouchableOpacity 
+              <View 
                 ref={coinsRef}
                 onLayout={() => measureCategory('coins')}
-                onPress={handleDebugAddCoins} 
-                activeOpacity={0.8} 
-                style={styles.coinsPill}
               >
-
-                <Image source={require('@/assets/images/store/MQ-coin.png')} style={styles.coinPng} />
-                <Text style={[styles.coinsText, { fontFamily: 'Digitalt' }]}>{coins}</Text>
-              </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={handleDebugAddCoins} 
+                  activeOpacity={0.8} 
+                  style={styles.coinsPill}
+                >
+                  <Image source={require('@/assets/images/store/MQ-coin.png')} style={styles.coinPng} />
+                  <Text style={[styles.coinsText, { fontFamily: 'Digitalt' }]}>{coins}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
 
@@ -434,16 +446,22 @@ export default function StoreScreen() {
               const isActive = selectedCategory === cat.key;
               const Icon = cat.Icon;
               return (
-                <TouchableOpacity
-                  key={cat.key}
+                <View 
+                  key={cat.key} 
                   ref={(el) => { categoryRefs.current[cat.key] = el; }}
                   onLayout={() => measureCategory(cat.key)}
-                  onPress={() => setSelectedCategory(cat.key)}
-                  activeOpacity={0.9}
-                  style={[styles.categoryButton, isActive && styles.categoryButtonActive]}
                 >
-                  <Icon size={18} color={isActive ? '#5B31E7' : '#E7D6FF'} weight={isActive ? 'fill' : 'regular'} />
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setSelectedCategory(cat.key)}
+                    activeOpacity={0.7}
+                    style={[
+                      styles.categoryButton,
+                      isActive && styles.categoryButtonActive,
+                    ]}
+                  >
+                    <Icon size={18} color={isActive ? '#8A56FE' : '#fff'} weight={isActive ? 'fill' : 'regular'} />
+                  </TouchableOpacity>
+                </View>
               );
             })}
           </View>
@@ -481,7 +499,7 @@ export default function StoreScreen() {
         </View>
       </SafeAreaView>
       {/* Purchase Modal */}
-      <Modal
+      <PlatformModal
         visible={!!selectedItem}
         animationType="fade"
         transparent
@@ -623,7 +641,7 @@ export default function StoreScreen() {
             )}
           </View>
         </View>
-      </Modal>
+      </PlatformModal>
       <TutorialOverlay />
       
       {showSuccess && (

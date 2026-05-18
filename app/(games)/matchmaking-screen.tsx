@@ -809,7 +809,11 @@ export default function MatchmakingScreen() {
 
   const handleCancel = () => {
     cancelSearch(myUserId);
-    router.back();
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)');
+    }
   };
 
   const handleForfeit = () => {
@@ -833,7 +837,11 @@ export default function MatchmakingScreen() {
     websocketService.disconnect();
     hasInitiatedSearch.current = false;
     setMyRole(null); // Reset role for next time
-    router.back();
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)');
+    }
   };
 
   // Cuando aparece MATCH_FOUND, esperamos a que onRoundStarted nos diga que ya podemos salir
@@ -1095,7 +1103,7 @@ export default function MatchmakingScreen() {
             </Animated.View>
 
             {/* Lottie animation in center */}
-            <Animated.View style={{ opacity: contentOpacity, transform: [{ translateY: contentTranslateY }] }}>
+            <Animated.View style={[styles.centerLottieWrap, { opacity: contentOpacity, transform: [{ translateY: contentTranslateY }] }]}>
               {getMascotIdleSource(selectedCategory?.emoji) || isTransitioningFromQuiz ? (
                 <LottieView
                   source={isTransitioningFromQuiz
@@ -1210,9 +1218,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-  centerLottie: {
+  centerLottieWrap: {
     width: 160,
     height: 160,
+  },
+  centerLottie: {
+    width: '100%',
+    height: '100%',
   },
   countdownStage: {
     flex: 1,

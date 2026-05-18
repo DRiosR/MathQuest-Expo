@@ -369,12 +369,14 @@ export default function QuizView({
       {/* Mascot above question */}
       <View style={styles.mascotContainer} pointerEvents="none">
         {getMascotIdleSource(category?.emoji) && (
-          <LottieView
-            source={getMascotIdleSource(category?.emoji)}
-            autoPlay
-            loop
-            style={styles.mascotLottie}
-          />
+          <View style={styles.mascotWrapperFixed}>
+            <LottieView
+              source={getMascotIdleSource(category?.emoji)}
+              autoPlay
+              loop
+              style={styles.mascotLottieWeb}
+            />
+          </View>
         )}
       </View>
 
@@ -442,12 +444,14 @@ export default function QuizView({
                   style={styles.emoteOptionHorizontal} 
                   onPress={() => handleSendEmote(chat.id)}
                 >
-                  <LottieView
-                    source={getChatLottieSource(chat.id)}
-                    autoPlay
-                    loop
-                    style={styles.mascotMenuIcon}
-                  />
+                  <View style={styles.mascotMenuIconWrap}>
+                    <LottieView
+                      source={getChatLottieSource(chat.id)}
+                      autoPlay
+                      loop
+                      style={styles.mascotMenuIcon}
+                    />
+                  </View>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -506,12 +510,14 @@ export default function QuizView({
           style={StyleSheet.absoluteFill}
         />
         {getMascotIdleSource(category?.emoji) && (
-          <LottieView
-            source={getMascotIdleSource(category?.emoji)}
-            autoPlay
-            loop
-            style={styles.waitingMascotLottie}
-          />
+          <View style={styles.waitingMascotWrapperFixed}>
+            <LottieView
+              source={getMascotIdleSource(category?.emoji)}
+              autoPlay
+              loop
+              style={styles.waitingMascotLottieWeb}
+            />
+          </View>
         )}
         <Text style={[styles.waitingTitle, { fontFamily: 'Digitalt' }]}>¡TERMINASTE!</Text>
         <Text style={[styles.waitingSubtitle, { fontFamily: 'Digitalt' }]}>Esperando a que el rival finalice...</Text>
@@ -559,6 +565,7 @@ const styles = StyleSheet.create({
     height: 65,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 100, // Añadido para solucionar superposición con el texto en web
   },
   avatarCircleSmall: {
     width: IS_SMALL_DEVICE ? 74 : 85,
@@ -599,6 +606,17 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', borderRadius: 3 },
   mascotContainer: { marginTop: 4, alignItems: 'center', marginBottom: -22, zIndex: 2 },
   mascotLottie: { width: 100, height: 100 },
+  mascotWrapperFixed: {
+    width: 100,
+    height: 100,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mascotLottieWeb: {
+    width: '100%',
+    height: '100%',
+  },
   questionCard: { marginTop: 0, backgroundColor: 'rgba(0,0,0,0.15)', paddingVertical: IS_SMALL_DEVICE ? 15 : 25, paddingHorizontal: 20, borderRadius: 24, alignItems: 'center' },
   questionText: { color: '#FFFFFF', fontSize: IS_SMALL_DEVICE ? 24 : 32, fontWeight: '800', letterSpacing: 1, textAlign: 'center' },
   answerDisplay: { marginTop: 10, backgroundColor: '#FFFFFF', paddingVertical: IS_SMALL_DEVICE ? 10 : 16, borderRadius: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10, elevation: 5 },
@@ -674,6 +692,18 @@ const styles = StyleSheet.create({
     width: 240,
     height: 240,
     marginBottom: 10,
+  },
+  waitingMascotWrapperFixed: {
+    width: 240,
+    height: 240,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  waitingMascotLottieWeb: {
+    width: '100%',
+    height: '100%',
   },
   waitingTitle: {
     color: '#FFFFFF',
@@ -799,12 +829,16 @@ const styles = StyleSheet.create({
     fontSize: 32,
   },
   mascotEmojiLarge: {
-    width: 60,
-    height: 60,
+    width: '100%',
+    height: '100%',
   },
-  mascotMenuIcon: {
+  mascotMenuIconWrap: {
     width: 50,
     height: 50,
+  },
+  mascotMenuIcon: {
+    width: '100%',
+    height: '100%',
   },
   bubbleArrowLeft: {
     position: 'absolute',

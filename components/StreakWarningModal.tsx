@@ -6,7 +6,20 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getUserStats } from '@/services/SupabaseService';
 import { FadeInView } from './shared/FadeInView';
 
+import { Platform } from 'react-native';
+
 const { width } = Dimensions.get('window');
+
+const PlatformModal = Platform.OS === 'web'
+  ? ({ visible, children, transparent, animationType, onRequestClose, ...props }: any) => {
+      if (!visible) return null;
+      return (
+        <View style={[{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999 } as any]} {...props}>
+          {children}
+        </View>
+      );
+    }
+  : Modal;
 
 export default function StreakWarningModal() {
   const { user } = useAuth();
@@ -75,7 +88,7 @@ export default function StreakWarningModal() {
   if (!visible) return null;
 
   return (
-    <Modal
+    <PlatformModal
       transparent
       visible={visible}
       animationType="fade"
@@ -125,7 +138,7 @@ export default function StreakWarningModal() {
           </LinearGradient>
         </FadeInView>
       </View>
-    </Modal>
+    </PlatformModal>
   );
 }
 
