@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dimensions, Image, StyleSheet, View } from 'react-native';
+import { Dimensions, Image, StyleSheet, View, Platform } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -44,14 +44,19 @@ const styles = StyleSheet.create({
   logoContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
   },
   logo: {
-    borderRadius: 10,
+    // Sombreado de silueta sutil para iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
+    shadowRadius: 4,
+    // Sombreado de silueta sutil para Web (utiliza filtro drop-shadow para ignorar el fondo transparente)
+    ...Platform.select({
+      web: {
+        filter: 'drop-shadow(0px 3px 4px rgba(0, 0, 0, 0.25))',
+      } as any,
+    }),
   },
 });
 
