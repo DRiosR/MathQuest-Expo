@@ -161,25 +161,28 @@ export default function QuizView({
       }
 
       const opacity = new Animated.Value(0);
+      const scale = new Animated.Value(0.5); // Pop in scale
       const translateY = new Animated.Value(30); // Empezar más abajo para un recorrido spring dinámico
       
       setActiveEmotes(prev => ({
         ...prev,
-        [userId]: { emote, opacity, translateY }
+        [userId]: { emote, opacity, scale, translateY }
       }));
 
-      // Animación de entrada (Pop con bounce spring en translateY)
+      // Animación de entrada (Pop con bounce spring en translateY y scale)
       Animated.parallel([
         Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
         Animated.spring(translateY, { toValue: 0, tension: 60, friction: 6, useNativeDriver: true }),
+        Animated.spring(scale, { toValue: 1, tension: 60, friction: 6, useNativeDriver: true }),
       ]).start();
 
       // Configurar el nuevo timeout de 3 segundos
       emoteTimeouts.current[userId] = setTimeout(() => {
-        // Animación de salida (Fade Out + slide up ligero)
+        // Animación de salida (Fade Out + slide up ligero + shrink)
         Animated.parallel([
           Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
           Animated.timing(translateY, { toValue: -15, duration: 300, useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 0.5, duration: 300, useNativeDriver: true }),
         ]).start(() => {
           // Eliminar del estado una vez terminada la animación
           setActiveEmotes(prev => {
@@ -265,7 +268,8 @@ export default function QuizView({
                       opacity: activeEmotes['me'].opacity, 
                       left: 60,
                       transform: [
-                        { translateY: activeEmotes['me'].translateY }
+                        { translateY: activeEmotes['me'].translateY },
+                        { scale: activeEmotes['me'].scale }
                       ]
                     }
                   ]}
@@ -309,7 +313,8 @@ export default function QuizView({
                       opacity: activeEmotes['opponent'].opacity, 
                       right: 60,
                       transform: [
-                        { translateY: activeEmotes['opponent'].translateY }
+                        { translateY: activeEmotes['opponent'].translateY },
+                        { scale: activeEmotes['opponent'].scale }
                       ]
                     }
                   ]}
