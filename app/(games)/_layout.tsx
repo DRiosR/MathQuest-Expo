@@ -1,13 +1,15 @@
 import { Stack } from 'expo-router';
+import { Platform } from 'react-native';
 
 export default function GamesLayout() {
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-        presentation: 'fullScreenModal',
-        animation: 'slide_from_right',
+        presentation: Platform.OS === 'web' ? 'card' : 'fullScreenModal',
+        animation: Platform.OS === 'web' ? 'fade' : 'slide_from_right',
       }}
     />
   );
 }
+

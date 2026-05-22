@@ -172,56 +172,44 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signIn = async (data: SignInData) => {
     try {
-      setLoading(true);
       const result = await AuthService.signIn(data);
       return result;
     } catch (error) {
       return { user: null, error };
-    } finally {
-      setLoading(false);
     }
   };
 
   const signOut = async () => {
     try {
-      setLoading(true);
       const result = await AuthService.signOut();
       return result;
     } catch (error) {
       return { error };
     } finally {
       setIsRecovering(false);
-      setLoading(false);
     }
   };
 
   const resetPassword = async (email: string, redirectTo?: string) => {
     try {
-      setLoading(true);
       const result = await AuthService.resetPassword(email, redirectTo);
       return result;
     } catch (error) {
       return { error };
-    } finally {
-      setLoading(false);
     }
   };
 
   const updatePassword = async (password: string) => {
     try {
-      setLoading(true);
       const result = await AuthService.updatePassword(password);
       return result;
     } catch (error) {
       return { error };
-    } finally {
-      setLoading(false);
     }
   };
 
   const verifyOtp = async (email: string, token: string, type: 'recovery' | 'signup' = 'recovery') => {
     try {
-      setLoading(true);
       const result = await AuthService.verifyOtp(email, token, type);
       if (!result.error) {
         setIsRecovering(true);
@@ -229,14 +217,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return result;
     } catch (error) {
       return { error };
-    } finally {
-      setLoading(false);
     }
   };
 
   const refreshSession = async () => {
     try {
-      setLoading(true);
       const result = await AuthService.refreshSession();
       if (result.user) {
         setUser(result.user);
@@ -244,20 +229,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return result;
     } catch (error) {
       return { user: null, error };
-    } finally {
-      setLoading(false);
     }
   };
 
   const clearAuthData = async () => {
     try {
-      setLoading(true);
       await AuthService.clearAuthData();
       setUser(null);
     } catch (error) {
       console.error('Error clearing auth data:', error);
-    } finally {
-      setLoading(false);
     }
   };
 

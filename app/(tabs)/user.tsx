@@ -17,6 +17,7 @@ import { ActivityIndicator, Alert, Dimensions, FlatList, Modal, ScrollView, Styl
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LayeredAvatar } from '@/components/LayeredAvatar';
+import { defaultAvatar } from '@/constants/avatarAssets';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAvatar } from '@/contexts/AvatarContext';
 import { useFontContext } from '@/contexts/FontsContext';
@@ -26,6 +27,7 @@ import { getUserMatchesDetailed, getUserStats, UserMatchItem, getStreakWarning, 
 import AuthService from '@/Core/Services/AuthService/AuthService';
 import { AuthButton } from '@/components/ui/AuthButton';
 import { AuthInput } from '@/components/ui/AuthInput';
+import { validateUsername } from '@/utils/profanityFilter';
 import TutorialOverlay from '@/components/TutorialOverlay';
 import { useTutorial, TUTORIAL_STEPS } from '@/contexts/TutorialContext';
 import { useFocusEffect } from '@react-navigation/native';
@@ -50,8 +52,18 @@ export default function UserScreen() {
 
   const measureUser = (ref: React.RefObject<any>, id: string, radius: number) => {
     if (ref.current) {
-      ref.current.measure((x: number, y: number, w: number, h: number, pageX: number, pageY: number) => {
-        setDynamicSpotlight(id, { x: pageX, y: pageY, w, h, radius });
+      // Use measureInWindow for more reliable absolute coordinates
+      ref.current.measureInWindow((x: number, y: number, w: number, h: number) => {
+        if (w > 0 && h > 0) {
+          setDynamicSpotlight(id, { x, y, w, h, radius });
+        } else {
+          // Retry once if measurement failed
+          setTimeout(() => {
+            ref.current?.measureInWindow((rx: number, ry: number, rw: number, rh: number) => {
+              if (rw > 0) setDynamicSpotlight(id, { x: rx, y: ry, w: rw, h: rh, radius });
+            });
+          }, 100);
+        }
       });
     }
   };
@@ -90,7 +102,8 @@ export default function UserScreen() {
       
       setStreakState(state);
       setStreakCount(state === 'expired' ? 0 : count);
-      setRecentMatch(stats.recentMatch as unknown as UserMatchItem);
+      const latest = await getUserMatchesDetailed(user.id, { status: 'finished', limit: 1 });
+      setRecentMatch(latest[0] ?? null);
   }, [user?.id]);
 
 
@@ -168,13 +181,13 @@ export default function UserScreen() {
         scrollTargetY = 0;
       }
 
-      // Wait for scroll animation to settle (like in infinite mode)
+      // Wait for scroll animation to settle
       const timer = setTimeout(() => {
         if (step?.id === 'profile_settings') measureUser(settingsRef, 'profile_settings', 25);
-        if (step?.id === 'profile_avatar') measureUser(avatarRef, 'profile_avatar', 60);
-        if (step?.id === 'profile_streak') measureUser(streakRef, 'profile_streak', 24);
-        if (step?.id === 'profile_matches') measureUser(matchesRef, 'profile_matches', 15);
-      }, 500);
+        if (step?.id === 'profile_avatar') measureUser(avatarRef, 'profile_avatar', 65);
+        if (step?.id === 'profile_streak') measureUser(streakRef, 'profile_streak', 28);
+        if (step?.id === 'profile_matches') measureUser(matchesRef, 'profile_matches', 20);
+      }, 600); // Slightly longer to ensure scroll is done
 
       return () => clearTimeout(timer);
     }
@@ -235,12 +248,9 @@ export default function UserScreen() {
   const handleSaveUsername = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const candidate = (newUsername || '').trim();
-    if (candidate.length < 3 || candidate.length > 20) {
-      setUsernameError('El usuario debe tener entre 3 y 20 caracteres.');
-      return;
-    }
-    if (!/^[a-zA-Z0-9_\.]+$/.test(candidate)) {
-      setUsernameError('Solo letras, números, guión bajo o punto.');
+    const usernameValidation = validateUsername(candidate);
+    if (!usernameValidation.isValid) {
+      setUsernameError(usernameValidation.error || 'Nombre de usuario inválido.');
       return;
     }
     const translateError = (msg: string) => {
@@ -605,26 +615,46 @@ export default function UserScreen() {
                 <FadeInView 
                   from="bottom" 
                   delay={350} 
-                  style={styles.recentItem}
                 >
-                  <View style={styles.recentIconWrap}>
-                    <GameControllerIcon size={18} color="#fff" weight="fill" />
-                  </View>
-                  <View style={styles.recentContent}>
-                    <Text style={[styles.recentTitle, { fontFamily: 'Digitalt' }]}>@{recentMatch.opponentUsername}</Text>
-                    <Text style={[styles.recentSubtitle, { fontFamily: 'Gilroy-Black' }]}>({recentMatch.opponentPoints})</Text>
-                  </View>
-                  <View style={styles.recentMeta}>
-                    <View style={styles.recentDate}>
-                      <CalendarBlankIcon size={16} color="#ffffff" weight="fill" />
-                      <Text style={[styles.recentDateText, { fontFamily: 'Gilroy-Black' }]}>
-                        {formatDateShort(recentMatch.created_at)}
+                  <LinearGradient
+                    colors={recentMatch.didWin ? ['rgba(34, 197, 94, 0.12)', 'rgba(16, 185, 129, 0.05)'] : ['rgba(239, 68, 68, 0.12)', 'rgba(185, 28, 28, 0.05)']}
+                    style={[
+                      styles.recentCardPremium,
+                      {
+                        borderColor: recentMatch.didWin ? 'rgba(74, 222, 128, 0.4)' : 'rgba(248, 113, 113, 0.4)',
+                        borderWidth: 2,
+                        shadowColor: recentMatch.didWin ? '#4ADE80' : '#F87171',
+                      }
+                    ]}
+                  >
+                    <View style={styles.recentAvatarContainer}>
+                      <LayeredAvatar avatar={recentMatch.opponentAvatar || defaultAvatar} size={50} />
+                    </View>
+                    <View style={styles.recentContent}>
+                      <Text style={[styles.recentTitle, { fontFamily: 'Digitalt', fontSize: 16 }]}>@{recentMatch.opponentUsername}</Text>
+                      <Text style={[styles.recentSubtitle, { fontFamily: 'Gilroy-Black', color: '#D6CCFF', fontSize: 13, marginTop: 4 }]}>
+                        Tú: <Text style={{ color: '#FFD616' }}>{recentMatch.myScore ?? 0} pts</Text>  •  Rival: <Text style={{ color: '#FF7676' }}>{recentMatch.opponentScore ?? 0} pts</Text>
                       </Text>
                     </View>
-                    <View style={[styles.resultChip, recentMatch.didWin ? styles.resultWin : styles.resultLoss]}>
-                      <Text style={[styles.resultChipText, { fontFamily: 'Digitalt' }]}>{recentMatch.didWin ? 'W' : 'L'}</Text>
+                    <View style={styles.recentMeta}>
+                      <View style={styles.recentDate}>
+                        <CalendarBlankIcon size={14} color="#D6CCFF" weight="fill" />
+                        <Text style={[styles.recentDateText, { fontFamily: 'Gilroy-Black', color: '#D6CCFF' }]}>
+                          {formatDateShort(recentMatch.created_at)}
+                        </Text>
+                      </View>
+                      <View style={[
+                        styles.resultChipPremium,
+                        {
+                          backgroundColor: recentMatch.didWin ? '#22C55E' : '#EF4444',
+                        }
+                      ]}>
+                        <Text style={[styles.resultChipTextPremium, { fontFamily: 'Digitalt' }]}>
+                          {recentMatch.didWin ? 'VICTORIA' : 'DERROTA'}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
+                  </LinearGradient>
                 </FadeInView>
               </TouchableOpacity>
             ) : (
@@ -665,23 +695,47 @@ export default function UserScreen() {
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.sheetListContent}
                 renderItem={({ item, index }) => (
-                  <FadeInView from="bottom" delay={index * 60} style={styles.sheetItem}>
-                    <View style={styles.recentIconWrap}>
-                      <GameControllerIcon size={18} color="#fff" weight="fill" />
-                    </View>
-                    <View style={styles.recentContent}>
-                      <Text style={[styles.recentTitle, { fontFamily: 'Digitalt' }]}>@{item.opponentUsername}</Text>
-                      <Text style={[styles.recentSubtitle, { fontFamily: 'Gilroy-Black' }]}>({item.opponentPoints})</Text>
-                    </View>
-                    <View style={styles.recentMeta}>
-                      <View style={styles.recentDate}>
-                        <CalendarBlankIcon size={16} color="#ffffff" weight="fill" />
-                        <Text style={[styles.recentDateText, { fontFamily: 'Gilroy-Black' }]}>{formatDateShort(item.created_at)}</Text>
+                  <FadeInView from="bottom" delay={index * 60}>
+                    <LinearGradient
+                      colors={item.didWin ? ['rgba(34, 197, 94, 0.12)', 'rgba(16, 185, 129, 0.05)'] : ['rgba(239, 68, 68, 0.12)', 'rgba(185, 28, 28, 0.05)']}
+                      style={[
+                        styles.recentCardPremium,
+                        {
+                          borderColor: item.didWin ? 'rgba(74, 222, 128, 0.4)' : 'rgba(248, 113, 113, 0.4)',
+                          borderWidth: 2,
+                          shadowColor: item.didWin ? '#4ADE80' : '#F87171',
+                          marginBottom: 12,
+                        }
+                      ]}
+                    >
+                      <View style={styles.recentAvatarContainer}>
+                        <LayeredAvatar avatar={item.opponentAvatar || defaultAvatar} size={50} />
                       </View>
-                      <View style={[styles.resultChip, item.didWin ? styles.resultWin : styles.resultLoss]}>
-                        <Text style={[styles.resultChipText, { fontFamily: 'Digitalt' }]}>{item.didWin ? 'W' : 'L'}</Text>
+                      <View style={styles.recentContent}>
+                        <Text style={[styles.recentTitle, { fontFamily: 'Digitalt', fontSize: 16 }]}>@{item.opponentUsername}</Text>
+                        <Text style={[styles.recentSubtitle, { fontFamily: 'Gilroy-Black', color: '#D6CCFF', fontSize: 13, marginTop: 4 }]}>
+                          Tú: <Text style={{ color: '#FFD616' }}>{item.myScore ?? 0} pts</Text>  •  Rival: <Text style={{ color: '#FF7676' }}>{item.opponentScore ?? 0} pts</Text>
+                        </Text>
                       </View>
-                    </View>
+                      <View style={styles.recentMeta}>
+                        <View style={styles.recentDate}>
+                          <CalendarBlankIcon size={14} color="#D6CCFF" weight="fill" />
+                          <Text style={[styles.recentDateText, { fontFamily: 'Gilroy-Black', color: '#D6CCFF' }]}>
+                            {formatDateShort(item.created_at)}
+                          </Text>
+                        </View>
+                        <View style={[
+                          styles.resultChipPremium,
+                          {
+                            backgroundColor: item.didWin ? '#22C55E' : '#EF4444',
+                          }
+                        ]}>
+                          <Text style={[styles.resultChipTextPremium, { fontFamily: 'Digitalt' }]}>
+                            {item.didWin ? 'VICTORIA' : 'DERROTA'}
+                          </Text>
+                        </View>
+                      </View>
+                    </LinearGradient>
                   </FadeInView>
                 )}
               />
@@ -836,7 +890,13 @@ export default function UserScreen() {
                         >
                           <FontAwesome5 name={item.icon} size={14} color="#fff" style={{ marginRight: 8 }} />
                           <Text style={[styles.replayTutorialText, { fontFamily: 'Digitalt' }]}>
-                            {item.label}
+                            {item.label.toLowerCase().includes('1vs1') ? (
+                              <>
+                                TUTORIAL 1<Text style={{ fontFamily: 'Gilroy-Black', textTransform: 'lowercase' }}>vs</Text>1
+                              </>
+                            ) : (
+                              item.label
+                            )}
                           </Text>
                         </LinearGradient>
                       </TouchableOpacity>
@@ -1053,8 +1113,10 @@ const styles = StyleSheet.create({
   title: {
     color: '#fff',
     fontSize: 28,
-    fontWeight: 'bold',
     letterSpacing: 2,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 3 },
+    textShadowRadius: 8,
   },
   headerAction: {
     position: 'absolute',
@@ -1213,6 +1275,44 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  recentCardPremium: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 14,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  recentAvatarContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  resultChipPremium: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  resultChipTextPremium: {
+    color: '#FFF',
+    fontSize: 12,
+    letterSpacing: 0.5,
   },
   recentContent: {
     flex: 1,

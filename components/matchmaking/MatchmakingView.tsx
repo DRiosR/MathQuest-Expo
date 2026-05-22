@@ -137,7 +137,7 @@ export default function MatchmakingView({ username, avatarComponent, onCancel, p
 
         <Pressable onPress={onCancel} style={({ pressed }) => [styles.cancelButton, pressed && { transform: [{scale: 0.96}] }]}>
           <LinearGradient colors={['#ef4444', '#991b1b']} style={styles.cancelButtonGradient}>
-            <Text style={[styles.cancelText, { fontFamily: 'Gilroy-Black' }]}>ABANDONAR COLA</Text>
+            <Text style={[styles.cancelText, { fontFamily: 'Gilroy-Black' }]}>CANCELAR EMPAREJAMIENTO</Text>
           </LinearGradient>
         </Pressable>
       </Animated.View>
@@ -236,7 +236,8 @@ const styles = StyleSheet.create({
   },
   rankText: { color: '#000', fontSize: 10, fontWeight: 'bold' },
   lottieWrap: { 
-    height: 100, 
+    width: 120,
+    height: 120, 
     alignItems: 'center', 
     justifyContent: 'center',
   },

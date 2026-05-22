@@ -1,20 +1,27 @@
 import { FontAwesome5 } from '@expo/vector-icons';
-import React from 'react';
-import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, TextInput, TextInputProps, View, TouchableOpacity } from 'react-native';
 
 interface AuthInputProps extends TextInputProps {
   icon: string;
   label?: string;
   error?: string;
+  showTogglePassword?: boolean;
 }
 
 export const AuthInput: React.FC<AuthInputProps> = ({
   icon,
   label,
   error,
+  showTogglePassword,
   style,
+  secureTextEntry,
   ...props
 }) => {
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
+  const isSecure = secureTextEntry && !isPasswordVisible;
+
   return (
     <View style={styles.container}>
       {label && <Text style={[styles.label, { fontFamily: 'Gilroy-Black' }]}>{label}</Text>}
@@ -25,8 +32,23 @@ export const AuthInput: React.FC<AuthInputProps> = ({
         <TextInput
           style={[styles.input, style]}
           placeholderTextColor="rgba(255,255,255,0.6)"
+          clearTextOnFocus={false}
+          secureTextEntry={isSecure}
           {...props}
         />
+        {secureTextEntry && showTogglePassword && (
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+            activeOpacity={0.7}
+          >
+            <FontAwesome5
+              name={isPasswordVisible ? 'eye-slash' : 'eye'}
+              size={16}
+              color="rgba(255,255,255,0.6)"
+            />
+          </TouchableOpacity>
+        )}
       </View>
       {error && <Text style={[styles.errorText, { fontFamily: 'Gilroy-Black' }]}>{error}</Text>}
     </View>
@@ -66,6 +88,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontFamily: 'Gilroy-Black',
+  },
+  eyeButton: {
+    padding: 4,
+    marginLeft: 8,
   },
   errorText: {
     color: '#ef4444',

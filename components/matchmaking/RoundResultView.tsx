@@ -1,9 +1,12 @@
 import LottieView from 'lottie-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Dimensions, Easing, StyleSheet, Text, View } from 'react-native';
 import { LayeredAvatar } from '@/components/LayeredAvatar';
 import { Avatar } from '@/types/avatar';
 import { defaultAvatar } from '@/constants/avatarAssets';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 
 type PlayerResult = {
   id?: string;
@@ -137,7 +140,7 @@ export default function RoundResultView({
 
 const styles = StyleSheet.create({
   resultContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, backgroundColor: 'rgba(0,0,0,0.7)' },
-  confetti: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 5 },
+  confetti: { position: 'absolute', top: 0, left: 0, width: SCREEN_WIDTH, height: SCREEN_HEIGHT, zIndex: 5 },
   resultTitle: { color: '#FFFFFF', fontSize: 32, marginBottom: 40, fontWeight: '900' },
   avatarScoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 40 },
   playerResultBlock: { alignItems: 'center', flex: 1 },

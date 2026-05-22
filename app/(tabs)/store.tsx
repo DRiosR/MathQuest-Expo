@@ -10,7 +10,7 @@ import {
   UserIcon,
   CheckCircle,
 } from 'phosphor-react-native';
-import React from 'react';
+import React, { useCallback } from 'react';
 import { FontAwesome5 } from '@expo/vector-icons';
 
 import {
@@ -23,7 +23,8 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
+  Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -38,34 +39,85 @@ import TutorialOverlay from '@/components/TutorialOverlay';
 import { useTutorial } from '@/contexts/TutorialContext';
 import { useFocusEffect } from '@react-navigation/native';
 
+const { width, height } = Dimensions.get('window');
+const isSmallScreen = height < 750;
+
+const PlatformModal = Platform.OS === 'web'
+  ? ({ visible, children, transparent, animationType, onRequestClose, ...props }: any) => {
+      if (!visible) return null;
+      return (
+        <View style={[{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999 } as any]} {...props}>
+          {children}
+        </View>
+      );
+    }
+  : Modal;
+
 export default function StoreScreen() {
   const { fontsLoaded } = useFontContext();
   const { avatar: userAvatar, updateAvatar } = useAvatar();
   const { items: allItems, isLoadingItems, coins, setCoins, refreshCoins } = useItemStore();
-  const { setDynamicSpotlight, startTutorial } = useTutorial();
+  const { isVisible: isTutorialVisible, setDynamicSpotlight, startTutorial, currentStepIndex } = useTutorial();
 
   const categoryRefs = React.useRef<Record<string, any>>({});
   const coinsRef = React.useRef<View>(null);
+  const itemsRef = React.useRef<View>(null);
   
-  const measureCategory = (key: string) => {
-    const ref = key === 'coins' ? coinsRef.current : categoryRefs.current[key];
+  const measureCategory = useCallback((key: string) => {
+    const ref = 
+      key === 'coins' ? coinsRef.current : 
+      key === 'items' ? itemsRef.current :
+      categoryRefs.current[key];
+
     if (ref) {
-      ref.measure((x: number, y: number, w: number, h: number, pageX: number, pageY: number) => {
-        const id = key === 'coins' ? 'store_coins' : `store_${key}`;
-        setDynamicSpotlight(id, { x: pageX, y: pageY, w, h, radius: 20 });
-      });
+      const performMeasure = (retries = 5) => {
+        ref.measure((x: number, y: number, w: number, h: number, pageX: number, pageY: number) => {
+          if ((w === 0 || h === 0) && retries > 0) {
+            setTimeout(() => performMeasure(retries - 1), 200);
+            return;
+          }
+          if (w > 0 && h > 0) {
+            const id = 
+              key === 'coins' ? 'store_coins' : 
+              key === 'items' ? 'store_items' :
+              `store_${key}`;
+            
+            const radius = key === 'items' ? 32 : 24;
+            setDynamicSpotlight(id, { x: pageX, y: pageY, w, h, radius });
+          }
+        });
+      };
+      performMeasure();
     }
-  };
+  }, [setDynamicSpotlight]);
+
+  const measureAll = useCallback(() => {
+    ['skin', 'hair', 'eyes', 'mouth', 'clothes', 'coins', 'items'].forEach(key => measureCategory(key));
+  }, [measureCategory]);
 
   useFocusEffect(
     React.useCallback(() => {
-      setPreviewAvatar(userAvatar);
-      const timer = setTimeout(() => {
-        ['skin', 'hair', 'eyes', 'mouth', 'clothes', 'coins'].forEach(key => measureCategory(key));
-      }, 1500);
+      const timer = setTimeout(measureAll, 1500);
       return () => clearTimeout(timer);
-    }, [userAvatar])
+    }, [measureAll])
   );
+
+  // Sincronizar mediciones con el cambio de paso del tutorial
+  React.useEffect(() => {
+    if (isTutorialVisible) {
+      const timer = setTimeout(measureAll, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [currentStepIndex, isTutorialVisible, measureAll]);
+
+  // RE-MEDIR cuando el tutorial se hace visible
+  React.useEffect(() => {
+    if (isTutorialVisible) {
+      const timer = setTimeout(measureAll, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [isTutorialVisible, measureAll]);
+
 
   const [previewAvatar, setPreviewAvatar] = React.useState<Avatar>(userAvatar);
   const [showMoneyCalc, setShowMoneyCalc] = React.useState<boolean>(false);
@@ -105,8 +157,8 @@ export default function StoreScreen() {
   React.useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(idleAnim, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(idleAnim, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(idleAnim, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(idleAnim, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: Platform.OS !== 'web' }),
       ])
     ).start();
   }, []);
@@ -117,7 +169,7 @@ export default function StoreScreen() {
       toValue: 1,
       friction: 3,
       tension: 40,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
     }).start();
   };
 
@@ -129,7 +181,7 @@ export default function StoreScreen() {
           toValue: 1,
           duration: 900,
           easing: Easing.linear,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         })
       );
       animation.start();
@@ -139,8 +191,8 @@ export default function StoreScreen() {
     }
   }, [isPurchasing, rotateValue]);
 
-  const { width, height } = Dimensions.get('window');
   const SIDE_PAD = 14;
+
   const CARD_GAP = 10;
   const CARD_SIZE = Math.floor((width - SIDE_PAD * 2 - CARD_GAP * 2) / 3); 
   const CARD_HEIGHT = CARD_SIZE + 16; 
@@ -197,6 +249,17 @@ export default function StoreScreen() {
       case 'epico': return '#9333EA';
       case 'legendario': return '#F59E0B';
       default: return '#B35BDC';
+    }
+  };
+
+  const getRarityDisplayName = (rarity: string | null) => {
+    if (!rarity) return '';
+    switch (rarity.toLowerCase()) {
+      case 'comun': return 'COMÚN';
+      case 'raro': return 'RARO';
+      case 'epico': return 'ÉPICO';
+      case 'legendario': return 'LEGENDARIO';
+      default: return rarity.toUpperCase();
     }
   };
 
@@ -278,7 +341,7 @@ export default function StoreScreen() {
             item.rarity === 'raro' && styles.rarityBadgeTextRaro,
             item.rarity === 'comun' && styles.rarityBadgeTextComun
           ]}>
-            {item.rarity?.toUpperCase()}
+            {getRarityDisplayName(item.rarity)}
           </Text>
         </View>
         <View pointerEvents="none" style={[styles.cardInnerStroke, { borderRadius: CARD_RADIUS }]} />
@@ -332,29 +395,32 @@ export default function StoreScreen() {
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         {/* Top section with cyan bg and Calc sitting on sheet */}
         <View style={[styles.topSection, { height: TOP_SECTION_HEIGHT }]}>
-          {/* Header: avatar left, coins right */}
+          {/* Header: title left, coins right */}
           <View style={styles.header}>
-            <View style={{ flex: 1 }} />
+            <View style={styles.titleInfo}>
+              <Text style={[styles.mainTitleSmall, { fontFamily: 'Digitalt' }]}>TIENDA</Text>
+            </View>
             <View style={styles.headerRight}>
               <TouchableOpacity 
                 onPress={() => startTutorial('store')}
                 activeOpacity={0.7}
                 style={styles.helpButton}
               >
-                <FontAwesome5 name="question-circle" size={24} color="#fff" />
+                <FontAwesome5 name="info-circle" size={24} color="#fff" />
               </TouchableOpacity>
-
-              <TouchableOpacity 
+              <View 
                 ref={coinsRef}
                 onLayout={() => measureCategory('coins')}
-                onPress={handleDebugAddCoins} 
-                activeOpacity={0.8} 
-                style={styles.coinsPill}
               >
-
-                <Image source={require('@/assets/images/store/MQ-coin.png')} style={styles.coinPng} />
-                <Text style={[styles.coinsText, { fontFamily: 'Digitalt' }]}>{coins}</Text>
-              </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={handleDebugAddCoins} 
+                  activeOpacity={0.8} 
+                  style={styles.coinsPill}
+                >
+                  <Image source={require('@/assets/images/store/MQ-coin.png')} style={styles.coinPng} />
+                  <Text style={[styles.coinsText, { fontFamily: 'Digitalt' }]}>{coins}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
 
@@ -391,16 +457,22 @@ export default function StoreScreen() {
               const isActive = selectedCategory === cat.key;
               const Icon = cat.Icon;
               return (
-                <TouchableOpacity
-                  key={cat.key}
+                <View 
+                  key={cat.key} 
                   ref={(el) => { categoryRefs.current[cat.key] = el; }}
                   onLayout={() => measureCategory(cat.key)}
-                  onPress={() => setSelectedCategory(cat.key)}
-                  activeOpacity={0.9}
-                  style={[styles.categoryButton, isActive && styles.categoryButtonActive]}
                 >
-                  <Icon size={18} color={isActive ? '#5B31E7' : '#E7D6FF'} weight={isActive ? 'fill' : 'regular'} />
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setSelectedCategory(cat.key)}
+                    activeOpacity={0.7}
+                    style={[
+                      styles.categoryButton,
+                      isActive && styles.categoryButtonActive,
+                    ]}
+                  >
+                    <Icon size={18} color={isActive ? '#8A56FE' : '#fff'} weight={isActive ? 'fill' : 'regular'} />
+                  </TouchableOpacity>
+                </View>
               );
             })}
           </View>
@@ -411,22 +483,34 @@ export default function StoreScreen() {
               <Text style={{ color: '#fff' }}>Cargando tienda…</Text>
             </View>
           ) : (
-            <FadeInView key={`${selectedCategory}-loaded`} from="bottom" delay={120} duration={450} style={{ flex: 1 }}>
-              <FlatList
-                data={items}
-                keyExtractor={(it) => it.id}
-                numColumns={3}
-                renderItem={renderItem}
-                columnWrapperStyle={{ justifyContent: 'flex-start' }}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.gridContent}
-              />
+            <FadeInView 
+              key={`${selectedCategory}-loaded`} 
+              from="bottom" 
+              delay={120} 
+              duration={450} 
+              style={{ flex: 1 }}
+            >
+              <View 
+                ref={itemsRef} 
+                onLayout={() => measureCategory('items')}
+                style={{ flex: 1 }}
+              >
+                <FlatList
+                  data={items}
+                  keyExtractor={(it) => it.id}
+                  numColumns={3}
+                  renderItem={renderItem}
+                  columnWrapperStyle={{ justifyContent: 'flex-start' }}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.gridContent}
+                />
+              </View>
             </FadeInView>
           )}
         </View>
       </SafeAreaView>
       {/* Purchase Modal */}
-      <Modal
+      <PlatformModal
         visible={!!selectedItem}
         animationType="fade"
         transparent
@@ -459,7 +543,7 @@ export default function StoreScreen() {
                   selectedItem.rarity === 'raro' && styles.rarityBadgeTextRaro,
                   selectedItem.rarity === 'comun' && styles.rarityBadgeTextComun
                 ]}>
-                  {selectedItem.rarity.toUpperCase()}
+                  {getRarityDisplayName(selectedItem.rarity)}
                 </Text>
               </View>
             )}
@@ -539,10 +623,10 @@ export default function StoreScreen() {
             >
               <Text style={styles.buyButtonText}>
                 {ownedProductIds.includes(Number(selectedItem?.id))
-                  ? 'COMPRADO!'
+                  ? '¡COMPRADO!'
                   : (coins < (selectedItem?.price ?? 0)
                       ? 'SIN MONEDAS'
-                      : (isPurchasing ? 'COMPRANDO...' : 'COMPRAR!'))}
+                      : (isPurchasing ? 'COMPRANDO...' : '¡COMPRAR!'))}
               </Text>
             </TouchableOpacity>
             {isPurchasing && (
@@ -568,7 +652,7 @@ export default function StoreScreen() {
             )}
           </View>
         </View>
-      </Modal>
+      </PlatformModal>
       <TutorialOverlay />
       
       {showSuccess && (
@@ -617,7 +701,7 @@ export default function StoreScreen() {
                    setPurchasedItem(null);
                  }}
                >
-                 <Text style={styles.equipButtonText}>DESPUÉS</Text>
+                 <Text style={[styles.equipButtonText, styles.equipLaterText]}>DESPUÉS</Text>
                </TouchableOpacity>
              </View>
           </View>
@@ -774,6 +858,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 6,
+    zIndex: 50,
+  },
+  titleInfo: {
+    flex: 1,
+  },
+  mainTitleSmall: {
+    color: '#fff',
+    fontSize: isSmallScreen ? 20 : 26,
+    letterSpacing: 2,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -1021,7 +1117,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   equipLaterButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.4)',
+  },
+  equipLaterText: {
+    color: '#fff',
   },
   equipButtonText: {
     color: '#10B981',

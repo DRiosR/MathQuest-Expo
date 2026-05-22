@@ -4,7 +4,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Dimensions, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LayeredAvatar } from '@/components/LayeredAvatar';
@@ -19,6 +19,34 @@ import { Avatar, AvatarCategory } from '@/types/avatar';
 const { width, height } = Dimensions.get('window');
 const isSmallDevice = height < 750;
 const isVerySmallDevice = height < 650;
+
+const safeHaptic = (style: Haptics.ImpactFeedbackStyle) => {
+  if (Platform.OS !== 'web') {
+    Haptics.impactAsync(style).catch(() => {});
+  }
+};
+
+const getRarityDisplayName = (rarity: string | null) => {
+  if (!rarity) return '';
+  switch (rarity.toLowerCase()) {
+    case 'comun': return 'COMÚN';
+    case 'raro': return 'RARO';
+    case 'epico': return 'ÉPICO';
+    case 'legendario': return 'LEGENDARIO';
+    default: return rarity.toUpperCase();
+  }
+};
+
+const PlatformModal = Platform.OS === 'web'
+  ? ({ visible, children, transparent, animationType, onRequestClose, ...props }: any) => {
+      if (!visible) return null;
+      return (
+        <View style={[{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999 } as any]} {...props}>
+          {children}
+        </View>
+      );
+    }
+  : Modal;
 
 export default function AvatarCustomizationScreen() {
   const { fontsLoaded } = useFontContext();
@@ -174,7 +202,7 @@ export default function AvatarCustomizationScreen() {
         }
       });
     } else {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      safeHaptic(Haptics.ImpactFeedbackStyle.Light);
       router.replace('/(tabs)/user');
     }
   };
@@ -182,12 +210,12 @@ export default function AvatarCustomizationScreen() {
   const discardChangesAndExit = () => {
     setConfirmModal(prev => ({ ...prev, visible: false }));
     setDraftAvatar(originalAvatar);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    safeHaptic(Haptics.ImpactFeedbackStyle.Light);
     router.replace('/(tabs)/user');
   };
 
   const handleSave = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    safeHaptic(Haptics.ImpactFeedbackStyle.Light);
 
     setConfirmModal({
       visible: true,
@@ -219,12 +247,12 @@ export default function AvatarCustomizationScreen() {
   };
 
   const handleCategorySelect = (category: AvatarCategory) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    safeHaptic(Haptics.ImpactFeedbackStyle.Light);
     setSelectedCategory(category);
   };
 
   const handleAssetSelect = async (assetKey: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    safeHaptic(Haptics.ImpactFeedbackStyle.Medium);
 
     const updatedAvatar = { ...draftAvatar };
     
@@ -388,7 +416,7 @@ export default function AvatarCustomizationScreen() {
               {isSaving ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={[styles.saveButtonText, { fontFamily: 'Digitalt' }]}>LISTO</Text>
+                <Text style={[styles.saveButtonText, { fontFamily: 'Digitalt' }]}>GUARDAR</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
@@ -514,7 +542,7 @@ export default function AvatarCustomizationScreen() {
                             { fontFamily: 'Digitalt' },
                             opt.rarity === 'legendario' && styles.rarityTextLegendary,
                           ]}>
-                            {opt.rarity?.toUpperCase()}
+                            {getRarityDisplayName(opt.rarity)}
                           </Text>
                         </View>
                       )}
@@ -533,14 +561,12 @@ export default function AvatarCustomizationScreen() {
                                 source={{ uri: opt.backUrl }}
                                 style={[styles.assetImage, styles.backLayerImage]}
                                 contentFit="contain"
-                                cachePolicy="disk"
                               />
                             )}
                             <ExpoImage
                               source={{ uri: opt.storeImage || opt.svgUrl }}
                               style={styles.assetImage}
                               contentFit="contain"
-                              cachePolicy="disk"
                             />
                           </>
                         )}
@@ -561,7 +587,7 @@ export default function AvatarCustomizationScreen() {
       </SafeAreaView>
 
       {/* Custom Confirmation Modal */}
-      <Modal
+      <PlatformModal
         visible={confirmModal.visible}
         transparent
         animationType="fade"
@@ -642,7 +668,7 @@ export default function AvatarCustomizationScreen() {
             </LinearGradient>
           </FadeInView>
         </View>
-      </Modal>
+      </PlatformModal>
 
       {/* Success Message Overlay */}
       {showSuccess && (

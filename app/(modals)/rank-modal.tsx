@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Medal, X } from 'phosphor-react-native';
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View, Dimensions, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -165,6 +165,7 @@ const FloatingIsland = ({ rank, index, isCurrent, isUnlocked, totalRanks, reward
 export default function RankModal() {
   const { user } = useAuth();
   const scrollRef = useRef<ScrollView>(null);
+  const hasScrolledRef = useRef(false);
   const [ranks, setRanks] = useState<RankRow[]>([]);
   const [rankInfo, setRankInfo] = useState<UserRankInfo | null>(null);
   const [frames, setFrames] = useState<StoreItemRow[]>([]);
@@ -188,23 +189,24 @@ export default function RankModal() {
         setFrames(f || []);
         setInventoryIds((inv as (string | number)[]) || []);
         setUserAvatar(av);
-
-        // Auto-scroll to current rank
-        if (u?.rank) {
-          const idx = sortedRanks.findIndex(rank => rank.id === u.rank?.id);
-          if (idx !== -1) {
-            const scrollPos = (sortedRanks.length - 1 - idx) * ISLAND_HEIGHT;
-            setTimeout(() => {
-              scrollRef.current?.scrollTo({ y: scrollPos, animated: true });
-            }, 600);
-          }
-        }
       } finally {
         setLoading(false);
       }
     };
     load();
   }, [user?.id]);
+
+  const handleContentSizeChange = useCallback(() => {
+    if (hasScrolledRef.current || ranks.length === 0 || !rankInfo?.rank?.id) return;
+    const idx = ranks.findIndex(rank => rank.id === rankInfo.rank?.id);
+    if (idx !== -1) {
+      const scrollPos = (ranks.length - 1 - idx) * ISLAND_HEIGHT;
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ y: scrollPos, animated: true });
+      }, 100);
+      hasScrolledRef.current = true;
+    }
+  }, [ranks, rankInfo]);
 
   const currentRankIndex = useMemo(() => {
     if (!rankInfo?.rank?.id) return 0;
@@ -372,9 +374,14 @@ export default function RankModal() {
           ref={scrollRef}
           contentContainerStyle={{ height: ranks.length * ISLAND_HEIGHT + 200 }}
           showsVerticalScrollIndicator={false}
+          onContentSizeChange={handleContentSizeChange}
         >
           {/* SVG Layer for Connections */}
-          <Svg style={StyleSheet.absoluteFill}>
+          <Svg 
+            style={StyleSheet.absoluteFill}
+            width={width}
+            height={ranks.length * ISLAND_HEIGHT + 200}
+          >
             {ranks.map((_, i) => renderPath(i))}
           </Svg>
 

@@ -1,6 +1,6 @@
 import { Category } from '@/types/Category';
 
-export type DifficultyLevel = 1 | 2 | 3; // 1: single digits, 2: double digits, 3: triple digits
+export type DifficultyLevel = 1 | 2; // 1: Principiante (<=12), 2: Experto (Manageable double digits)
 
 export type GeneratedQuestion = {
   id: string;
@@ -27,8 +27,7 @@ export function generateQuestion(
     case 'Suma': {
       let a, b;
       if (difficulty === 1) { a = rand(1, 12); b = rand(1, 12); }
-      else if (difficulty === 2) { a = rand(10, 60); b = rand(10, 60); }
-      else { a = rand(100, 999); b = rand(100, 999); }
+      else { a = rand(11, 80); b = rand(11, 80); }
       
       const sumAnswer = a + b;
       return { id, question: `${a} + ${b} = ?`, correctAnswer: sumAnswer, category: 'Suma' as unknown as Category, difficulty, options: generateOptions(sumAnswer, difficulty) };
@@ -37,8 +36,7 @@ export function generateQuestion(
     case 'Resta': {
       let a, b;
       if (difficulty === 1) { a = rand(5, 15); b = rand(1, a); }
-      else if (difficulty === 2) { a = rand(20, 99); b = rand(10, a); }
-      else { a = rand(100, 999); b = rand(50, a); }
+      else { a = rand(20, 99); b = rand(10, a); }
       
       const subAnswer = a - b;
       return { id, question: `${a} - ${b} = ?`, correctAnswer: subAnswer, category: 'Resta' as unknown as Category, difficulty, options: generateOptions(subAnswer, difficulty) };
@@ -46,9 +44,8 @@ export function generateQuestion(
 
     case 'Multiplicación': {
       let a, b;
-      if (difficulty === 1) { a = rand(1, 10); b = rand(1, 10); }
-      else if (difficulty === 2) { a = rand(2, 12); b = rand(2, 15); }
-      else { a = rand(5, 15); b = rand(5, 25); }
+      if (difficulty === 1) { a = rand(1, 12); b = rand(1, 10); }
+      else { a = rand(3, 15); b = rand(2, 20); } // Manageable mental math
       
       const multAnswer = a * b;
       return { id, question: `${a} × ${b} = ?`, correctAnswer: multAnswer, category: 'Multiplicación' as unknown as Category, difficulty, options: generateOptions(multAnswer, difficulty) };
@@ -56,17 +53,16 @@ export function generateQuestion(
 
     case 'División': {
       let divisor, quotient;
-      if (difficulty === 1) { divisor = rand(2, 5); quotient = rand(1, 10); }
-      else if (difficulty === 2) { divisor = rand(2, 10); quotient = rand(5, 15); }
-      else { divisor = rand(5, 15); quotient = rand(10, 25); }
+      if (difficulty === 1) { divisor = rand(2, 6); quotient = rand(1, 12); }
+      else { divisor = rand(2, 12); quotient = rand(5, 20); }
       
       const dividend = divisor * quotient;
       return { id, question: `${dividend} ÷ ${divisor} = ?`, correctAnswer: quotient, category: 'División' as unknown as Category, difficulty, options: generateOptions(quotient, difficulty) };
     }
 
     default: {
-      const a = rand(1, 10);
-      const b = rand(1, 10);
+      const a = rand(1, 12);
+      const b = rand(1, 12);
       const ans = a + b;
       return { id, question: `${a} + ${b} = ?`, correctAnswer: ans, category: 'Suma' as unknown as Category, difficulty, options: generateOptions(ans, difficulty) };
     }
@@ -84,16 +80,12 @@ function generateOptions(correctAnswer: number, difficulty: DifficultyLevel): [s
     let wrongAnswer: number;
     
     if (difficulty === 1) {
-      // For single digits, vary by ±1-3
-      const variation = Math.floor(Math.random() * 3) + 1;
-      wrongAnswer = correctAnswer + (Math.random() < 0.5 ? variation : -variation);
-    } else if (difficulty === 2) {
-      // For double digits, vary by ±5-15
-      const variation = Math.floor(Math.random() * 11) + 5;
+      // For single digits/small numbers, vary by ±1-5
+      const variation = Math.floor(Math.random() * 5) + 1;
       wrongAnswer = correctAnswer + (Math.random() < 0.5 ? variation : -variation);
     } else {
-      // For triple digits, vary by ±10-50
-      const variation = Math.floor(Math.random() * 41) + 10;
+      // For double digits, vary by ±5-20
+      const variation = Math.floor(Math.random() * 16) + 5;
       wrongAnswer = correctAnswer + (Math.random() < 0.5 ? variation : -variation);
     }
     
@@ -120,7 +112,6 @@ export function getRandomCategory(): Category {
  * Determines difficulty progression based on score
  */
 export function getDifficultyFromScore(score: number): DifficultyLevel {
-  if (score < 5) return 1;      // First 5 questions: single digits
-  if (score < 15) return 2;     // Next 10 questions: double digits
-  return 3;                     // 15+ questions: triple digits
+  if (score < 10) return 1;      // First 10 questions: Principiante
+  return 2;                     // 10+ questions: Experto
 }

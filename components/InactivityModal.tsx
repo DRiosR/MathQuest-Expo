@@ -12,7 +12,20 @@ import { BlurView } from 'expo-blur';
 import { FontAwesome5 } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
 
+import { Platform } from 'react-native';
+
 const { width, height } = Dimensions.get('window');
+
+const PlatformModal = Platform.OS === 'web'
+  ? ({ visible, children, transparent, animationType, onRequestClose, ...props }: any) => {
+      if (!visible) return null;
+      return (
+        <View style={[{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999 } as any]} {...props}>
+          {children}
+        </View>
+      );
+    }
+  : Modal;
 
 interface InactivityModalProps {
   visible: boolean;
@@ -46,7 +59,7 @@ export default function InactivityModal({ visible, onConfirm, penaltyPoints }: I
   }, [visible]);
 
   return (
-    <Modal visible={visible} transparent animationType="none">
+    <PlatformModal visible={visible} transparent animationType="none">
       <View style={styles.overlay}>
         <BlurView intensity={20} style={StyleSheet.absoluteFill} tint="dark" />
         
@@ -103,7 +116,7 @@ export default function InactivityModal({ visible, onConfirm, penaltyPoints }: I
           </TouchableOpacity>
         </Animated.View>
       </View>
-    </Modal>
+    </PlatformModal>
   );
 }
 

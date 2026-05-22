@@ -47,75 +47,76 @@ export default function PlayScreen() {
   const [newRankData, setNewRankData] = useState<{ name: string; icon: string | null; color: string } | null>(null);
   const [unlockedFrameImage, setUnlockedFrameImage] = useState<string | null>(null);
 
-  const { startTutorial } = useTutorial();
+  const { isVisible: isTutorialVisible, startTutorial } = useTutorial();
 
   const rankRef = useRef<View>(null);
   const competitiveRef = useRef<View>(null);
   const howToPlayRef = useRef<View>(null);
   const rankingRef = useRef<View>(null);
 
-  const measure = (ref: React.RefObject<any>, id: string, radius: number) => {
+  const measure = useCallback((ref: React.RefObject<any>, id: string, radius: number) => {
     if (ref.current) {
       ref.current.measure((x: number, y: number, w: number, h: number, pageX: number, pageY: number) => {
-        setDynamicSpotlight(id, { x: pageX, y: pageY, w, h, radius });
+        if (w > 0) {
+          setDynamicSpotlight(id, { x: pageX, y: pageY, w, h, radius });
+        }
       });
     }
-  };
+  }, [setDynamicSpotlight]);
+
+  const isInitialRankCheck = useRef(true);
+  const isRefreshingRank = useRef(false);
 
   const refreshUserRank = useCallback(async () => {
-    if (!user?.id) {
-      setRankInfo(null);
-      return;
-    }
+    if (!user?.id || isRefreshingRank.current) return;
+    
+    isRefreshingRank.current = true;
     setRankLoading(true);
+    
     try {
       const remote = await getUserRankInfo(user.id);
       if (remote?.rank) {
-        // Determinar si es una subida de rango (nuevo min_points > anterior min_points)
-        const isRankUp = !rankInfo?.rank || remote.rank.min_points > rankInfo.rank.min_points;
-
-        setRankInfo(remote);
-        
-        // KEY POR CUENTA (no por dispositivo) — cada usuario tiene su propio historial
-        const storageKey = `@mathquest_seen_ranks_${user.id}`;
-        const seenRanksStr = await AsyncStorage.getItem(storageKey);
-        const isFirstLoad = seenRanksStr === null;
-        const seenRanks = seenRanksStr ? JSON.parse(seenRanksStr) : [];
         const rankId = remote.rank.id;
         const rankName = remote.rank.name.toLowerCase();
-        
-        // No mostrar animación para rangos de Bronce
         const isBronze = rankName.includes('bronce') || rankName.includes('bronze');
+
+        // KEY POR CUENTA (no por dispositivo)
+        const storageKey = `@mathquest_seen_ranks_${user.id}`;
+        const seenRanksStr = await AsyncStorage.getItem(storageKey);
+        const seenRanks = seenRanksStr ? JSON.parse(seenRanksStr) : [];
         
-        if (!seenRanks.includes(rankId)) {
-          // Guardar como visto inmediatamente (por cuenta)
+        // Si no hemos visto este rango aún
+        const isNewRank = !seenRanks.includes(rankId);
+
+        // Actualizamos el estado local
+        const oldRankMinPoints = rankInfo?.rank?.min_points ?? 0;
+        const newRankMinPoints = remote.rank.min_points;
+        const isRankUp = newRankMinPoints > oldRankMinPoints;
+
+        setRankInfo(remote);
+
+        if (isNewRank) {
+          // Guardar como visto inmediatamente
           const updatedSeen = [...seenRanks, rankId];
           await AsyncStorage.setItem(storageKey, JSON.stringify(updatedSeen));
 
+          // REGLA DE ORO: 
           // Solo mostrar si:
-          // 1. No es un rango de bronce
-          // 2. No es la primerísima vez que entramos (primera carga)
-          // 3. Es una SUBIDA de rango
-          if (!isBronze && !isFirstLoad && isRankUp) {
-            const rankData = {
+          // 1. NO es la carga inicial de la aplicación (evita popups al entrar)
+          // 2. NO es un rango de Bronce
+          // 3. Es un rango realmente superior o nuevo para el usuario
+          if (!isInitialRankCheck.current && !isBronze && isRankUp) {
+            setNewRankData({
               name: remote.rank.name,
               icon: remote.rank.icon_url,
               color: remote.rank.color || '#A855F7'
-            };
-            setNewRankData(rankData);
+            });
 
-            // Otorgar el marco y obtener su imagen de preview
+            // Intentar obtener el marco
             try {
-              const currentPoints = remote.points ?? 0;
-              const result = await checkRankUpAndGrantFrame(user.id, 0, currentPoints);
-              if (result) {
-                const frameImg = result.frame.imagen_tienda || result.frame.imagen || null;
-                setUnlockedFrameImage(frameImg);
-              } else {
-                setUnlockedFrameImage(null);
-              }
+              const result = await checkRankUpAndGrantFrame(user.id, 0, remote.points ?? 0);
+              setUnlockedFrameImage(result?.frame?.imagen_tienda || result?.frame?.imagen || null);
             } catch (e) {
-              console.warn('[play.tsx] Could not get frame image:', e);
               setUnlockedFrameImage(null);
             }
 
@@ -126,9 +127,11 @@ export default function PlayScreen() {
     } catch (err) {
       console.error('Error in refreshUserRank:', err);
     } finally {
+      isRefreshingRank.current = false;
+      isInitialRankCheck.current = false; // Marcamos que la primera revisión terminó
       setRankLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, rankInfo?.rank]);
 
   const refreshRanks = useCallback(async () => {
     try {
@@ -143,20 +146,32 @@ export default function PlayScreen() {
     return color || '#A855F7';
   }, [rankInfo]);
 
+  const measureAll = useCallback(() => {
+    measure(rankRef, 'my_rank', 25);
+    measure(competitiveRef, 'competitive', 30);
+    measure(howToPlayRef, 'how_to_play', 15);
+    measure(rankingRef, 'global_ranking', 25);
+  }, [measure]);
+
   useFocusEffect(
     React.useCallback(() => {
       refreshUserRank();
       refreshRanks();
-      // Esperamos 2000ms para que las animaciones de entrada terminen y el centrado sea real
-      const timer = setTimeout(() => {
-        measure(rankRef, 'my_rank', 25);
-        measure(competitiveRef, 'competitive', 30);
-        measure(howToPlayRef, 'how_to_play', 15);
-        measure(rankingRef, 'global_ranking', 25);
-      }, 2000);
+      // Esperamos para que las animaciones de entrada terminen
+      const timer = setTimeout(measureAll, 1500);
       return () => clearTimeout(timer);
-    }, [refreshUserRank, refreshRanks])
+    }, [refreshUserRank, refreshRanks, measureAll])
   );
+
+  // RE-MEDIR cuando el tutorial se hace visible (por si se borraron los spotlights al iniciar)
+  React.useEffect(() => {
+    if (isTutorialVisible) {
+      const timer = setTimeout(measureAll, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isTutorialVisible, measureAll]);
+
+
 
   if (!fontsLoaded) {
     return (
@@ -177,7 +192,9 @@ export default function PlayScreen() {
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
         {/* Top View Title */}
         <View style={styles.viewHeader}>
-          <Text style={[styles.viewTitle, { fontFamily: 'Digitalt', fontSize: IS_SMALL_DEVICE ? 22 : normalize(28) }]}>DUELOS 1vs1</Text>
+          <Text style={[styles.viewTitle, { fontFamily: 'Digitalt', fontSize: IS_SMALL_DEVICE ? 22 : normalize(28) }]}>
+            DUELOS 1<Text style={{ fontFamily: 'Gilroy-Black', textTransform: 'lowercase' }}>vs</Text>1
+          </Text>
         </View>
 
         {/* 1. Dashboard Header: League Info Card */}
@@ -285,17 +302,17 @@ export default function PlayScreen() {
         {/* 4. Barra de Utilidades (Pie de página) */}
         <View style={styles.bottomBar}>
           <TouchableOpacity
-            style={styles.utilButton}
+            style={[styles.utilButton, { flex: 1.2 }]}
             onPress={() => startTutorial('1vs1')}
           >
             <LinearGradient colors={['rgba(255,255,255,0.12)', 'rgba(255,255,255,0.06)']} style={styles.utilGradient}>
               <FontAwesome5 name="info-circle" size={14} color="#fff" />
-              <Text style={[styles.utilText, { fontFamily: 'Gilroy-Black' }]}>GUÍA</Text>
+              <Text style={[styles.utilText, { fontFamily: 'Gilroy-Black' }]}>CÓMO JUGAR</Text>
             </LinearGradient>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.utilButton, { flex: 2 }]}
+            style={[styles.utilButton, { flex: 1.6 }]}
             onPress={() => router.push('/(modals)/leaderboard')}
             ref={rankingRef}
             onLayout={() => measure(rankingRef, 'global_ranking', 25)}
@@ -307,7 +324,7 @@ export default function PlayScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.utilButton}
+            style={[styles.utilButton, { flex: 1 }]}
             onPress={() => router.push('/(modals)/how-to-play')}
             ref={howToPlayRef}
             onLayout={() => measure(howToPlayRef, 'how_to_play', 15)}
@@ -592,7 +609,8 @@ const styles = StyleSheet.create({
   },
   utilText: {
     color: '#fff',
-    fontSize: 9,
+    fontSize: IS_SMALL_DEVICE ? 8 : 10,
     textAlign: 'center',
+    letterSpacing: 0.5,
   },
 });

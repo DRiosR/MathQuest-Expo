@@ -1,9 +1,14 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
+import { BlurView } from 'expo-blur';
+import { FontAwesome5 } from '@expo/vector-icons';
 import {
   Alert,
+  Animated,
+  Dimensions,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -19,11 +24,13 @@ import { LogoHeader } from '@/components/ui/LogoHeader';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFontContext } from '@/contexts/FontsContext';
 import AuthService from '@/Core/Services/AuthService/AuthService';
+import { validateUsername, containsProfanity } from '@/utils/profanityFilter';
 
-  export default function SignUpScreen() {
+export default function SignUpScreen() {
   const { fontsLoaded } = useFontContext();
 
-  const { signUp, loading } = useAuth();
+  const { signUp } = useAuth();
+  const [loading, setLoading] = useState(false);
   
   const normalizeEmail = (value: string) =>
     value
@@ -51,13 +58,28 @@ import AuthService from '@/Core/Services/AuthService/AuthService';
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [checkingUsername, setCheckingUsername] = useState(false);
 
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const scaleAnim = React.useRef(new Animated.Value(0.8)).current;
+  const opacityAnim = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    if (showWelcomeModal) {
+      Animated.parallel([
+        Animated.spring(scaleAnim, { toValue: 1, friction: 8, tension: 40, useNativeDriver: true }),
+        Animated.timing(opacityAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      ]).start();
+    } else {
+      scaleAnim.setValue(0.8);
+      opacityAnim.setValue(0);
+    }
+  }, [showWelcomeModal]);
+
   const validateForm = () => {
     const newErrors: typeof errors = {};
 
-    if (!formData.username.trim()) {
-      newErrors.username = 'El nombre de usuario es requerido';
-    } else if (formData.username.length < 3) {
-      newErrors.username = 'El nombre de usuario debe tener al menos 3 caracteres';
+    const usernameValidation = validateUsername(formData.username);
+    if (!usernameValidation.isValid) {
+      newErrors.username = usernameValidation.error;
     }
 
     const trimmedEmail = formData.email.trim();
@@ -84,10 +106,62 @@ import AuthService from '@/Core/Services/AuthService/AuthService';
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleUsernameChange = (text: string) => {
+    setFormData((prev) => ({ ...prev, username: text }));
+    
+    const cleanText = text.trim();
+    if (cleanText.length >= 3 && containsProfanity(cleanText)) {
+      setErrors((prev) => ({ ...prev, username: 'Nombre de usuario inapropiado o no permitido' }));
+      return;
+    }
+
+    if (errors.username) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.username;
+        return next;
+      });
+    }
+  };
+
+  const handleEmailChange = (text: string) => {
+    setFormData((prev) => ({ ...prev, email: text }));
+    if (errors.email) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.email;
+        return next;
+      });
+    }
+  };
+
+  const handlePasswordChange = (text: string) => {
+    setFormData((prev) => ({ ...prev, password: text }));
+    if (errors.password) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.password;
+        return next;
+      });
+    }
+  };
+
+  const handleConfirmPasswordChange = (text: string) => {
+    setFormData((prev) => ({ ...prev, confirmPassword: text }));
+    if (errors.confirmPassword) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.confirmPassword;
+        return next;
+      });
+    }
+  };
+
   const handleSignUp = async () => {
     if (!validateForm()) return;
 
     try {
+      setLoading(true);
       const { user, error } = await signUp({
         username: formData.username.trim(),
         email: normalizeEmail(formData.email),
@@ -116,19 +190,12 @@ import AuthService from '@/Core/Services/AuthService/AuthService';
           setErrors({ general: 'Hubo un problema al crear tu cuenta. Revisa que el correo y usuario sean nuevos.' });
         }
       } else if (user) {
-        Alert.alert(
-          '¡Cuenta creada!',
-          'Bienvenido a MathQuest!',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/(tabs)' as any),
-            },
-          ]
-        );
+        setShowWelcomeModal(true);
       }
     } catch (error: any) {
       setErrors({ general: 'Error inesperado. Intenta de nuevo.' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -177,7 +244,7 @@ import AuthService from '@/Core/Services/AuthService/AuthService';
                 icon="at"
                 placeholder="Nombre de usuario"
                 value={formData.username}
-                onChangeText={(text) => setFormData({ ...formData, username: text })}
+                onChangeText={handleUsernameChange}
                 autoCapitalize="none"
                 autoCorrect={false}
                 error={errors.username}
@@ -212,7 +279,7 @@ import AuthService from '@/Core/Services/AuthService/AuthService';
                 icon="user"
                 placeholder="Email"
                 value={formData.email}
-                onChangeText={(text) => setFormData({ ...formData, email: text })}
+                onChangeText={handleEmailChange}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -223,8 +290,11 @@ import AuthService from '@/Core/Services/AuthService/AuthService';
                 icon="lock"
                 placeholder="Contraseña"
                 value={formData.password}
-                onChangeText={(text) => setFormData({ ...formData, password: text })}
+                onChangeText={handlePasswordChange}
                 secureTextEntry
+                showTogglePassword={true}
+                textContentType="oneTimeCode"
+                autoComplete="off"
                 error={errors.password}
               />
 
@@ -232,8 +302,11 @@ import AuthService from '@/Core/Services/AuthService/AuthService';
                 icon="lock"
                 placeholder="Confirmar contraseña"
                 value={formData.confirmPassword}
-                onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
+                onChangeText={handleConfirmPasswordChange}
                 secureTextEntry
+                showTogglePassword={true}
+                textContentType="oneTimeCode"
+                autoComplete="off"
                 error={errors.confirmPassword}
               />
 
@@ -273,6 +346,48 @@ import AuthService from '@/Core/Services/AuthService/AuthService';
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
+
+      {/* Modal de Bienvenida */}
+      <Modal visible={showWelcomeModal} transparent animationType="none">
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={20} style={StyleSheet.absoluteFill} tint="dark" />
+          
+          <Animated.View
+            style={[
+              styles.modalContainer,
+              {
+                opacity: opacityAnim,
+                transform: [{ scale: scaleAnim }],
+              },
+            ]}
+          >
+            <View style={styles.modalIconCircle}>
+              <FontAwesome5 name="check-circle" size={40} color="#4ADE80" />
+            </View>
+            
+            <Text style={[styles.modalTitleText, fontsLoaded ? { fontFamily: 'Digitalt' } : null]}>
+              ¡CUENTA CREADA!
+            </Text>
+
+            <Text style={[styles.modalMessage, fontsLoaded ? { fontFamily: 'Digitalt' } : null]}>
+              Bienvenido a MathQuest. ¡Prepárate para la aventura!
+            </Text>
+
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => {
+                setShowWelcomeModal(false);
+                router.replace('/(tabs)' as any);
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.modalButtonText, fontsLoaded ? { fontFamily: 'Digitalt' } : null]}>
+                COMENZAR
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -384,5 +499,66 @@ const styles = StyleSheet.create({
   suggestionText: {
     color: '#fff',
     fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: Dimensions.get('window').width * 0.85,
+    backgroundColor: '#1A1A2E',
+    borderRadius: 30,
+    padding: 25,
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#4ADE80',
+    shadowColor: '#4ADE80',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 15,
+    elevation: 20,
+  },
+  modalIconCircle: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  modalTitleText: {
+    fontSize: 26,
+    color: '#4ADE80',
+    textAlign: 'center',
+    marginBottom: 10,
+    letterSpacing: 1,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#D6CCFF',
+    textAlign: 'center',
+    marginBottom: 25,
+    lineHeight: 22,
+    opacity: 0.9,
+  },
+  modalButton: {
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 18,
+    alignItems: 'center',
+    backgroundColor: '#4ADE80',
+    borderBottomWidth: 4,
+    borderBottomColor: '#166534',
+  },
+  modalButtonText: {
+    fontSize: 16,
+    letterSpacing: 1,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
   },
 });
