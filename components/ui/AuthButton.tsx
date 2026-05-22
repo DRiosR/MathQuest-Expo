@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, ViewStyle } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, ViewStyle, StyleProp } from 'react-native';
 
 interface AuthButtonProps {
   title: string;
@@ -9,7 +9,7 @@ interface AuthButtonProps {
   loading?: boolean;
   disabled?: boolean;
   variant?: 'primary' | 'secondary';
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const AuthButton: React.FC<AuthButtonProps> = ({
@@ -29,7 +29,7 @@ export const AuthButton: React.FC<AuthButtonProps> = ({
 
   const isDisabled = loading || disabled;
 
-  const getGradientColors = () => {
+  const getGradientColors = (): [string, string] => {
     if (isDisabled) {
       return ['#6b7280', '#4b5563'];
     }
