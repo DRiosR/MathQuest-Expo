@@ -165,8 +165,7 @@ export default function MatchEndView({
     // Calculamos monedas basadas ÚNICAMENTE en el puntaje propio del usuario actual
     const myScore = isPlayer1CurrentUser ? (player1TotalScore ?? 0) : (player2TotalScore ?? 0);
 
-    const base = Math.floor((myScore || 0) / 10);
-    const coinsToAdd = base > 0 ? (didWin ? base * 3 : base) : 0;
+    const coinsToAdd = myScore > 0 ? (didWin ? myScore * 10 : myScore * 8) : 0;
 
     // 1. Always attempt to update streak if authenticated
     if (user?.id) {
