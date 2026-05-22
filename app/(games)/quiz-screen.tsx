@@ -24,7 +24,7 @@ import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams } from 'expo-router';
 import LottieView from 'lottie-react-native';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, View, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSharedValue } from 'react-native-reanimated';
 import { categories } from '../../data/static/categories';
@@ -67,7 +67,7 @@ export default function QuizScreen() {
             <React.Fragment key={idx}>
               {part}
               {idx < parts.length - 1 && (
-                <Text style={{ fontFamily: 'Gilroy-Black' }}>÷</Text>
+                <Text style={{ fontFamily: Platform.select({ ios: 'Arial', android: 'sans-serif', default: 'sans-serif' }), fontWeight: 'bold' }}>÷</Text>
               )}
             </React.Fragment>
           ))}

@@ -80,7 +80,7 @@ export default function QuizView({
             <React.Fragment key={idx}>
               {part}
               {idx < parts.length - 1 && (
-                <Text style={{ fontFamily: 'Gilroy-Black' }}>÷</Text>
+                <Text style={{ fontFamily: Platform.select({ ios: 'Arial', android: 'sans-serif', default: 'sans-serif' }), fontWeight: 'bold' }}>÷</Text>
               )}
             </React.Fragment>
           ))}

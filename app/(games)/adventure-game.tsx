@@ -14,7 +14,8 @@ import {
   Text,
   TouchableOpacity,
   Vibration,
-  View
+  View,
+  Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -341,7 +342,7 @@ export default function AdventureGameScreen() {
             <React.Fragment key={idx}>
               {part}
               {idx < parts.length - 1 && (
-                <Text style={{ fontFamily: 'Gilroy-Black' }}>÷</Text>
+                <Text style={{ fontFamily: Platform.select({ ios: 'Arial', android: 'sans-serif', default: 'sans-serif' }), fontWeight: 'bold' }}>÷</Text>
               )}
             </React.Fragment>
           ))}
