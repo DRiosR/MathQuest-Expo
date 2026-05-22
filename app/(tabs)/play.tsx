@@ -193,7 +193,7 @@ export default function PlayScreen() {
         {/* Top View Title */}
         <View style={styles.viewHeader}>
           <Text style={[styles.viewTitle, { fontFamily: 'Digitalt', fontSize: IS_SMALL_DEVICE ? 22 : normalize(28) }]}>
-            DUELOS 1<Text style={{ fontFamily: 'Gilroy-Black', textTransform: 'lowercase' }}>vs</Text>1
+            DUELOS 1<Text style={{ fontFamily: 'Gilroy-Black', textTransform: 'lowercase', fontSize: IS_SMALL_DEVICE ? 16 : normalize(21) }}>vs</Text>1
           </Text>
         </View>
 

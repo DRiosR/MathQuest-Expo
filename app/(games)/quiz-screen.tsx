@@ -56,6 +56,27 @@ const { width, height } = Dimensions.get('window');
 
 export default function QuizScreen() {
   const params = useLocalSearchParams();
+
+  const renderQuestionText = (text: string) => {
+    if (!text) return '';
+    if (text.includes('÷')) {
+      const parts = text.split('÷');
+      return (
+        <Text>
+          {parts.map((part, idx) => (
+            <React.Fragment key={idx}>
+              {part}
+              {idx < parts.length - 1 && (
+                <Text style={{ fontFamily: 'Gilroy-Black' }}>÷</Text>
+              )}
+            </React.Fragment>
+          ))}
+        </Text>
+      );
+    }
+    return text;
+  };
+
   const categoryId = params.categoryId as string || 'resta';
   const bgColor1 = params.bgColor1 as string || '#537BFD';
   const bgColor2 = params.bgColor2 as string || '#7EE1FF';
@@ -510,7 +531,7 @@ export default function QuizScreen() {
 
         <View style={styles.questionContainer}>
           <Text style={[styles.questionText, { fontFamily: 'Digitalt' }]}>
-            {currentQuestion?.texto || 'Loading...'}
+            {currentQuestion?.texto ? renderQuestionText(currentQuestion.texto) : 'Loading...'}
           </Text>
         </View>
         

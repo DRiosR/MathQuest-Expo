@@ -69,6 +69,27 @@ export default function QuizView({
   onSendEmote, emoteReceived, lastAnswerResult
 }: Props) {
   const insets = useSafeAreaInsets();
+
+  const renderQuestionText = (text: string) => {
+    if (!text) return '';
+    if (text.includes('÷')) {
+      const parts = text.split('÷');
+      return (
+        <Text>
+          {parts.map((part, idx) => (
+            <React.Fragment key={idx}>
+              {part}
+              {idx < parts.length - 1 && (
+                <Text style={{ fontFamily: 'Gilroy-Black' }}>÷</Text>
+              )}
+            </React.Fragment>
+          ))}
+        </Text>
+      );
+    }
+    return text;
+  };
+
   const [trackWidth, setTrackWidth] = useState(0);
   const fillWidth = useRef(new Animated.Value(0)).current;
   const waitingFadeAnim = useRef(new Animated.Value(0)).current;
@@ -392,7 +413,7 @@ export default function QuizView({
 
       {/* Question */}
       <View style={styles.questionCard}>
-        <Text style={[styles.questionText, { fontFamily: 'Digitalt' }]}>{question}</Text>
+        <Text style={[styles.questionText, { fontFamily: 'Digitalt' }]}>{renderQuestionText(question)}</Text>
       </View>
 
       {/* Answer display */}

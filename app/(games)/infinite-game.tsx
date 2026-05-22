@@ -109,6 +109,26 @@ async function recordPlayDay(): Promise<void> {
 export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps) {
   const { fontsLoaded } = useFontContext();
 
+  const renderQuestionText = (text: string) => {
+    if (!text) return '';
+    if (text.includes('÷')) {
+      const parts = text.split('÷');
+      return (
+        <Text>
+          {parts.map((part, idx) => (
+            <React.Fragment key={idx}>
+              {part}
+              {idx < parts.length - 1 && (
+                <Text style={{ fontFamily: 'Gilroy-Black' }}>÷</Text>
+              )}
+            </React.Fragment>
+          ))}
+        </Text>
+      );
+    }
+    return text;
+  };
+
   const safeHaptic = (style: Haptics.ImpactFeedbackStyle) => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(style).catch(() => {});
@@ -1027,7 +1047,7 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
                     {currentQuestion.category}
                   </Text>
                   <Text style={[styles.questionText, { fontFamily: 'Digitalt' }]}>
-                    {currentQuestion.question}
+                    {renderQuestionText(currentQuestion.question)}
                   </Text>
                 </Animated.View>
               )}

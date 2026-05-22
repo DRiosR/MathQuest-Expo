@@ -331,6 +331,26 @@ const NUMPAD = [
 export default function AdventureGameScreen() {
   const { fontsLoaded } = useFontContext();
 
+  const renderQuestionText = (text: string) => {
+    if (!text) return '';
+    if (text.includes('÷')) {
+      const parts = text.split('÷');
+      return (
+        <Text>
+          {parts.map((part, idx) => (
+            <React.Fragment key={idx}>
+              {part}
+              {idx < parts.length - 1 && (
+                <Text style={{ fontFamily: 'Gilroy-Black' }}>÷</Text>
+              )}
+            </React.Fragment>
+          ))}
+        </Text>
+      );
+    }
+    return text;
+  };
+
   const { avatar: userAvatar } = useAvatar();
   const { user } = useAuth();
   const { addHighScore } = useOfflineStorage();
@@ -433,7 +453,7 @@ export default function AdventureGameScreen() {
 
   const generateNewQuestion = (level: AdventureLevel) => {
     const category = level.category as any;
-    const question = generateQuestion(category, level.difficulty);
+    const question = generateQuestion(category, level.difficulty as any);
     setCurrentQuestion(question);
     setUserAnswer('');
   };
@@ -820,7 +840,7 @@ export default function AdventureGameScreen() {
                     {currentQuestion.category}
                   </Text>
                   <Text style={[styles.questionText, { fontFamily: 'Digitalt' }]}>
-                    {currentQuestion.question}
+                    {renderQuestionText(currentQuestion.question)}
                   </Text>
                 </>
               )}
