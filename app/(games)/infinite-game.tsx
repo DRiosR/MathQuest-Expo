@@ -29,7 +29,7 @@ import { useAvatar } from '@/contexts/AvatarContext';
 import { useFontContext } from '@/contexts/FontsContext';
 import { useOfflineStorage } from '@/contexts/OfflineStorageContext';
 import { TUTORIAL_STEPS, useTutorial } from '@/contexts/TutorialContext';
-import { updateUserStreak } from '@/services/SupabaseService';
+import { updateUserStreak, saveSingleplayerSession } from '@/services/SupabaseService';
 import {
   generateQuestion,
   getDifficultyFromScore,
@@ -151,6 +151,8 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
   const [scrollViewportH, setScrollViewportH] = useState(0);
   const lastEnsureKeyRef = useRef<string | null>(null);
   const [sectionLayout, setSectionLayout] = useState<Record<string, { y: number; h: number }>>({});
+  
+  const questionStartTime = useRef<number>(0);
 
   // Game state
   const [gameMode, setGameMode] = useState<GameMode | null>(null);
@@ -172,6 +174,9 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
     correctAnswer: number;
     isCorrect: boolean;
     timestamp: number;
+    category: string;
+    difficulty: number;
+    responseTimeMs: number;
   }>>([]);
   const [correctFlash, setCorrectFlash] = useState(false);
   const [incorrectFlash, setIncorrectFlash] = useState(false);
@@ -530,6 +535,8 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
     // Create a truly fresh question
     const question = generateQuestion(currentCat as any, dynamicDiff as any);
     
+    questionStartTime.current = Date.now();
+    
     // Force state update with a new object reference
     setCurrentQuestion({ ...question, _timestamp: Date.now() });
     setUserAnswer('');
@@ -548,6 +555,9 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
       correctAnswer: currentQuestion.correctAnswer,
       isCorrect,
       timestamp: Date.now(),
+      category: currentQuestion.category || selectedCategory,
+      difficulty: currentDifficulty,
+      responseTimeMs: Date.now() - questionStartTime.current,
     };
     
     const updatedHistory = [...answerHistory, newAnswer];
@@ -660,6 +670,17 @@ export default function InfiniteGameScreen({ onPlayedToday }: InfiniteGameProps)
       questionsAnswered: finalQuestionsAnswered,
       accuracy
     });
+
+    // Guardar telemetría
+    const durationMs = (gameMode ? gameMode * 60 : 60) * 1000 - (timeLeft * 1000);
+    const telemetryPayload = answerHistory.map(item => ({
+      category: item.category,
+      difficulty: item.difficulty,
+      response_time_ms: item.responseTimeMs,
+      is_correct: item.isCorrect,
+      points_earned: item.isCorrect ? 100 : 0
+    }));
+    saveSingleplayerSession('infinite', finalScore * 100, durationMs, telemetryPayload);
 
     // Show game over modal with alias input
     setShowGameOverModal(true);

@@ -29,6 +29,7 @@ import { categories } from '@/data/static/categories';
 import {
   generateQuestion
 } from '@/utils/generateQuestions';
+import { saveSingleplayerSession } from '@/services/SupabaseService';
 
 const { width, height } = Dimensions.get('window');
 const isSmallScreen = height < 700;
@@ -363,6 +364,11 @@ export default function AdventureGameScreen() {
   const [userAnswer, setUserAnswer] = useState('');
   const [questionsAnswered, setQuestionsAnswered] = useState(0);
   const [correctAnswers, setCorrectAnswers] = useState(0);
+  
+  const [answerHistory, setAnswerHistory] = useState<any[]>([]);
+  const questionStartTime = useRef<number>(0);
+  const levelStartTime = useRef<number>(0);
+
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [countdown, setCountdown] = useState(3);
   const countdownScale = useRef(new Animated.Value(1)).current;
@@ -408,8 +414,10 @@ export default function AdventureGameScreen() {
     setQuestionsAnswered(0);
     setCorrectAnswers(0);
     setUserAnswer('');
+    setAnswerHistory([]);
     setIsPlaying(true);
     setGameEnded(false);
+    levelStartTime.current = Date.now();
     generateNewQuestion(level);
 
     // Start countdown
@@ -455,6 +463,7 @@ export default function AdventureGameScreen() {
   const generateNewQuestion = (level: AdventureLevel) => {
     const category = level.category as any;
     const question = generateQuestion(category, level.difficulty as any);
+    questionStartTime.current = Date.now();
     setCurrentQuestion(question);
     setUserAnswer('');
   };
@@ -464,6 +473,16 @@ export default function AdventureGameScreen() {
 
     const userNum = parseInt(userAnswer.trim());
     const isCorrect = userNum === currentQuestion.correctAnswer;
+
+    const newAnswer = {
+      category: selectedLevel?.category || 'combinada',
+      difficulty: selectedLevel?.difficulty || 1,
+      response_time_ms: Date.now() - questionStartTime.current,
+      is_correct: isCorrect,
+      points_earned: isCorrect ? 10 : 0
+    };
+    
+    setAnswerHistory(prev => [...prev, newAnswer]);
 
     setQuestionsAnswered(prev => prev + 1);
     
@@ -589,6 +608,10 @@ export default function AdventureGameScreen() {
     setWorlds(updatedWorlds);
     await saveAdventureProgress(updatedWorlds);
     setShowLevelComplete(true);
+    
+    // Guardar telemetría
+    const durationMs = Date.now() - levelStartTime.current;
+    saveSingleplayerSession('adventure', correctAnswers * 10, durationMs, answerHistory);
 
     // Save high score for leaderboard
     await addHighScore({

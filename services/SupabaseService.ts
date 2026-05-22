@@ -1175,3 +1175,62 @@ export async function getUserInventory(userId: string): Promise<string[]> {
     return [];
   }
 }
+
+// -------------------- TELEMETRÍA --------------------
+
+export type QuestionAttemptPayload = {
+  category: string;
+  operation_type?: string;
+  difficulty?: number;
+  response_time_ms: number;
+  is_correct: boolean;
+  points_earned?: number;
+};
+
+export async function saveSingleplayerSession(
+  mode: 'infinite' | 'adventure',
+  score: number,
+  durationMs: number,
+  attempts: QuestionAttemptPayload[]
+): Promise<boolean> {
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData?.user?.id;
+    if (!userId) return false;
+
+    // 1. Guardar la sesión
+    const { data: sessionData, error: sessionError } = await supabase
+      .from('singleplayer_sessions')
+      .insert({
+        user_id: userId,
+        mode,
+        score,
+        duration_ms: durationMs,
+      })
+      .select('id')
+      .single();
+
+    if (sessionError) throw sessionError;
+    const sessionId = sessionData.id;
+
+    // 2. Guardar los intentos (Bulk Insert)
+    if (attempts.length > 0) {
+      const attemptsToInsert = attempts.map((attempt) => ({
+        ...attempt,
+        user_id: userId,
+        session_id: sessionId,
+      }));
+
+      const { error: attemptsError } = await supabase
+        .from('question_attempts')
+        .insert(attemptsToInsert);
+
+      if (attemptsError) throw attemptsError;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error saving singleplayer session:', error);
+    return false;
+  }
+}
