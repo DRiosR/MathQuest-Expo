@@ -14,6 +14,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,6 +29,9 @@ import { validateUsername, containsProfanity } from '@/utils/profanityFilter';
 
 export default function SignUpScreen() {
   const { fontsLoaded } = useFontContext();
+  const { height } = useWindowDimensions();
+  const isSmallScreen = height < 750;
+  const isTinyScreen = height < 680;
 
   const { signUp } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -224,16 +228,19 @@ export default function SignUpScreen() {
           style={styles.keyboardAvoidingView}
         >
           <ScrollView
-            contentContainerStyle={styles.scrollContainer}
+            contentContainerStyle={[
+              styles.scrollContainer,
+              { paddingVertical: isTinyScreen ? 15 : (isSmallScreen ? 25 : 40) }
+            ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
             {/* Logo */}
-            <LogoHeader size="large" />
+            <LogoHeader size={isTinyScreen ? "small" : (isSmallScreen ? "medium" : "large")} />
 
             {/* Title */}
-            <View style={styles.titleContainer}>
-              <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>
+            <View style={[styles.titleContainer, { marginBottom: isTinyScreen ? 15 : (isSmallScreen ? 25 : 40) }]}>
+              <Text style={[styles.title, { fontFamily: 'Digitalt', fontSize: isTinyScreen ? 22 : (isSmallScreen ? 25 : 28) }]}>
                 CREAR CUENTA
               </Text>
             </View>
@@ -323,11 +330,11 @@ export default function SignUpScreen() {
                 title="CREAR"
                 onPress={handleSignUp}
                 loading={loading}
-                style={styles.signUpButton}
+                style={[styles.signUpButton, { marginBottom: isSmallScreen ? 12 : 20 }]}
               />
 
               {/* Divider */}
-              <View style={styles.divider}>
+              <View style={[styles.divider, { marginBottom: isTinyScreen ? 15 : (isSmallScreen ? 20 : 30) }]}>
                 <View style={styles.dividerLine} />
                 <Text style={[styles.dividerText, { fontFamily: 'Gilroy-Black' }]}>
                   ¿YA TIENES CUENTA?
@@ -340,7 +347,7 @@ export default function SignUpScreen() {
                 title="LOGIN"
                 onPress={handleLogin}
                 variant="secondary"
-                style={styles.loginButton}
+                style={[styles.loginButton, { marginBottom: isSmallScreen ? 12 : 20 }]}
               />
             </View>
           </ScrollView>

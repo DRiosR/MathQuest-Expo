@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +22,9 @@ import { useFontContext } from '@/contexts/FontsContext';
 
 export default function LoginScreen() {
   const { fontsLoaded } = useFontContext();
+  const { height } = useWindowDimensions();
+  const isSmallScreen = height < 750;
+  const isTinyScreen = height < 680;
 
   const { signIn } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -150,16 +154,19 @@ export default function LoginScreen() {
           style={styles.keyboardAvoidingView}
         >
           <ScrollView
-            contentContainerStyle={styles.scrollContainer}
+            contentContainerStyle={[
+              styles.scrollContainer,
+              { paddingVertical: isTinyScreen ? 15 : (isSmallScreen ? 25 : 40) }
+            ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
             {/* Logo */}
-            <LogoHeader size="large" />
+            <LogoHeader size={isTinyScreen ? "small" : (isSmallScreen ? "medium" : "large")} />
 
             {/* Title */}
-            <View style={styles.titleContainer}>
-              <Text style={[styles.title, { fontFamily: 'Digitalt' }]}>
+            <View style={[styles.titleContainer, { marginBottom: isTinyScreen ? 15 : (isSmallScreen ? 25 : 40) }]}>
+              <Text style={[styles.title, { fontFamily: 'Digitalt', fontSize: isTinyScreen ? 25 : (isSmallScreen ? 28 : 32) }]}>
                 LOGIN
               </Text>
             </View>
@@ -192,7 +199,7 @@ export default function LoginScreen() {
               />
 
               <TouchableOpacity
-                style={styles.forgotPasswordContainer}
+                style={[styles.forgotPasswordContainer, { marginBottom: isSmallScreen ? 15 : 30 }]}
                 onPress={handleForgotPassword}
               >
                 <Text style={[styles.forgotPasswordText, { fontFamily: 'Gilroy-Black' }]}>
@@ -213,13 +220,13 @@ export default function LoginScreen() {
                 title="LOGIN"
                 onPress={handleLogin}
                 loading={loading}
-                style={styles.loginButton}
+                style={[styles.loginButton, { marginBottom: isSmallScreen ? 12 : 20 }]}
               />
 
 
 
               {/* Divider */}
-              <View style={styles.divider}>
+              <View style={[styles.divider, { marginBottom: isTinyScreen ? 15 : (isSmallScreen ? 20 : 30) }]}>
                 <View style={styles.dividerLine} />
                 <Text style={[styles.dividerText, { fontFamily: 'Gilroy-Black' }]}>
                   ¿NO TIENES CUENTA?
@@ -232,7 +239,7 @@ export default function LoginScreen() {
                 title="CREAR CUENTA"
                 onPress={handleSignUp}
                 variant="secondary"
-                style={styles.signUpButton}
+                style={[styles.signUpButton, { marginBottom: isSmallScreen ? 12 : 20 }]}
               />
             </View>
           </ScrollView>
