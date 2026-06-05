@@ -106,7 +106,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
         
         if (accessToken && refreshToken) {
-
           if (type === 'recovery') {
             setIsRecovering(true);
           }
@@ -115,7 +114,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.error('❌ Error al establecer sesión desde URL:', error.message);
             Alert.alert('Error de Sesión', 'No se pudo iniciar la sesión de recuperación.');
           } else {
-
+            if (Platform.OS === 'web') {
+              try {
+                window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+              } catch (e) {
+                console.warn('No se pudo limpiar el hash de la URL:', e);
+              }
+            }
           }
         }
       }

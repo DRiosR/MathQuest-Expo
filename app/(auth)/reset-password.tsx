@@ -22,13 +22,22 @@ import { useFontContext } from '@/contexts/FontsContext';
 
 export default function ResetPasswordScreen() {
   const { fontsLoaded } = useFontContext();
-  const { updatePassword, isRecovering } = useAuth();
+  const { updatePassword, isRecovering, signOut } = useAuth();
   const [loading, setLoading] = useState(false);
   
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  const handleCancel = async () => {
+    try {
+      await signOut();
+    } catch (e) {
+      // Ignore
+    }
+    router.replace('/(auth)/login');
+  };
 
   // Security check: if user is not in a recovery flow, send them back to login
   React.useEffect(() => {
@@ -97,7 +106,7 @@ export default function ResetPasswordScreen() {
       } else {
         setSuccess(true);
         // Important: sign out after password change to force a clean login
-        await AuthService.signOut();
+        await signOut();
         
         Alert.alert(
           '¡Éxito!',
@@ -105,7 +114,7 @@ export default function ResetPasswordScreen() {
           [
             {
               text: 'Aceptar',
-              onPress: () => router.replace('/(auth)/login'),
+              onPress: handleCancel,
             },
           ]
         );
@@ -146,7 +155,7 @@ export default function ResetPasswordScreen() {
             {/* Back Button */}
             <TouchableOpacity 
               style={styles.backButton} 
-              onPress={() => router.replace('/(auth)/login')}
+              onPress={handleCancel}
             >
               <Text style={[styles.backButtonText, { fontFamily: 'Digitalt' }]}>
                 ← Volver
@@ -175,7 +184,7 @@ export default function ResetPasswordScreen() {
                   </Text>
                   <AuthButton
                     title="IR AL LOGIN"
-                    onPress={() => router.replace('/(auth)/login')}
+                    onPress={handleCancel}
                     style={styles.loginButton}
                   />
                 </View>
@@ -219,7 +228,7 @@ export default function ResetPasswordScreen() {
                   {/* Cancel Button */}
                   <AuthButton
                     title="CANCELAR"
-                    onPress={() => router.replace('/(auth)/login')}
+                    onPress={handleCancel}
                     variant="secondary"
                     style={styles.cancelButton}
                   />
