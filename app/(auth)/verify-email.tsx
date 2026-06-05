@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -22,15 +22,21 @@ import { AuthButton } from '@/components/ui/AuthButton';
 import { LogoHeader } from '@/components/ui/LogoHeader';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFontContext } from '@/contexts/FontsContext';
+import AuthService from '@/Core/Services/AuthService/AuthService';
 
 export default function VerifyEmailScreen() {
   const { fontsLoaded } = useFontContext();
-  const { email } = useLocalSearchParams<{ email?: string }>();
-  const { user, resendSignUpEmail, signOut } = useAuth();
+  const { email, password } = useLocalSearchParams<{ email?: string; password?: string }>();
+  const { user, resendSignUpEmail, signOut, signIn, refreshSession } = useAuth();
 
   const [resending, setResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [showExitModal, setShowExitModal] = useState(false);
+  const [checkingManual, setCheckingManual] = useState(false);
+  const [timeElapsed, setTimeElapsed] = useState(0);
+
+  // Keep references to prevent multiple simultaneous polling executions
+  const isCheckingRef = useRef(false);
 
   // Cooldown timer for resending email
   useEffect(() => {
@@ -39,6 +45,62 @@ export default function VerifyEmailScreen() {
       return () => clearTimeout(timer);
     }
   }, [cooldown]);
+
+  // Track time elapsed to show helpful tips after a while
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeElapsed(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Check verification status (silent authentication attempt or user query)
+  const checkVerificationStatus = async (showFeedback = false) => {
+    if (isCheckingRef.current) return;
+    isCheckingRef.current = true;
+
+    try {
+      // 1. First check if we have a local user and their email is confirmed
+      const { data: { user: supabaseUser } } = await AuthService.getClient().auth.getUser();
+      if (supabaseUser?.email_confirmed_at) {
+        await refreshSession();
+        if (showFeedback) {
+          Alert.alert('Éxito', '¡Cuenta verificada y activada correctamente!');
+        }
+        isCheckingRef.current = false;
+        return true;
+      }
+
+      // 2. If no confirmed user, attempt a silent background sign-in
+      if (email && password) {
+        const result = await signIn({ email, password });
+        if (!result.error && result.user) {
+          if (showFeedback) {
+            Alert.alert('Éxito', '¡Cuenta verificada y activada correctamente!');
+          }
+          isCheckingRef.current = false;
+          return true;
+        }
+      }
+    } catch (e) {
+      console.warn('Error polling verification status:', e);
+    }
+
+    isCheckingRef.current = false;
+    return false;
+  };
+
+  // 5-second automatic polling
+  useEffect(() => {
+    // Don't poll if user is already verified/logged in
+    if (user) return;
+
+    const interval = setInterval(() => {
+      checkVerificationStatus(false);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [user, email, password]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -74,6 +136,23 @@ export default function VerifyEmailScreen() {
       Alert.alert('Error', 'Ocurrió un error al intentar reenviar.');
     } finally {
       setResending(false);
+    }
+  };
+
+  const handleManualCheck = async () => {
+    try {
+      setCheckingManual(true);
+      const isConfirmed = await checkVerificationStatus(true);
+      if (!isConfirmed) {
+        Alert.alert(
+          'Pendiente',
+          'Aún no detectamos la activación de tu cuenta. Por favor, asegúrate de hacer clic en el enlace enviado a tu correo.'
+        );
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Ocurrió un error al consultar el estado. Inténtalo de nuevo.');
+    } finally {
+      setCheckingManual(false);
     }
   };
 
@@ -160,9 +239,28 @@ export default function VerifyEmailScreen() {
                   ) : null}
 
                   <Text style={[styles.subMessage, { fontFamily: 'Gilroy-Black' }]}>
-                    Esperando confirmación... La activación puede tardar unos momentos.
+                    Esperando confirmación... La activación se detectará de forma automática en unos momentos.
                   </Text>
 
+                  {/* Troubleshooting Alert (Visible after 60 seconds) */}
+                  {timeElapsed > 60 && (
+                    <View style={styles.troubleContainer}>
+                      <FontAwesome5 name="info-circle" size={16} color="#A855F7" style={styles.troubleIcon} />
+                      <Text style={[styles.troubleText, { fontFamily: 'Gilroy-Black' }]}>
+                        ¿No llega el correo? Revisa tu carpeta de Spam/No deseados o presiona el botón de abajo para reenviarlo.
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Manual Check Button */}
+                  <AuthButton
+                    title="YA CONFIRMÉ MI CORREO"
+                    onPress={handleManualCheck}
+                    loading={checkingManual}
+                    style={styles.actionButton}
+                  />
+
+                  {/* Resend Email Button */}
                   <AuthButton
                     title={cooldown > 0 ? `Podrás reenviar en ${formatTime(cooldown)}` : "REENVIAR CORREO DE VERIFICACIÓN"}
                     onPress={handleResendEmail}
@@ -320,7 +418,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     lineHeight: 18,
-    marginBottom: 25,
+    marginBottom: 20,
     opacity: 0.8,
   },
   emailText: {
@@ -334,13 +432,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
   },
+  troubleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(168, 85, 247, 0.08)',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.2)',
+  },
+  troubleIcon: {
+    marginRight: 8,
+  },
+  troubleText: {
+    flex: 1,
+    color: '#D6CCFF',
+    fontSize: 12,
+    lineHeight: 16,
+  },
   actionButton: {
     width: '100%',
-    marginBottom: 15,
+    marginBottom: 12,
   },
   backButton: {
     paddingVertical: 10,
     paddingHorizontal: 20,
+    marginTop: 10,
   },
   backButtonText: {
     color: '#A855F7',

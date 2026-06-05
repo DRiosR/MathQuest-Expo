@@ -179,6 +179,8 @@ export default function SignUpScreen() {
         
         if (errorMessage.includes('already registered') || errorMessage.includes('already in use')) {
           setErrors({ email: 'Este correo ya está en uso. Prueba con otro.' });
+        } else if (errorMessage.includes('rate limit') || errorMessage.includes('too many requests')) {
+          setErrors({ general: 'Has intentado registrarte demasiadas veces. Por favor, espera unos minutos antes de intentar de nuevo.' });
         } else if (errorMessage.includes('username_key') || errorMessage.includes('username') || errorMessage.includes('database error')) {
           // El error de "Database error saving new user" suele ser por nombre de usuario repetido
           setErrors({ username: 'Este nombre de usuario ya está tomado o hay un problema con los datos.' });
@@ -199,7 +201,10 @@ export default function SignUpScreen() {
         } else {
           router.replace({
             pathname: '/(auth)/verify-email' as any,
-            params: { email: normalizeEmail(formData.email) }
+            params: { 
+              email: normalizeEmail(formData.email),
+              password: formData.password
+            }
           });
         }
       }
