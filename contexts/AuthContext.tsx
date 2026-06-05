@@ -2,7 +2,7 @@ import AuthService, { AuthUser, SignInData, SignUpData } from '@/Core/Services/A
 import { initializeUserInventory } from '@/services/SupabaseService';
 import * as Linking from 'expo-linking';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -154,9 +154,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signUp = async (data: SignUpData) => {
     try {
-      const redirectTo = Linking.createURL('/(auth)/verify-email', {
-        queryParams: { verified: 'true' }
-      });
+      let redirectTo: string;
+      if (Platform.OS === 'web') {
+        redirectTo = Linking.createURL('/verify-success');
+      } else {
+        const expoUrl = Linking.createURL('/(auth)/verify-email', {
+          queryParams: { verified: 'true' }
+        });
+        redirectTo = `https://math-quest-expo.vercel.app/verify-success?expo_url=${encodeURIComponent(expoUrl)}`;
+      }
       
       const result = await AuthService.signUp(data, redirectTo);
       
