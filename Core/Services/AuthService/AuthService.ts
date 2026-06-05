@@ -22,6 +22,7 @@ export interface SignInData {
 
 export interface AuthResponse {
   user: AuthUser | null;
+  session?: any;
   error: AuthError | null;
 }
 
@@ -43,7 +44,7 @@ class AuthService {
   /**
    * Sign up a new user
    */
-  async signUp({ email, password, username }: SignUpData): Promise<AuthResponse> {
+  async signUp({ email, password, username }: SignUpData, emailRedirectTo?: string): Promise<AuthResponse> {
     try {
       const normalizedEmail = email
         .normalize('NFKC')
@@ -59,6 +60,7 @@ class AuthService {
           data: {
             username,
           },
+          emailRedirectTo,
         },
       });
 
@@ -73,7 +75,7 @@ class AuthService {
         avatar_url: data.user?.user_metadata?.avatar_url,
       };
 
-      return { user: authUser, error: null };
+      return { user: authUser, session: data.session, error: null };
     } catch (error) {
       return { 
         user: null, 
@@ -209,6 +211,24 @@ class AuthService {
         email,
         token,
         type,
+      });
+      return { error };
+    } catch (error) {
+      return { error: error as AuthError };
+    }
+  }
+
+  /**
+   * Resend signup verification email
+   */
+  async resendSignUpEmail(email: string, redirectTo?: string): Promise<{ error: AuthError | null }> {
+    try {
+      const { error } = await this.supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: redirectTo,
+        },
       });
       return { error };
     } catch (error) {

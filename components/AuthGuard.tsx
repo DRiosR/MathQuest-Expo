@@ -23,7 +23,8 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
       segments.includes('signup') || 
       segments.includes('forgot-password') || 
       segments.includes('verify-otp') || 
-      segments.includes('reset-password');
+      segments.includes('reset-password') ||
+      segments.includes('verify-email');
 
     const isResetPage = segments.includes('reset-password');
     const isVerifyOtpPage = segments.includes('verify-otp');

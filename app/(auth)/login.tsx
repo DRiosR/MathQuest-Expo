@@ -109,7 +109,14 @@ export default function LoginScreen() {
           setLoading(false);
           return;
         }
-        if (error.message.includes('Email not confirmed')) msg = 'Debes verificar tu email primero.';
+        if (error.message.includes('Email not confirmed')) {
+          router.push({
+            pathname: '/(auth)/verify-email' as any,
+            params: { email: normalizeEmail(formData.email) }
+          });
+          setLoading(false);
+          return;
+        }
 
         setErrors({ general: msg });
         Alert.alert('Error', msg);

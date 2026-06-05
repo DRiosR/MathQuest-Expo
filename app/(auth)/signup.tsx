@@ -166,7 +166,7 @@ export default function SignUpScreen() {
 
     try {
       setLoading(true);
-      const { user, error } = await signUp({
+      const { user, session, error } = await signUp({
         username: formData.username.trim(),
         email: normalizeEmail(formData.email),
         password: formData.password,
@@ -194,7 +194,14 @@ export default function SignUpScreen() {
           setErrors({ general: 'Hubo un problema al crear tu cuenta. Revisa que el correo y usuario sean nuevos.' });
         }
       } else if (user) {
-        setShowWelcomeModal(true);
+        if (session) {
+          setShowWelcomeModal(true);
+        } else {
+          router.replace({
+            pathname: '/(auth)/verify-email' as any,
+            params: { email: normalizeEmail(formData.email) }
+          });
+        }
       }
     } catch (error: any) {
       setErrors({ general: 'Error inesperado. Intenta de nuevo.' });

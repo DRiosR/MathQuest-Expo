@@ -8,10 +8,11 @@ interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   isRecovering: boolean;
-  signUp: (data: SignUpData) => Promise<{ user: AuthUser | null; error: any }>;
+  signUp: (data: SignUpData) => Promise<{ user: AuthUser | null; session?: any; error: any }>;
   signIn: (data: SignInData) => Promise<{ user: AuthUser | null; error: any }>;
   signOut: () => Promise<{ error: any }>;
   resetPassword: (email: string, redirectTo?: string) => Promise<{ error: any }>;
+  resendSignUpEmail: (email: string, redirectTo?: string) => Promise<{ error: any }>;
   updatePassword: (password: string) => Promise<{ error: any }>;
   verifyOtp: (email: string, token: string, type?: 'recovery' | 'signup') => Promise<{ error: any }>;
   refreshSession: () => Promise<{ user: AuthUser | null; error: any }>;
@@ -129,6 +130,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const { data: { subscription } } = AuthService.onAuthStateChange((user) => {
       // We don't want to auto-redirect to tabs if we are in recovery mode
       setUser(user);
+      if (user?.id) {
+        initializeUserInventory(user.id).catch(err => console.error("Error on auth state inventory init:", err));
+      }
       setLoading(false);
     });
 
@@ -150,29 +154,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signUp = async (data: SignUpData) => {
     try {
-      // Usamos una carga local o simplemente evitamos que el loading global
-      // afecte al AuthGuard de forma agresiva
-      const result = await AuthService.signUp(data);
+      const redirectTo = Linking.createURL('/(auth)/verify-email', {
+        queryParams: { verified: 'true' }
+      });
       
-      // Si el registro fue exitoso, inicializamos el inventario con items base
+      const result = await AuthService.signUp(data, redirectTo);
+      
+      // Si el registro fue exitoso e inició sesión automáticamente (con session),
+      // entonces inicializamos el inventario y guardamos el usuario.
       if (result.user?.id) {
-        await initializeUserInventory(result.user.id);
-        setUser(result.user); // Establecemos el usuario localmente
+        if (result.session) {
+          await initializeUserInventory(result.user.id);
+          setUser(result.user);
+        }
       }
       
       return result;
     } catch (error) {
       console.error('Error in signUp context:', error);
       return { user: null, error };
-    } finally {
-      // No tocamos setLoading(false) aquí si no es necesario,
-      // el AuthGuard ya lo maneja por el estado del usuario.
     }
   };
 
   const signIn = async (data: SignInData) => {
     try {
       const result = await AuthService.signIn(data);
+      if (result.user?.id) {
+        await initializeUserInventory(result.user.id);
+      }
       return result;
     } catch (error) {
       return { user: null, error };
@@ -193,6 +202,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const resetPassword = async (email: string, redirectTo?: string) => {
     try {
       const result = await AuthService.resetPassword(email, redirectTo);
+      return result;
+    } catch (error) {
+      return { error };
+    }
+  };
+
+  const resendSignUpEmail = async (email: string, redirectTo?: string) => {
+    try {
+      const result = await AuthService.resendSignUpEmail(email, redirectTo);
       return result;
     } catch (error) {
       return { error };
@@ -257,6 +275,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signIn,
     signOut,
     resetPassword,
+    resendSignUpEmail,
     updatePassword,
     verifyOtp,
     refreshSession,
